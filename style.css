@@ -2260,6 +2260,28 @@ body.fullscreen-mode #canvas-area {
 .page-btn--add { border-style: dashed; color: var(--accent); font-size: 16px; font-weight: 700; background: rgba(255,255,255,0.85); }
 .page-btn--add:hover { background: rgba(59,130,246,0.08); }
 
+/* Pulsante icona nella page bar (es. sfondo) */
+.page-bar-icon-btn {
+    min-width: 28px;
+    width: 28px;
+    height: 28px;
+    border: 1px solid rgba(15, 23, 42, 0.15);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.92);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.15s, color 0.15s;
+    color: #475569;
+    padding: 0;
+    font-family: inherit;
+    margin-right: 4px;
+}
+.page-bar-icon-btn:hover { background: #f1f5f9; color: #0f172a; }
+
 /* FIX PAGINE B: container pagina con pulsante X visibile */
 .page-container {
     position: relative;
@@ -2297,10 +2319,6 @@ body.has-page-bar #toolbar-wrapper {
 #toolbar-wrapper:not(.visible) #floating-toolbar {
     display: none;
 }
-/* Sposta il FAB drive un po' più in alto */
-body.has-page-bar #drive-fab-wrapper {
-    bottom: 62px;
-}
 /* Sposta l'indicatore zoom */
 body.has-page-bar #zoom-indicator {
     bottom: 108px;
@@ -2326,65 +2344,74 @@ body.has-page-bar #zoom-indicator {
     opacity: 1;
 }
 
-/* Badge zoom fisso — in basso a destra */
-#zoom-badge {
-    position: fixed;
-    bottom: 6px;
-    right: 24px;
-    width: 52px;
-    background: rgba(255, 255, 255, 0.92);
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
-    border: 1px solid rgba(15, 23, 42, 0.1);
-    border-radius: 6px;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
-    padding: 3px 0;
-    font-size: 0.82rem;
-    font-weight: 500;
-    color: #64748b;
-    z-index: 200;
-    cursor: pointer;
-    user-select: none;
-    text-align: center;
-    line-height: 1;
-}
-body:not(.has-page-bar) #zoom-badge {
-    bottom: 6px;
-}
-#zoom-badge:hover {
-    color: #3b82f6;
-}
 /* =============================================
-   DRIVE FAB — Floating Action Button
+   BARRA BASSO DESTRA — zoom + account
    ============================================= */
 
-/* Wrapper fisso per il FAB + badge auto-save */
-#drive-fab-wrapper {
+/* Contenitore principale barra basso destra */
+#bottom-right-bar {
     position: fixed;
-    bottom: 24px;
-    right: 24px;
+    bottom: 8px;
+    right: 12px;
     z-index: 600;
-    /* Necessario per posizionare il badge ::before e il ring */
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    background: rgba(255,255,255,0.95);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(15,23,42,0.1);
+    border-radius: 10px;
+    padding: 4px 6px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.10);
 }
 
-/* Anello rotante (stato saving) */
-#drive-fab-wrapper.autosave-saving #drive-fab::before {
-    content: '';
-    position: absolute;
-    inset: -4px;
-    border-radius: 50%;
-    border: 3px solid transparent;
-    border-top-color: #22c55e;
-    animation: spin 1s linear infinite;
-    pointer-events: none;
-    z-index: 1;
+/* Pulsanti zoom */
+.bottom-bar-zoom-btn {
+    background: none;
+    border: none;
+    color: #64748b;
+    font-size: 1.05rem;
+    font-weight: 600;
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.12s, color 0.12s;
+    line-height: 1;
+    font-family: inherit;
+}
+.bottom-bar-zoom-btn:hover { background: #f1f5f9; color: #1e293b; }
+
+/* Display percentuale zoom */
+.bottom-bar-zoom-display {
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: #64748b;
+    min-width: 38px;
+    text-align: center;
+    cursor: pointer;
+    user-select: none;
+    padding: 2px 2px;
+    border-radius: 4px;
+    transition: color 0.12s;
+}
+.bottom-bar-zoom-display:hover { color: #3b82f6; }
+
+/* Separatore verticale */
+.bottom-bar-sep {
+    width: 1px;
+    height: 18px;
+    background: rgba(15,23,42,0.12);
+    margin: 0 3px;
+    flex-shrink: 0;
 }
 
-/* Badge checkmark salvato */
-#drive-fab-wrapper .autosave-badge {
-    position: absolute;
-    top: -4px;
-    left: -4px;
+/* Badge auto-save nella barra */
+#bottom-right-bar .autosave-badge {
     width: 18px;
     height: 18px;
     border-radius: 50%;
@@ -2395,20 +2422,35 @@ body:not(.has-page-bar) #zoom-badge {
     display: flex;
     align-items: center;
     justify-content: center;
-    border: 2px solid rgba(15, 23, 42, 0.9);
+    border: 2px solid rgba(15,23,42,0.08);
     opacity: 0;
     transition: opacity 0.3s ease;
     pointer-events: none;
-    z-index: 2;
+    flex-shrink: 0;
 }
-#drive-fab-wrapper.autosave-saved .autosave-badge {
+#bottom-right-bar.autosave-saved .autosave-badge {
     opacity: 1;
 }
 
-/* Stato pending: box-shadow gialla pulsante */
-#drive-fab-wrapper.autosave-pending #drive-fab {
-    box-shadow: 0 0 0 3px #f59e0b, 0 4px 16px rgba(0,0,0,0.4);
+/* Anello rotante saving */
+#bottom-right-bar.autosave-saving #drive-fab::before {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    border-top-color: #22c55e;
+    animation: spin 1s linear infinite;
+    pointer-events: none;
+    z-index: 1;
 }
+
+/* Stato pending: highlight giallo sul pulsante account */
+#bottom-right-bar.autosave-pending #drive-fab {
+    box-shadow: 0 0 0 2px #f59e0b;
+}
+
+/* DRIVE FAB — Floating Action Button (ora nella barra) */
 
 @keyframes spin {
     to { transform: rotate(360deg); }
@@ -2416,8 +2458,8 @@ body:not(.has-page-bar) #zoom-badge {
 
 .drive-fab {
     position: relative;
-    width: 42px;
-    height: 42px;
+    width: 30px;
+    height: 30px;
     border-radius: 50%;
     background: #ffffff;
     border: 1.5px solid rgba(15, 23, 42, 0.12);
@@ -2426,12 +2468,13 @@ body:not(.has-page-bar) #zoom-badge {
     align-items: center;
     justify-content: center;
     transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.3s ease;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.10), 0 1px 3px rgba(0,0,0,0.06);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
     user-select: none;
+    flex-shrink: 0;
 }
 .drive-fab:hover {
     transform: scale(1.07);
-    box-shadow: 0 4px 18px rgba(0,0,0,0.13);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.13);
 }
 .drive-fab:active {
     transform: scale(0.95);
@@ -2907,28 +2950,60 @@ body:not(.has-page-bar) #zoom-badge {
 /* ============================================================
    EduBoard Connect — pannello QR connessione Drive
    ============================================================ */
+/* Overlay full-screen del modal EduConnect */
 #ec-panel {
     position: fixed;
-    bottom: 72px;
-    right: 16px;
-    width: 220px;
-    background: #ffffff;
-    border: 1px solid rgba(15,23,42,0.12);
-    border-radius: 18px;
-    padding: 16px 14px 12px;
+    inset: 0;
+    background: rgba(15,23,42,0.55);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
     z-index: 8000;
-    box-shadow: 0 8px 32px rgba(15,23,42,0.14);
     display: flex;
-    flex-direction: column;
     align-items: center;
-    gap: 8px;
+    justify-content: center;
+    padding: 16px;
     color: #0f172a;
     font-family: system-ui, sans-serif;
+    animation: ec-fadein 0.2s ease;
+}
+@keyframes ec-fadein {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+/* Box interno del modal */
+.ec-modal-box {
+    background: #ffffff;
+    border-radius: 20px;
+    box-shadow: 0 16px 48px rgba(15,23,42,0.18);
+    width: 100%;
+    max-width: 500px;
+    display: flex;
+    overflow: hidden;
     animation: ec-slidein 0.25s ease;
 }
 @keyframes ec-slidein {
-    from { opacity: 0; transform: translateY(16px) scale(0.96); }
+    from { opacity: 0; transform: translateY(12px) scale(0.97); }
     to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+/* Colonna sinistra: logo + QR */
+.ec-col-left {
+    flex: 1;
+    background: #f8fafc;
+    border-right: 1px solid #e2e8f0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 28px 20px;
+    gap: 12px;
+}
+/* Colonna destra: azioni */
+.ec-col-right {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 28px 24px;
+    gap: 12px;
 }
 .ec-header { text-align: center; }
 .ec-title   { display: block; font-weight: 700; font-size: 14px; color: #0f172a; }
@@ -2951,6 +3026,38 @@ body:not(.has-page-bar) #zoom-badge {
     height: 160px !important;
     border-radius: 0;
     display: block;
+}
+/* Pulsante Google OAuth */
+.ec-btn-google {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #ffffff;
+    border: 1px solid #dadce0;
+    border-radius: 10px;
+    padding: 10px 16px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #3c4043;
+    cursor: pointer;
+    transition: background 0.15s, box-shadow 0.15s;
+    width: 100%;
+    font-family: inherit;
+}
+.ec-btn-google:hover { background: #f8fafc; box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
+/* Divider "oppure" */
+.ec-divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.75rem;
+    color: #94a3b8;
+}
+.ec-divider::before, .ec-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: #e2e8f0;
 }
 .ec-qr-loading {
     position: absolute;
@@ -3247,23 +3354,24 @@ body:not(.has-page-bar) #zoom-badge {
     padding: 16px;
 }
 .settings-modal-box {
-    background: var(--bg-surface, #1e293b);
-    border: 1px solid rgba(255,255,255,0.1);
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
     border-radius: 16px;
     width: 100%;
     max-width: 560px;
     max-height: 85vh;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 24px 64px rgba(0,0,0,0.6);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.18);
     overflow: hidden;
+    color: #1e293b;
 }
 .settings-modal-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 16px 20px 12px;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid #e2e8f0;
     flex-shrink: 0;
 }
 .settings-modal-title {
@@ -3272,26 +3380,26 @@ body:not(.has-page-bar) #zoom-badge {
     gap: 8px;
     font-size: 1rem;
     font-weight: 600;
-    color: var(--text);
+    color: #1e293b;
 }
 .settings-modal-close {
     background: none;
     border: none;
-    color: var(--text-muted);
+    color: #94a3b8;
     font-size: 1.4rem;
     cursor: pointer;
     padding: 0 4px;
     line-height: 1;
     transition: color 0.15s;
 }
-.settings-modal-close:hover { color: var(--text); }
+.settings-modal-close:hover { color: #1e293b; }
 
 /* Tab bar */
 .settings-tabs {
     display: flex;
     gap: 2px;
     padding: 10px 16px 0;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid #e2e8f0;
     flex-shrink: 0;
     overflow-x: auto;
     scrollbar-width: none;
@@ -3301,18 +3409,19 @@ body:not(.has-page-bar) #zoom-badge {
     background: none;
     border: none;
     border-bottom: 2px solid transparent;
-    color: var(--text-muted);
+    color: #64748b;
     font-size: 0.8rem;
     padding: 6px 12px 10px;
     cursor: pointer;
     white-space: nowrap;
     transition: color 0.15s, border-color 0.15s;
     margin-bottom: -1px;
+    font-family: inherit;
 }
-.settings-tab:hover { color: var(--text); }
+.settings-tab:hover { color: #1e293b; }
 .settings-tab.active {
-    color: var(--accent, #3b82f6);
-    border-bottom-color: var(--accent, #3b82f6);
+    color: #3b82f6;
+    border-bottom-color: #3b82f6;
     font-weight: 600;
 }
 
@@ -3334,7 +3443,7 @@ body:not(.has-page-bar) #zoom-badge {
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    color: var(--text-muted);
+    color: #64748b;
     margin-bottom: 10px;
 }
 .settings-row {
@@ -3346,17 +3455,18 @@ body:not(.has-page-bar) #zoom-badge {
 }
 .settings-label {
     font-size: 0.85rem;
-    color: var(--text);
+    color: #1e293b;
 }
 .settings-select {
-    background: var(--bg-elevated);
-    border: 1px solid var(--border);
-    color: var(--text);
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    color: #1e293b;
     border-radius: 6px;
     padding: 5px 10px;
     font-size: 0.82rem;
     cursor: pointer;
     min-width: 140px;
+    font-family: inherit;
 }
 
 /* Color picker preferenze */
@@ -3406,7 +3516,7 @@ body:not(.has-page-bar) #zoom-badge {
     gap: 16px;
     margin-bottom: 20px;
     padding: 14px;
-    background: var(--bg-elevated);
+    background: #f8fafc;
     border-radius: 12px;
 }
 .settings-info-appname {
@@ -3416,7 +3526,7 @@ body:not(.has-page-bar) #zoom-badge {
 }
 .settings-info-version {
     font-size: 0.8rem;
-    color: var(--text-muted);
+    color: #64748b;
     margin-top: 2px;
 }
 .settings-info-row {
@@ -3424,10 +3534,10 @@ body:not(.has-page-bar) #zoom-badge {
     justify-content: space-between;
     align-items: center;
     padding: 7px 0;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid #e2e8f0;
     font-size: 0.85rem;
 }
-.settings-info-row span:first-child { color: var(--text-muted); }
+.settings-info-row span:first-child { color: #64748b; }
 .settings-link {
     color: var(--accent, #3b82f6);
     text-decoration: none;
@@ -3440,26 +3550,26 @@ body:not(.has-page-bar) #zoom-badge {
     margin-top: 4px;
 }
 .settings-tag {
-    background: var(--bg-elevated);
-    border: 1px solid var(--border);
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
     border-radius: 20px;
     padding: 3px 10px;
     font-size: 0.75rem;
-    color: var(--text-muted);
+    color: #64748b;
 }
 
 /* Guide tab */
 .settings-guide-item {
     font-size: 0.85rem;
-    color: var(--text);
+    color: #1e293b;
     padding: 5px 0 5px 10px;
-    border-left: 2px solid var(--border);
+    border-left: 2px solid #e2e8f0;
     margin-bottom: 5px;
     line-height: 1.4;
 }
 .settings-guide-item kbd {
-    background: var(--bg-elevated);
-    border: 1px solid var(--border);
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
     border-radius: 4px;
     padding: 1px 6px;
     font-size: 0.78rem;
@@ -3488,24 +3598,24 @@ body:not(.has-page-bar) #zoom-badge {
 }
 .settings-contact-btn:hover { opacity: 0.85; }
 .settings-contact-btn--secondary {
-    background: var(--bg-elevated);
-    color: var(--text);
-    border: 1px solid var(--border);
+    background: #f1f5f9;
+    color: #1e293b;
+    border: 1px solid #e2e8f0;
 }
 
 /* Changelog tab */
 .settings-changelog-item {
     padding: 10px 0;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid #e2e8f0;
 }
 .settings-changelog-ver {
     font-size: 0.8rem;
     font-weight: 700;
-    color: var(--accent, #3b82f6);
+    color: #3b82f6;
     margin-bottom: 3px;
 }
 .settings-changelog-desc {
     font-size: 0.85rem;
-    color: var(--text);
+    color: #1e293b;
     line-height: 1.4;
 }

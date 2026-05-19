@@ -759,7 +759,8 @@ class AutoSaveManager {
     }
 
     _getWrapper() {
-        return document.getElementById('drive-fab-wrapper') ||
+        return document.getElementById('bottom-right-bar') ||
+               document.getElementById('drive-fab-wrapper') ||
                document.getElementById('drive-fab')?.parentElement;
     }
 
@@ -1966,23 +1967,77 @@ class DriveConnectButton {
         if (this.drive.isConnected()) {
             this._showStatusPanel();
         } else {
+            this._showGuestPanel();
+        }
+    }
+
+    _showGuestPanel() {
+        let panel = document.getElementById('drive-guest-panel');
+        if (panel) { panel.remove(); return; } // toggle
+
+        panel = document.createElement('div');
+        panel.id = 'drive-guest-panel';
+        panel.style.cssText = `
+            position: fixed;
+            bottom: 58px;
+            right: 12px;
+            background: #ffffff;
+            border: 1px solid rgba(15,23,42,0.08);
+            border-radius: 16px;
+            padding: 6px;
+            z-index: 601;
+            min-width: 220px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06);
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        `;
+        panel.innerHTML = `
+            <div style="display:flex;align-items:center;gap:10px;padding:10px 12px 10px 10px;border-bottom:1px solid rgba(15,23,42,0.07);margin-bottom:2px">
+                <div style="width:36px;height:36px;border-radius:50%;background:#f1f5f9;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#64748b" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+                </div>
+                <div style="min-width:0;flex:1">
+                    <div style="font-size:0.88rem;font-weight:600;color:#0f172a">Accedi</div>
+                    <span style="font-size:0.7rem;background:#e2e8f0;color:#64748b;padding:1px 6px;border-radius:10px;font-weight:500">Ospite</span>
+                </div>
+            </div>
+            <button id="guest-panel-settings" style="background:transparent;border:none;color:#0f172a;padding:10px 14px;text-align:left;border-radius:10px;cursor:pointer;font-size:0.85rem;transition:background 0.15s;display:flex;align-items:center;gap:10px;font-family:inherit">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                Impostazioni & Guida
+            </button>
+            <div style="margin:2px 8px 4px;border-top:1px solid rgba(15,23,42,0.07)"></div>
+            <button id="guest-panel-login" style="background:#3b82f6;border:none;color:#fff;padding:10px 14px;text-align:center;border-radius:10px;cursor:pointer;font-size:0.85rem;font-weight:600;transition:opacity 0.15s;font-family:inherit">
+                Accedi con Google Drive
+            </button>
+        `;
+        document.body.appendChild(panel);
+
+        panel.querySelector('#guest-panel-settings')?.addEventListener('mouseenter', e => e.target.style.background = '#f8fafc');
+        panel.querySelector('#guest-panel-settings')?.addEventListener('mouseleave', e => e.target.style.background = 'transparent');
+
+        panel.querySelector('#guest-panel-settings')?.addEventListener('click', () => {
+            panel.remove();
+            if (typeof window.openSettingsModal === 'function') window.openSettingsModal();
+        });
+        panel.querySelector('#guest-panel-login')?.addEventListener('click', () => {
+            panel.remove();
             if (window.eduBoardConnect) {
                 window.eduBoardConnect.show();
-            } else {
-                try {
-                    await this.drive.connect();
-                    this.update();
-                    const greeting = this.drive.userName || this.drive.userEmail;
-                    toast('Google Drive connesso! Benvenuto, ' + greeting, 'success');
-                    setTimeout(() => _autoOpenLastLesson(), 800);
-                } catch (err) {
-                    if (err?.message !== 'cancelled') {
-                        toast('Errore connessione Drive: ' + (err?.message || err), 'error');
-                    }
-                    this.update('error');
-                }
             }
-        }
+        });
+        panel.querySelector('#guest-panel-login')?.addEventListener('mouseenter', e => e.target.style.opacity = '0.88');
+        panel.querySelector('#guest-panel-login')?.addEventListener('mouseleave', e => e.target.style.opacity = '1');
+
+        // Chiudi cliccando fuori
+        setTimeout(() => {
+            document.addEventListener('click', function closePanel(e) {
+                if (!panel.contains(e.target) && e.target !== document.getElementById('drive-fab')) {
+                    panel.remove();
+                    document.removeEventListener('click', closePanel);
+                }
+            });
+        }, 100);
     }
 
     _showStatusPanel() {
@@ -2213,55 +2268,57 @@ class EduBoardConnect {
         return id;
     }
 
-    // Mostra il pannello QR
+    // Mostra il pannello QR (modal centrato a due colonne)
     show() {
         if (this._panel) { this._panel.style.display = 'flex'; this._startPolling(); return; }
 
         const panel = document.createElement('div');
         panel.id = 'ec-panel';
+        const limCode = this._limId.substring(0, 8).toUpperCase();
         panel.innerHTML = `
-            <div id="ec-view-connect" class="ec-view">
-                <div class="ec-header">
-                    <span class="ec-title">Connetti Drive</span>
-                    <span class="ec-subtitle">Scansiona con EduBoard Connect</span>
+            <div class="ec-modal-box">
+                <!-- Colonna sinistra: logo + QR + codice LIM -->
+                <div class="ec-col-left">
+                    <img src="./icon-192x192.png" alt="EduBoard" style="width:52px;height:52px;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.12)">
+                    <div style="font-size:1rem;font-weight:700;color:#1e293b;letter-spacing:-0.01em"><span style="color:#3b82f6">Edu</span>Board</div>
+                    <div class="ec-qr-wrap">
+                        <div id="ec-qr-canvas" class="ec-qr-canvas"></div>
+                        <div class="ec-qr-loading" id="ec-qr-loading">Generazione QR...</div>
+                    </div>
+                    <div style="font-size:0.7rem;color:#64748b;text-align:center;line-height:1.5">
+                        Oppure inserisci il codice:<br>
+                        <span id="ec-lim-code" style="font-size:1rem;color:#0f172a;letter-spacing:0.18em;font-weight:700;font-family:monospace">${limCode}</span>
+                    </div>
+                    <div class="ec-status" id="ec-status">
+                        <span class="ec-dot"></span> In attesa del telefono...
+                    </div>
                 </div>
-                <div class="ec-qr-wrap">
-                    <div id="ec-qr-canvas" class="ec-qr-canvas"></div>
-                    <div class="ec-qr-loading" id="ec-qr-loading">Generazione QR...</div>
-                </div>
-                <div style="margin-top:8px; font-size:0.7rem; color:#64748b; text-align:center">
-                    Oppure apri <strong>EduBoard Connect</strong> e inserisci il codice:<br>
-                    <code id="ec-lim-code" style="font-size:1rem; color:#0f172a; letter-spacing:0.15em; font-weight:700"></code>
-                </div>
-                <div class="ec-status" id="ec-status">
-                    <span class="ec-dot"></span> In attesa del telefono...
-                </div>
-                <div class="ec-actions">
-                    <button class="ec-btn-install" id="ec-btn-install">Installa EduBoard Connect</button>
+                <!-- Colonna destra: azioni -->
+                <div class="ec-col-right">
+                    <div style="font-size:1rem;font-weight:700;color:#1e293b;margin-bottom:4px">Connetti con</div>
+                    <div style="font-size:0.78rem;color:#64748b;margin-bottom:8px">Scansiona il QR con il telefono o accedi dal PC</div>
+                    <!-- Pulsante Google OAuth (dal PC) -->
+                    <button class="ec-btn-google" id="ec-btn-manual">
+                        <svg viewBox="0 0 24 24" width="18" height="18"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+                        Accedi con Google
+                    </button>
+                    <div class="ec-divider">oppure</div>
+                    <!-- Installa app telefono -->
+                    <button class="ec-btn-install" id="ec-btn-install">📱 Installa EduBoard Connect</button>
+                    <div style="flex:1"></div>
+                    <!-- Skip -->
                     <button class="ec-btn-skip" id="ec-btn-skip">Continua senza Drive</button>
-                    <button class="ec-btn-manual" id="ec-btn-manual">Connetti manualmente dal PC</button>
                 </div>
-            </div>
-            <div id="ec-view-install" class="ec-view" style="display:none">
-                <div class="ec-header">
-                    <span class="ec-title">Installa</span>
-                    <span class="ec-subtitle">Scansiona e aggiungi alla schermata Home</span>
-                </div>
-                <div class="ec-qr-wrap">
-                    <div id="ec-install-canvas" class="ec-qr-canvas"></div>
-                </div>
-                <div style="font-size:11px;color:#64748b;text-align:center">board.edutechlab.it/connect.html</div>
-                <button class="ec-btn-back" id="ec-btn-back">Torna alla connessione</button>
             </div>`;
         document.body.appendChild(panel);
         this._panel = panel;
 
-        // Popola codice LIM (8 caratteri maiuscoli)
-        const limCodeEl = document.getElementById('ec-lim-code');
-        if (limCodeEl) limCodeEl.textContent = this._limId.substring(0, 8).toUpperCase();
+        // Chiudi overlay cliccando sul backdrop
+        panel.addEventListener('click', (e) => {
+            if (e.target === panel) this.hide();
+        });
 
         panel.querySelector('#ec-btn-install').addEventListener('click', () => this._switchToInstall());
-        panel.querySelector('#ec-btn-back').addEventListener('click',    () => this._switchToConnect());
         panel.querySelector('#ec-btn-skip').addEventListener('click',    () => this.hide());
         panel.querySelector('#ec-btn-manual').addEventListener('click',  async () => {
             this.hide();
@@ -2284,30 +2341,21 @@ class EduBoardConnect {
         if (qrEl) {
             const img = document.createElement('img');
             img.src = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&ecc=M&data=${encodeURIComponent(connectUrl)}`;
-            img.style.cssText = 'width:220px;height:220px;display:block';
+            img.style.cssText = 'width:160px;height:160px;display:block';
             img.alt = 'QR connessione';
             img.onload  = () => { if (loadingEl) loadingEl.style.display = 'none'; };
             img.onerror = () => { if (loadingEl) loadingEl.textContent = 'Errore QR'; };
             qrEl.appendChild(img);
         }
 
-        // QR installazione
-        const installEl = document.getElementById('ec-install-canvas');
-        if (installEl) {
-            const installUrl = 'https://board.edutechlab.it/connect.html?install=1';
-            const img = document.createElement('img');
-            img.src = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&ecc=M&data=${encodeURIComponent(installUrl)}`;
-            img.style.cssText = 'width:220px;height:220px;display:block';
-            img.alt = 'QR install';
-            installEl.appendChild(img);
-        }
-
         this._startPolling();
     }
 
     _switchToInstall() {
-        document.getElementById('ec-view-connect').style.display = 'none';
-        document.getElementById('ec-view-install').style.display = 'flex';
+        // Nel nuovo layout a due colonne non c'è la vista install inline:
+        // usiamo il popup separato e nascondiamo il panel principale
+        this.hide();
+        this.showInstallQR();
     }
 
     showInstallQR() {
@@ -2333,8 +2381,7 @@ class EduBoardConnect {
     }
 
     _switchToConnect() {
-        document.getElementById('ec-view-connect').style.display = 'flex';
-        document.getElementById('ec-view-install').style.display = 'none';
+        if (this._panel) this._panel.style.display = 'flex';
         this._startPolling();
     }
 
@@ -2738,11 +2785,6 @@ function initDrive() {
             // Apri ultima lezione
             setTimeout(() => _autoOpenLastLesson(), 1200);
         }
-    }
-
-    // Se non connesso → apri automaticamente il pannello QR
-    if (!driveMgr.isConnected()) {
-        setTimeout(() => window.eduBoardConnect.show(), 600);
     }
 
     // ── Pulsante chiudi pannello libreria (×) ─────────────────────────────

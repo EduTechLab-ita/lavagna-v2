@@ -2857,7 +2857,7 @@ class PanManager {
         this.dy = SCREEN_MARGIN - MARGIN * this.scale;
 
         this._applyTransform();
-        const badge = document.getElementById('zoom-badge');
+        const badge = document.getElementById('zoom-display') || document.getElementById('zoom-badge');
         if (badge && !badge._editing) {
             badge.textContent = '100%';
         }
@@ -2964,8 +2964,8 @@ class PanManager {
     _showZoomIndicator() {
         const fitScale = this._computeFitScale();
         const pct = fitScale > 0 ? Math.round(this.scale / fitScale * 100) + '%' : Math.round(this.scale * 100) + '%';
-        // Aggiorna il badge fisso sempre visibile
-        const badge = document.getElementById('zoom-badge');
+        // Aggiorna il display zoom nella barra basso destra
+        const badge = document.getElementById('zoom-display') || document.getElementById('zoom-badge');
         if (badge && !badge._editing) badge.textContent = pct;
         // Indicatore temporaneo (fade-out dopo 1.5s)
         let indicator = document.getElementById('zoom-indicator');
@@ -2984,7 +2984,7 @@ class PanManager {
 
     _setupZoomBadge() {
         const init = () => {
-            const badge = document.getElementById('zoom-badge');
+            const badge = document.getElementById('zoom-display') || document.getElementById('zoom-badge');
             if (!badge) return;
 
             const showPopup = () => {
@@ -3095,6 +3095,42 @@ class PanManager {
     _setCursor(cursor) {
         const el = document.getElementById('overlay-canvas');
         if (el) el.style.cursor = cursor;
+    }
+
+    zoomIn() {
+        const newScale = this.scale * 1.25;
+        const maxScale = this._computeFitScale() * 5;
+        this.scale = Math.min(newScale, maxScale);
+        const vW = window.innerWidth;
+        const headerH = document.body.classList.contains('fullscreen-mode') ? 0 : 56;
+        const vH = window.innerHeight - headerH;
+        const cvs = document.getElementById('draw-canvas');
+        if (cvs) {
+            this.dx = (vW - cvs.width * this.scale) / 2;
+            const W = cvs.width;
+            const MARGIN = Math.round(W * 0.04);
+            this.dy = 20 - MARGIN * this.scale;
+        }
+        this._applyTransform();
+        this._showZoomIndicator();
+    }
+
+    zoomOut() {
+        const newScale = this.scale * 0.8;
+        const minScale = this._computeFitScale() * 0.1;
+        this.scale = Math.max(newScale, minScale);
+        const vW = window.innerWidth;
+        const headerH = document.body.classList.contains('fullscreen-mode') ? 0 : 56;
+        const vH = window.innerHeight - headerH;
+        const cvs = document.getElementById('draw-canvas');
+        if (cvs) {
+            this.dx = (vW - cvs.width * this.scale) / 2;
+            const W = cvs.width;
+            const MARGIN = Math.round(W * 0.04);
+            this.dy = 20 - MARGIN * this.scale;
+        }
+        this._applyTransform();
+        this._showZoomIndicator();
     }
 }
 
@@ -4959,6 +4995,22 @@ class PageManager {
         const bar = document.getElementById('page-bar');
         if (!bar) return;
         bar.innerHTML = '';
+
+        // Pulsante sfondo rapido (prima dei numeri di pagina)
+        const bgBtn = document.createElement('button');
+        bgBtn.className = 'page-bar-icon-btn';
+        bgBtn.title = 'Cambia sfondo';
+        bgBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15">
+            <rect x="3" y="3" width="18" height="18" rx="3"/>
+            <path d="M3 9h18M9 21V9"/>
+        </svg>`;
+        bgBtn.addEventListener('click', () => {
+            // Apre il modal sfondo se esiste, altrimenti il pulsante sfondo nella toolbar
+            const bgModalBtn = document.getElementById('btn-background');
+            if (bgModalBtn) bgModalBtn.click();
+        });
+        bar.appendChild(bgBtn);
+
         this.pages.forEach((p, i) => {
             // FIX PAGINE B: container con pulsante X visibile (touch-friendly, niente contextmenu)
             const pageContainer = document.createElement('div');
@@ -5728,6 +5780,11 @@ document.addEventListener('DOMContentLoaded', () => {
             e.returnValue = 'Hai modifiche non salvate. Vuoi davvero uscire?';
         }
     });
+
+    // Pulsanti zoom nella barra basso destra
+    document.getElementById('zoom-in-btn')?.addEventListener('click', () => panMgr.zoomIn());
+    document.getElementById('zoom-out-btn')?.addEventListener('click', () => panMgr.zoomOut());
+    // Il click su #zoom-display è già gestito da _setupZoomBadge() nel costruttore di PanManager
 
     console.log('EduBoard v2 \u2014 pronto!');
     setTimeout(() => toast('Benvenuto in EduBoard! Clicca \u25b2 per gli strumenti', 'info'), 800);

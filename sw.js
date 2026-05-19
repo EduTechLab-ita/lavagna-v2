@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v103'; // v103 — Impostazioni & Guida nel pannello account
+const CACHE_NAME = 'eduboard-v104'; // v104 — Barra zoom+account, pannello ospite, modal connessione ridisegnato
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'Pannello Impostazioni & Guida accessibile dall\'icona account (in basso a destra)';
+const CHANGELOG  = 'Nuova barra basso destra con zoom, sfondo rapido in page bar e pannello ospite';
 
 const urlsToCache = [
   '.',

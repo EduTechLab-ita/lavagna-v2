@@ -608,23 +608,27 @@
       </div>
     </div>
 
-    <!-- Badge zoom fisso — sempre visibile, cliccabile per modifica manuale -->
-    <div id="zoom-badge" title="Clicca per impostare lo zoom">100%</div>
-
-    <!-- FAB Drive — basso destra (wrapper per indicatore auto-save) -->
-    <div id="drive-fab-wrapper">
-        <!-- Badge auto-save (checkmark verde) -->
+    <!-- Barra basso destra: zoom e account -->
+    <div id="bottom-right-bar">
+        <!-- Pulsante zoom out -->
+        <button id="zoom-out-btn" class="bottom-bar-zoom-btn" title="Riduci zoom">−</button>
+        <!-- Display zoom (cliccabile per inserimento manuale) -->
+        <span id="zoom-display" class="bottom-bar-zoom-display" title="Clicca per impostare lo zoom">100%</span>
+        <!-- Pulsante zoom in -->
+        <button id="zoom-in-btn" class="bottom-bar-zoom-btn" title="Aumenta zoom">+</button>
+        <!-- Separatore verticale -->
+        <div class="bottom-bar-sep"></div>
+        <!-- Badge auto-save -->
         <div class="autosave-badge" title="Salvato su Drive">✓</div>
-        <div id="drive-fab" class="drive-fab" title="Connetti / disconnetti Google Drive">
-            <!-- Stato: non connesso — mostra silhouette omino -->
+        <!-- Pulsante account -->
+        <div id="drive-fab" class="drive-fab bottom-account-btn" title="Connetti / disconnetti Google Drive">
             <div id="drive-fab-inner" class="drive-fab-inner">
-                <svg id="drive-fab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="28" height="28">
+                <svg id="drive-fab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="24" height="24">
                     <circle cx="12" cy="8" r="4"/>
                     <path d="M6 20c0-3.314 2.686-6 6-6s6 2.686 6 6"/>
                 </svg>
-                <img id="drive-fab-photo" src="" alt="" style="display:none; width:36px; height:36px; border-radius:50%; object-fit:cover;">
+                <img id="drive-fab-photo" src="" alt="" style="display:none; width:32px; height:32px; border-radius:50%; object-fit:cover;">
             </div>
-            <!-- Badge connessione verde -->
             <div id="drive-fab-badge" class="drive-fab-badge" style="display:none"></div>
         </div>
     </div>
@@ -697,7 +701,7 @@
                     <img src="./icon-192x192.png" alt="EduBoard" width="64" height="64" style="border-radius:14px">
                     <div>
                         <div class="settings-info-appname"><span style="color:#3b82f6">Edu</span>Board</div>
-                        <div class="settings-info-version" id="info-version-text">v103</div>
+                        <div class="settings-info-version" id="info-version-text">v104</div>
                     </div>
                 </div>
                 <div class="settings-section">
@@ -746,7 +750,7 @@
                     <div class="settings-section-title">📬 Hai trovato un problema?</div>
                     <div class="settings-guide-item">Descrivi il problema e te lo risolvo nella prossima versione.</div>
                     <div class="settings-contact-btns">
-                        <a href="mailto:info@edutechlab.it?subject=EduBoard%20-%20Segnalazione" class="settings-contact-btn" target="_blank">✉️ Scrivi una email</a>
+                        <a href="mailto:info@edutechlab.it?subject=EduBoard%20-%20Segnalazione" class="settings-contact-btn">✉️ Scrivi una email</a>
                         <a href="https://edutechlab.it/#contatti" class="settings-contact-btn" target="_blank">🌐 Form sul sito</a>
                     </div>
                 </div>
@@ -754,12 +758,16 @@
                     <div class="settings-section-title">💡 Hai un'idea per migliorare EduBoard?</div>
                     <div class="settings-guide-item">EduBoard cresce grazie ai suggerimenti dei docenti. Ogni idea è benvenuta!</div>
                     <div class="settings-contact-btns">
-                        <a href="mailto:info@edutechlab.it?subject=EduBoard%20-%20Suggerimento" class="settings-contact-btn settings-contact-btn--secondary" target="_blank">🚀 Invia un suggerimento</a>
+                        <a href="mailto:info@edutechlab.it?subject=EduBoard%20-%20Suggerimento" class="settings-contact-btn settings-contact-btn--secondary">🚀 Invia un suggerimento</a>
                     </div>
                 </div>
             </div>
             <div class="settings-panel" id="tab-novita">
                 <div class="settings-section">
+                    <div class="settings-changelog-item">
+                        <div class="settings-changelog-ver">v104 — Maggio 2026</div>
+                        <div class="settings-changelog-desc">🎨 Barra basso destra con zoom e account, sfondo rapido in page bar, pannello ospite, modal connessione ridisegnato</div>
+                    </div>
                     <div class="settings-changelog-item">
                         <div class="settings-changelog-ver">v103 — Maggio 2026</div>
                         <div class="settings-changelog-desc">✨ Pannello Impostazioni &amp; Guida accessibile dall'icona account</div>
