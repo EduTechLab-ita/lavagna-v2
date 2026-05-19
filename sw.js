@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v104'; // v104 — Barra zoom+account, pannello ospite, modal connessione ridisegnato
+const CACHE_NAME = 'eduboard-v105'; // v105 — Fix pulsante sfondo, mailto → Gmail compose, icona cartolina
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'Nuova barra basso destra con zoom, sfondo rapido in page bar e pannello ospite';
+const CHANGELOG  = 'Fix pulsante sfondo nella barra pagine e link email ora aprono Gmail direttamente';
 
 const urlsToCache = [
   '.',

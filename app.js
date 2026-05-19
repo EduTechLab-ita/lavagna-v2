@@ -5001,12 +5001,13 @@ class PageManager {
         bgBtn.className = 'page-bar-icon-btn';
         bgBtn.title = 'Cambia sfondo';
         bgBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15">
-            <rect x="3" y="3" width="18" height="18" rx="3"/>
-            <path d="M3 9h18M9 21V9"/>
+            <rect x="2" y="4" width="20" height="16" rx="3"/>
+            <circle cx="8.5" cy="9.5" r="1.5"/>
+            <polyline points="2,19 8,13 12,17 16,12 22,19"/>
         </svg>`;
         bgBtn.addEventListener('click', () => {
-            // Apre il modal sfondo se esiste, altrimenti il pulsante sfondo nella toolbar
-            const bgModalBtn = document.getElementById('btn-background');
+            // Simula click sul pulsante sfondo nella toolbar (id: bg-tool-btn)
+            const bgModalBtn = document.getElementById('bg-tool-btn');
             if (bgModalBtn) bgModalBtn.click();
         });
         bar.appendChild(bgBtn);
