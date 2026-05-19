@@ -1,0 +1,6 @@
+# Netlify custom headers
+# sw.js non deve MAI essere cachato dal CDN Netlify:
+# il browser deve sempre scaricare la versione fresca per rilevare aggiornamenti SW.
+
+/sw.js
+  Cache-Control: no-cache, no-store, must-revalidate
