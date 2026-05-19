@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v106'; // v106 — Fix versione nell'header
+const CACHE_NAME = 'eduboard-v107'; // v107 — Fix connessione QR: verifica scope drive.file
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'Fix versione nell\'header, pulsante sfondo e link email Gmail';
+const CHANGELOG  = 'Fix connessione QR: verifica scope Drive, modal si chiude correttamente';
 
 const urlsToCache = [
   '.',

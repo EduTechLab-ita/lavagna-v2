@@ -769,19 +769,22 @@
   // TOKEN HELPERS
   // ══════════════════════════════════════════════════════════════
 
-  // Restituisce { token, expiry } se il token in cache è ancora valido (con 2 min buffer), altrimenti null
+  // Restituisce { token, expiry } se il token in cache è ancora valido (con 2 min buffer)
+  // e include lo scope drive.file; altrimenti null (forza re-autenticazione)
   function getCachedToken() {
     const token  = localStorage.getItem(STORAGE_TOKEN);
     const expiry = parseInt(localStorage.getItem(STORAGE_EXPIRY) || '0', 10);
-    if (token && Date.now() < expiry - 120000) return { token, expiry };
+    const scopes = localStorage.getItem('ec_token_scopes') || '';
+    if (token && Date.now() < expiry - 120000 && scopes.includes('drive.file')) return { token, expiry };
     return null;
   }
 
-  // Salva il token con la sua scadenza in localStorage
-  function saveTokenData(token, expiresIn) {
+  // Salva il token con la sua scadenza e gli scope concessi in localStorage
+  function saveTokenData(token, expiresIn, grantedScopes) {
     const expiry = Date.now() + (expiresIn ? expiresIn * 1000 : 3600000);
     localStorage.setItem(STORAGE_TOKEN, token);
     localStorage.setItem(STORAGE_EXPIRY, String(expiry));
+    localStorage.setItem('ec_token_scopes', grantedScopes || '');
     return expiry;
   }
 
@@ -852,8 +855,16 @@
       return;
     }
 
+    // Verifica che Google abbia concesso lo scope drive.file
+    // (può mancare se l'utente ha negato o in caso di silent refresh ridotto)
+    const grantedScopes = response.scope || '';
+    if (!grantedScopes.includes('drive.file')) {
+      showError('Per connettere la lavagna devi autorizzare l\'accesso a Google Drive. Premi "Riprova" e accetta tutti i permessi richiesti.');
+      return;
+    }
+
     const accessToken = response.access_token;
-    const expiry = saveTokenData(accessToken, response.expires_in);
+    const expiry = saveTokenData(accessToken, response.expires_in, grantedScopes);
 
     // Recupera email, nome e foto
     let email;
