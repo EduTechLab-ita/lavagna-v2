@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v102'; // v102 — Pannello Impostazioni & Guida
+const CACHE_NAME = 'eduboard-v103'; // v103 — Impostazioni & Guida nel pannello account
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'Fix: foto account visibile, errore Drive 401, disconnessione automatica cambio classe';
+const CHANGELOG  = 'Pannello Impostazioni & Guida accessibile dall\'icona account (in basso a destra)';
 
 const urlsToCache = [
   '.',

@@ -5935,35 +5935,28 @@ ${pagesHTML}
 }
 
 // ===== PANNELLO IMPOSTAZIONI & GUIDA =====
-(function() {
-    'use strict';
-
+window.addEventListener('load', function() {
     const PREFS_KEY = 'eduboard-prefs-v1';
 
-    // Carica preferenze salvate
     function loadPrefs() {
         try { return JSON.parse(localStorage.getItem(PREFS_KEY) || '{}'); } catch(e) { return {}; }
     }
-    function savePrefs(p) {
-        localStorage.setItem(PREFS_KEY, JSON.stringify(p));
-    }
+    function savePrefs(p) { localStorage.setItem(PREFS_KEY, JSON.stringify(p)); }
 
-    // Apri/chiudi modal
     const modal = document.getElementById('settings-modal');
-    const btnOpen = document.getElementById('btn-settings');
     const btnClose = document.getElementById('settings-close');
+    if (!modal) return;
 
-    if (!modal || !btnOpen) return;
-
-    btnOpen.addEventListener('click', () => {
+    // Funzione globale chiamabile da drive.js
+    window.openSettingsModal = function() {
         modal.style.display = 'flex';
         initPrefsUI();
-    });
+    };
+
     btnClose.addEventListener('click', () => modal.style.display = 'none');
     modal.addEventListener('click', (e) => { if (e.target === modal) modal.style.display = 'none'; });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && modal.style.display !== 'none') modal.style.display = 'none'; });
 
-    // Gestione tab
     modal.querySelectorAll('.settings-tab').forEach(tab => {
         tab.addEventListener('click', () => {
             modal.querySelectorAll('.settings-tab').forEach(t => t.classList.remove('active'));
@@ -5974,26 +5967,22 @@ ${pagesHTML}
         });
     });
 
-    // Preferenze UI
     function initPrefsUI() {
         const prefs = loadPrefs();
         const bgSel = document.getElementById('pref-default-bg');
         const toolSel = document.getElementById('pref-default-tool');
         if (bgSel && prefs.defaultBg) bgSel.value = prefs.defaultBg;
         if (toolSel && prefs.defaultTool) toolSel.value = prefs.defaultTool;
-
-        // Colore selezionato
         const savedColor = prefs.defaultColor || '#000000';
         modal.querySelectorAll('.pref-color-btn').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.color === savedColor);
-            btn.addEventListener('click', () => {
+            btn.onclick = () => {
                 modal.querySelectorAll('.pref-color-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
-            });
+            };
         });
     }
 
-    // Salva preferenze
     const saveBtn = document.getElementById('pref-save-btn');
     const saveFeedback = document.getElementById('pref-save-feedback');
     if (saveBtn) {
@@ -6012,5 +6001,4 @@ ${pagesHTML}
             }
         });
     }
-
-})();
+});
