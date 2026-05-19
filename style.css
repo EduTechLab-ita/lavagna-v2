@@ -3232,3 +3232,280 @@ body:not(.has-page-bar) #zoom-badge {
     flex-shrink: 0;
 }
 .pnp-clear-btn:hover { background: rgba(239,68,68,0.2); }
+
+/* ===== MODAL IMPOSTAZIONI & GUIDA ===== */
+.settings-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+.settings-modal-box {
+    background: var(--bg-surface, #1e293b);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 16px;
+    width: 100%;
+    max-width: 560px;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.6);
+    overflow: hidden;
+}
+.settings-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+}
+.settings-modal-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text);
+}
+.settings-modal-close {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1.4rem;
+    cursor: pointer;
+    padding: 0 4px;
+    line-height: 1;
+    transition: color 0.15s;
+}
+.settings-modal-close:hover { color: var(--text); }
+
+/* Tab bar */
+.settings-tabs {
+    display: flex;
+    gap: 2px;
+    padding: 10px 16px 0;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+.settings-tabs::-webkit-scrollbar { display: none; }
+.settings-tab {
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    padding: 6px 12px 10px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color 0.15s, border-color 0.15s;
+    margin-bottom: -1px;
+}
+.settings-tab:hover { color: var(--text); }
+.settings-tab.active {
+    color: var(--accent, #3b82f6);
+    border-bottom-color: var(--accent, #3b82f6);
+    font-weight: 600;
+}
+
+/* Content area */
+.settings-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 20px 20px;
+}
+.settings-panel { display: none; }
+.settings-panel.active { display: block; }
+
+/* Sections */
+.settings-section {
+    margin-bottom: 20px;
+}
+.settings-section-title {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+}
+.settings-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+.settings-label {
+    font-size: 0.85rem;
+    color: var(--text);
+}
+.settings-select {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 5px 10px;
+    font-size: 0.82rem;
+    cursor: pointer;
+    min-width: 140px;
+}
+
+/* Color picker preferenze */
+.pref-color-row {
+    display: flex;
+    gap: 6px;
+}
+.pref-color-btn {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: transform 0.1s, border-color 0.1s;
+}
+.pref-color-btn:hover { transform: scale(1.15); }
+.pref-color-btn.active { border-color: var(--accent, #3b82f6); transform: scale(1.15); }
+
+/* Save button */
+.settings-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 4px;
+}
+.settings-btn-save {
+    background: var(--accent, #3b82f6);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 18px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.15s;
+}
+.settings-btn-save:hover { opacity: 0.85; }
+.settings-save-feedback {
+    font-size: 0.82rem;
+    color: #22c55e;
+}
+
+/* Info tab */
+.settings-info-logo {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 20px;
+    padding: 14px;
+    background: var(--bg-elevated);
+    border-radius: 12px;
+}
+.settings-info-appname {
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+}
+.settings-info-version {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+.settings-info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 7px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.85rem;
+}
+.settings-info-row span:first-child { color: var(--text-muted); }
+.settings-link {
+    color: var(--accent, #3b82f6);
+    text-decoration: none;
+}
+.settings-link:hover { text-decoration: underline; }
+.settings-info-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 4px;
+}
+.settings-tag {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 3px 10px;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+/* Guide tab */
+.settings-guide-item {
+    font-size: 0.85rem;
+    color: var(--text);
+    padding: 5px 0 5px 10px;
+    border-left: 2px solid var(--border);
+    margin-bottom: 5px;
+    line-height: 1.4;
+}
+.settings-guide-item kbd {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 0.78rem;
+    font-family: monospace;
+}
+
+/* Contacts tab */
+.settings-contact-btns {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+}
+.settings-contact-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--accent, #3b82f6);
+    color: #fff;
+    text-decoration: none;
+    border-radius: 8px;
+    padding: 9px 16px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: opacity 0.15s;
+}
+.settings-contact-btn:hover { opacity: 0.85; }
+.settings-contact-btn--secondary {
+    background: var(--bg-elevated);
+    color: var(--text);
+    border: 1px solid var(--border);
+}
+
+/* Changelog tab */
+.settings-changelog-item {
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+}
+.settings-changelog-ver {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--accent, #3b82f6);
+    margin-bottom: 3px;
+}
+.settings-changelog-desc {
+    font-size: 0.85rem;
+    color: var(--text);
+    line-height: 1.4;
+}

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'eduboard-v101'; // v101 — Fix: foto account, Drive 401, disconnessione automatica altra classe
+const CACHE_NAME = 'eduboard-v102'; // v102 — Pannello Impostazioni & Guida
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
 const CHANGELOG  = 'Fix: foto account visibile, errore Drive 401, disconnessione automatica cambio classe';
 
