@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v105'; // v105 — Fix pulsante sfondo, mailto → Gmail compose, icona cartolina
+const CACHE_NAME = 'eduboard-v106'; // v106 — Fix versione nell'header
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'Fix pulsante sfondo nella barra pagine e link email ora aprono Gmail direttamente';
+const CHANGELOG  = 'Fix versione nell\'header, pulsante sfondo e link email Gmail';
 
 const urlsToCache = [
   '.',
