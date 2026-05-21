@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v110'; // v110 — Fix QR 401: errori non-401 non disconnettono più Drive
+const CACHE_NAME = 'eduboard-v111'; // v111 — Redesign toolbar: quick strip spostato in basso al centro
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'Fix connessione QR: errori temporanei non disconnettevano più Drive. Migliorato log errori cartelle.';
+const CHANGELOG  = 'Nuova barra strumenti in basso al centro: penna, gomma, seleziona, annulla/ripeti, mano e apertura toolbar sempre visibili.';
 
 const urlsToCache = [
   '.',

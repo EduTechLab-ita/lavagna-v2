@@ -290,7 +290,7 @@ button {
     position: fixed;
     bottom: 0;
     left: 50%;
-    transform: translateX(-50%) translateY(calc(100% - 40px));
+    transform: translateX(-50%) translateY(calc(100% - 54px));
     transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
     z-index: 200;
     display: flex;
@@ -305,30 +305,27 @@ button {
 }
 
 /* --------------------------------------------------------------------------
-   Linguetta toggle (#toolbar-toggle)
-   Sempre visibile (~40px), forma a pillola aperta verso il basso
+   Toggle toolbar — bottone freccia dentro il quick strip
    -------------------------------------------------------------------------- */
 #toolbar-toggle {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 6px 32px;
-    background: rgba(255, 255, 255, 0.97);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(15, 23, 42, 0.1);
-    border-bottom: none;
-    border-radius: 20px 20px 0 0;
-    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.06);
+    width: 44px;
+    height: 44px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 10px;
     cursor: pointer;
-    color: var(--text-muted);
-    transition: background 0.18s ease, color 0.18s ease;
+    color: #64748b;
+    transition: background 0.18s, color 0.18s, border-color 0.18s;
     flex-shrink: 0;
 }
 
 #toolbar-toggle:hover {
     background: #f1f5f9;
-    color: var(--text);
+    color: #0f172a;
+    border-color: #e2e8f0;
 }
 
 /* Freccia SVG nel toggle */
@@ -2550,8 +2547,8 @@ body.has-page-bar #zoom-indicator {
    ============================================================================= */
 #toolbar-top-row {
     display: flex;
-    align-items: flex-end;
-    gap: 10px;               /* spazio tra le mini-bar e la linguetta */
+    align-items: center;
+    gap: 6px;
     padding-bottom: 0;
 }
 
@@ -2573,8 +2570,8 @@ body.has-page-bar #zoom-indicator {
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
     border: 1px solid rgba(255,255,255,0.10);
-    border-radius: 18px;     /* pillola completa — staccata dalla linguetta */
-    margin-bottom: 6px;      /* galleggia sopra il bordo inferiore */
+    border-radius: 18px;     /* pillola completa — fianco al quick strip */
+    margin-bottom: 0;
     touch-action: none;
     transition: background 0.2s;
 }
@@ -3626,20 +3623,15 @@ body.has-page-bar #zoom-indicator {
 }
 
 /* =============================================================================
-   QUICK ACTION STRIP — barra rapida sempre visibile, centrata in alto
-   Pensata per uso LIM: bottoni grandi, touch-friendly
+   QUICK STRIP — barra rapida in basso al centro (integrata nel toolbar-wrapper)
+   Pensata per uso LIM: bottoni touch-friendly, sempre visibile
    ============================================================================= */
-#quick-action-strip {
-    position: fixed;
-    top: 64px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 190;
+#quick-strip {
     display: flex;
     flex-direction: row;
     align-items: center;
     gap: 2px;
-    padding: 6px 10px;
+    padding: 5px 8px;
     background: rgba(255, 255, 255, 0.97);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
@@ -3648,13 +3640,13 @@ body.has-page-bar #zoom-indicator {
     box-shadow: 0 4px 16px rgba(0,0,0,0.10);
 }
 
-/* Bottoni strumento nel quick strip */
-#quick-action-strip .qab-btn {
-    width: 50px;
-    height: 50px;
+/* Bottoni nel quick strip */
+#quick-strip .qab-btn {
+    width: 44px;
+    height: 44px;
     background: transparent;
     border: 1px solid transparent;
-    border-radius: 12px;
+    border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -3664,24 +3656,24 @@ body.has-page-bar #zoom-indicator {
     flex-shrink: 0;
 }
 
-#quick-action-strip .qab-btn:hover {
+#quick-strip .qab-btn:hover {
     background: #f1f5f9;
     color: #0f172a;
     border-color: #e2e8f0;
 }
 
-#quick-action-strip .qab-btn.active {
+#quick-strip .qab-btn.active {
     background: rgba(59, 130, 246, 0.15);
     color: #3b82f6;
     border-color: rgba(59, 130, 246, 0.4);
 }
 
 /* Separatore verticale */
-#quick-action-strip .qab-sep {
+#quick-strip .qab-sep {
     width: 1px;
-    height: 28px;
+    height: 26px;
     background: #e2e8f0;
-    margin: 0 4px;
+    margin: 0 3px;
     flex-shrink: 0;
 }
 
