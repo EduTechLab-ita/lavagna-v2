@@ -1140,8 +1140,9 @@ class CanvasManager {
     _onStart(e) {
         const { x, y } = this.getCoords(e);
 
-        // Modalità gomma-tratto: cancella al click, senza avviare isDrawing
+        // Modalità gomma-tratto: premi e scorri per cancellare (stile OneNote)
         if (CONFIG.currentTool === 'eraser' && CONFIG.eraserMode === 'stroke') {
+            this._erasingStrokes = true;
             const idx = this.findNearestStroke(x, y);
             if (idx >= 0) this.eraseStroke(idx);
             return;
@@ -1194,11 +1195,15 @@ class CanvasManager {
     }
 
     _onMove(e) {
-        // Hover highlight gomma-tratto (funziona anche senza isDrawing)
+        // Gomma-tratto: se sto premendo → cancella subito; altrimenti → evidenzia hover
         if (CONFIG.currentTool === 'eraser' && CONFIG.eraserMode === 'stroke') {
             const { x, y } = this.getCoords(e);
             const idx = this.findNearestStroke(x, y);
-            this._highlightStroke(idx);
+            if (this._erasingStrokes) {
+                if (idx >= 0 && !this._eraseInProgress) this.eraseStroke(idx);
+            } else {
+                this._highlightStroke(idx);
+            }
             return;
         }
         // Cursor hint sugli handle selezione (funziona anche senza isDrawing, per mouse hover)
@@ -1255,6 +1260,12 @@ class CanvasManager {
     }
 
     _onEnd(e) {
+        // Gomma-tratto: rilascia la modalità press-and-swipe
+        if (CONFIG.currentTool === 'eraser' && CONFIG.eraserMode === 'stroke' && this._erasingStrokes) {
+            this._erasingStrokes = false;
+            this.overlayCtx.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height);
+            return;
+        }
         if (!CONFIG.isDrawing) return;
         CONFIG.isDrawing = false;
 
@@ -1380,26 +1391,40 @@ class CanvasManager {
 
     // Cancella un tratto specifico per indice (modalità gomma-tratto)
     async eraseStroke(strokeIndex) {
-        if (strokeIndex < 0 || strokeIndex >= this.undoStack.length) return;
+        if (strokeIndex < 0 || strokeIndex >= this._vectorStrokes.length) return;
+        if (this._eraseInProgress) return; // evita cancellazioni concorrenti
+        this._eraseInProgress = true;
 
-        // Nascondi hover highlight
-        this.overlayCtx.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height);
+        try {
+            // Nascondi hover highlight
+            this.overlayCtx.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height);
 
-        // Ripristina lo snapshot prima del tratto da cancellare
-        await this._loadURLAsync(this.undoStack[strokeIndex]);
+            // Ripristina lo snapshot prima del tratto — undoStack può avere formato stringa o {canvas,objects}
+            const entry = this.undoStack[strokeIndex];
+            const canvasUrl = (typeof entry === 'string') ? entry : entry?.canvas;
+            const objs      = (typeof entry === 'string') ? null  : entry?.objects;
+            if (!canvasUrl) { this._eraseInProgress = false; return; }
+            await this._loadURLAsync(canvasUrl);
+            if (objs !== null && objs !== undefined && typeof objectLayer !== 'undefined' && objectLayer) {
+                objectLayer.objects = objs;
+                objectLayer.render();
+            }
 
-        // Ridisegna tutti i tratti successivi tramite dati vettoriali
-        for (let i = strokeIndex + 1; i < this._vectorStrokes.length; i++) {
-            const stroke = this._vectorStrokes[i];
-            if (stroke) this._replayStroke(stroke);
+            // Ridisegna tutti i tratti successivi tramite dati vettoriali
+            for (let i = strokeIndex + 1; i < this._vectorStrokes.length; i++) {
+                const stroke = this._vectorStrokes[i];
+                if (stroke) this._replayStroke(stroke);
+            }
+
+            // Rimuovi il tratto cancellato dagli stack
+            this.undoStack.splice(strokeIndex, 1);
+            this._vectorStrokes.splice(strokeIndex, 1);
+
+            CONFIG.isDirty = true;
+            window.autoSaveMgr?.onDirty();
+        } finally {
+            this._eraseInProgress = false;
         }
-
-        // Rimuovi il tratto cancellato dagli stack (splice mantiene gli altri)
-        this.undoStack.splice(strokeIndex, 1);
-        this._vectorStrokes.splice(strokeIndex, 1);
-
-        CONFIG.isDirty = true;
-        window.autoSaveMgr?.onDirty();
     }
 
     // Trova il tratto più vicino al punto (x,y) — ritorna l'indice in _vectorStrokes
@@ -1645,10 +1670,12 @@ class ToolbarManager {
     }
 
     _updateActiveBtn(activeBtn) {
-        document.querySelectorAll('.tool-btn[data-tool]').forEach(b => {
-            b.classList.remove('active');
-        });
-        if (activeBtn) activeBtn.classList.add('active');
+        document.querySelectorAll('.tool-btn[data-tool]').forEach(b => b.classList.remove('active'));
+        if (activeBtn) {
+            // Marca attivi tutti i bottoni con lo stesso data-tool (toolbar principale + quick strip)
+            const tool = activeBtn.dataset.tool;
+            document.querySelectorAll(`.tool-btn[data-tool="${tool}"]`).forEach(b => b.classList.add('active'));
+        }
     }
 
     _updateOptionsRow() {
@@ -5728,6 +5755,11 @@ let bgMgr, brush, laserMgr, canvasMgr, toolbarMgr, textMgr, projectMgr, selectMg
 document.addEventListener('DOMContentLoaded', () => {
     // 1. Inizializza i manager nell'ordine corretto (le dipendenze prima)
     bgMgr      = new BackgroundManager();
+    // Applica sfondo predefinito dalle preferenze (se impostato e non 'image')
+    try {
+        const _prefs = JSON.parse(localStorage.getItem('eduboard-prefs-v1') || '{}');
+        if (_prefs.defaultBg && _prefs.defaultBg !== 'image') bgMgr.setBackground(_prefs.defaultBg);
+    } catch(_) {}
     brush      = new BrushEngine();
     laserMgr   = new LaserManager(document.getElementById('overlay-canvas'));
     canvasMgr  = new CanvasManager(bgMgr, brush, laserMgr);
@@ -5781,6 +5813,10 @@ document.addEventListener('DOMContentLoaded', () => {
             e.returnValue = 'Hai modifiche non salvate. Vuoi davvero uscire?';
         }
     });
+
+    // Quick Action Strip — undo/redo
+    document.getElementById('qab-undo')?.addEventListener('click', () => canvasMgr.undo());
+    document.getElementById('qab-redo')?.addEventListener('click', () => canvasMgr.redo());
 
     // Pulsanti zoom nella barra basso destra
     document.getElementById('zoom-in-btn')?.addEventListener('click', () => panMgr.zoomIn());

@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v107'; // v107 — Fix connessione QR: verifica scope drive.file
+const CACHE_NAME = 'eduboard-v108'; // v108 — Quick strip LIM, gomma-tratto OneNote, libreria silente, sfondo default
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'Fix connessione QR: verifica scope Drive, modal si chiude correttamente';
+const CHANGELOG  = 'Quick strip LIM (Penna/Gomma/Annulla/Ripristina/Sposta), gomma-tratto stile OneNote, libreria aggiornamento silente, sfondo predefinito applicato all\'avvio';
 
 const urlsToCache = [
   '.',

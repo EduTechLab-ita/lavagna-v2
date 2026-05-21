@@ -937,11 +937,19 @@ class LibraryManager {
         }
     }
 
-    /** Forza refresh completo (dopo salva/elimina/rinomina/sposta). */
+    /** Forza refresh dopo salva/elimina/rinomina/sposta.
+     *  Se il pannello è aperto con contenuto, aggiorna silenziosamente senza "Caricamento...".
+     *  Se il pannello è chiuso, invalida lo stato così il prossimo open caricherà dati freschi. */
     _forceRefresh() {
-        this._lastBgRefresh = 0; // azzera il cooldown
-        this._treeLoaded = false; // forza "Caricamento..." per mostrare i dati aggiornati
-        this.refresh();
+        this._lastBgRefresh = 0; // azzera il cooldown background refresh
+        if (this.panel.classList.contains('open') && this.treeEl.hasChildNodes()) {
+            // Pannello aperto: aggiornamento silenzioso senza spinner
+            const savedScroll = this.treeEl.scrollTop || 0;
+            this._backgroundRefresh('eduboard-lib-cache', savedScroll);
+        } else {
+            // Pannello chiuso o vuoto: forza ricarica completa al prossimo open
+            this._treeLoaded = false;
+        }
     }
 
     /** Aggiornamento silenzioso da Drive in background dopo render da cache. */
