@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v109'; // v109 — Fix libreria bloccata dopo connessione Drive, quick strip top-center
+const CACHE_NAME = 'eduboard-v110'; // v110 — Fix QR 401: errori non-401 non disconnettono più Drive
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'Fix libreria non caricava dopo connessione Drive. Quick strip: centrata in alto, icone identiche toolbar, aggiunto Seleziona, icona Mano. Fix barra account sovrapposta alla libreria destra.';
+const CHANGELOG  = 'Fix connessione QR: errori temporanei non disconnettevano più Drive. Migliorato log errori cartelle.';
 
 const urlsToCache = [
   '.',

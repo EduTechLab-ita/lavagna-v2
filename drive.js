@@ -249,15 +249,18 @@ class DriveManager {
                 await this._ensureBgFolder();
                 this._saveSession();
             } catch (err) {
-                if (err.message && err.message.includes('401')) {
-                    // Token non valido o scaduto — disconnetti e chiedi riconnessione
+                const errMsg = err.message || 'errore sconosciuto';
+                console.error('[EduBoardConnect] folder setup error:', errMsg);
+                if (errMsg.includes('401')) {
+                    // Token davvero scaduto/revocato — disconnetti
                     this.disconnect();
                     if (window.driveConnectBtn) window.driveConnectBtn.update();
                     if (window.eduBoardConnect) window.eduBoardConnect.show();
-                    if (typeof toast === 'function') toast('Sessione Drive scaduta — riconnetti con EduConnect.', 'error');
+                    if (typeof toast === 'function') toast('Drive: token non valido (401) — riconnetti.', 'error');
                     return;
                 }
-                console.warn('[EduBoardConnect] folders:', err.message);
+                // Errore temporaneo (403, rete, ecc.) — NON disconnettere, la connessione è ok
+                if (typeof toast === 'function') toast('Drive connesso, ma cartelle non accessibili: ' + errMsg, 'warning');
             }
             if (window.libraryMgr) window.libraryMgr.refresh();
             setTimeout(() => _autoOpenLastLesson(), 800);
