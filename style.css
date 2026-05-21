@@ -345,6 +345,8 @@ button {
    Pannello toolbar principale (#floating-toolbar)
    -------------------------------------------------------------------------- */
 #floating-toolbar {
+    position: relative;
+    overflow: visible;
     background: rgba(255, 255, 255, 0.97);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
@@ -356,16 +358,26 @@ button {
 
 
 /* ==========================================================================
-   RIGA OPZIONI CONTESTUALI (#tool-options-row)
+   RIGA OPZIONI CONTESTUALI (#tool-options-row) — popup pill flottante
+   Appare sopra la toolbar aperta solo quando lo strumento ha opzioni
    ========================================================================== */
 #tool-options-row {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 6px 4px;
-    margin-bottom: 4px;
-    border-bottom: 1px solid var(--border);
-    flex-wrap: wrap;
+    padding: 7px 14px;
+    background: rgba(255, 255, 255, 0.97);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 50px;
+    border: 1px solid rgba(0,0,0,0.08);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+    white-space: nowrap;
+    z-index: 201;
 }
 
 .options-colors,
@@ -2309,6 +2321,20 @@ body.fullscreen-mode #canvas-area {
 /* Toolbar allineata con la barra pagine — stesso livello dei numeri pagina e zoom */
 body.has-page-bar #toolbar-wrapper {
     bottom: 0;
+}
+
+/* Quando toolbar è aperta: nascondi quick-strip e mini-bar, rimane solo il toggle */
+#toolbar-wrapper.visible #quick-strip { display: none; }
+#toolbar-wrapper.visible #mini-color-bar { display: none !important; }
+#toolbar-wrapper.visible #mini-size-bar  { display: none !important; }
+
+/* Toggle standalone (toolbar aperta): aspetto a pillola compatta */
+#toolbar-wrapper.visible #toolbar-toggle {
+    background: rgba(255, 255, 255, 0.97);
+    border-radius: 50px;
+    border-color: rgba(0,0,0,0.08);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.10);
+    padding: 0 20px;
 }
 
 /* BUG 2 fix: quando il wrapper NON è visible, nascondi completamente il contenuto

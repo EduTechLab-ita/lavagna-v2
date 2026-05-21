@@ -1656,6 +1656,25 @@ class ToolbarManager {
         }
 
         CONFIG.currentTool = tool;
+
+        // Aggiorna icona dinamica nel quick strip per gli strumenti di scrittura
+        const _QAB_SVGS = {
+            pen:    '<path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>',
+            pencil: '<path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>',
+            pastel: '<path d="M9.06 11.9l8.07-8.06a2.85 2.85 0 1 1 4.03 4.03l-8.06 8.08"/><path d="M7.07 14.94c-1.66 0-3 1.35-3 3.02 0 1.33-2.5 1.52-2 2.02 1.08 1.1 2.49 2.02 4 2.02 2.2 0 4-1.8 4-4.04a3.01 3.01 0 0 0-3-3.02z"/>',
+            marker: '<rect x="3" y="8" width="18" height="8" rx="3"/><path d="M21 12H3"/>'
+        };
+        const _QAB_NAMES = { pen:'Penna', pencil:'Matita', pastel:'Pastello', marker:'Evidenziatore' };
+        if (_QAB_SVGS[tool]) {
+            const dynBtn = document.getElementById('qab-writing-tool');
+            if (dynBtn) {
+                dynBtn.dataset.tool = tool;
+                dynBtn.title = _QAB_NAMES[tool];
+                const svg = dynBtn.querySelector('svg');
+                if (svg) svg.innerHTML = _QAB_SVGS[tool];
+            }
+        }
+
         this._updateActiveBtn(btn);
         this._updateOptionsRow();
         this._updateCursor();
@@ -5191,7 +5210,7 @@ function setupMiniSizeBar() {
     }
 
     function updateVisibility() {
-        const drawTools = ['pen', 'pencil', 'pastel', 'marker'];
+        const drawTools = ['pen', 'pencil', 'pastel', 'marker', 'eraser'];
         const isDrawTool = drawTools.includes(CONFIG.currentTool);
         const show = isDrawTool && !_toolbarOpen;
         bar.style.display = show ? 'flex' : 'none';

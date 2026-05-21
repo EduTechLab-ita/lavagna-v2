@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v111'; // v111 — Redesign toolbar: quick strip spostato in basso al centro
+const CACHE_NAME = 'eduboard-v112'; // v112 — Quick strip: icona dinamica, gomma+size, seleziona vicino mano, popup opzioni
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'Nuova barra strumenti in basso al centro: penna, gomma, seleziona, annulla/ripeti, mano e apertura toolbar sempre visibili.';
+const CHANGELOG  = 'Quick strip: icona penna cambia con lo strumento attivo, dimensioni visibili anche con gomma, seleziona vicino a mano. Opzioni colore/dimensione come popup pill sopra la toolbar.';
 
 const urlsToCache = [
   '.',
