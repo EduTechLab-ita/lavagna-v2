@@ -2349,6 +2349,11 @@ body.has-page-bar #zoom-indicator {
    ============================================= */
 
 /* Contenitore principale barra basso destra */
+/* Quando la libreria è aperta da destra, abbassa la barra account sotto il pannello */
+#library-panel.from-right.open ~ #bottom-right-bar {
+    z-index: 240;
+}
+
 #bottom-right-bar {
     position: fixed;
     bottom: 8px;
@@ -3621,32 +3626,32 @@ body.has-page-bar #zoom-indicator {
 }
 
 /* =============================================================================
-   QUICK ACTION STRIP — barra rapida sempre visibile sul lato sinistro
+   QUICK ACTION STRIP — barra rapida sempre visibile, centrata in alto
    Pensata per uso LIM: bottoni grandi, touch-friendly
    ============================================================================= */
 #quick-action-strip {
     position: fixed;
-    left: 10px;
-    top: 50%;
-    transform: translateY(-50%);
+    top: 64px;
+    left: 50%;
+    transform: translateX(-50%);
     z-index: 190;
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     align-items: center;
-    gap: 4px;
-    padding: 8px 6px;
+    gap: 2px;
+    padding: 6px 10px;
     background: rgba(255, 255, 255, 0.97);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    border-radius: 16px;
+    border-radius: 50px;
     border: 1px solid rgba(0,0,0,0.08);
-    box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.10);
 }
 
 /* Bottoni strumento nel quick strip */
 #quick-action-strip .qab-btn {
-    width: 52px;
-    height: 52px;
+    width: 50px;
+    height: 50px;
     background: transparent;
     border: 1px solid transparent;
     border-radius: 12px;
@@ -3671,11 +3676,12 @@ body.has-page-bar #zoom-indicator {
     border-color: rgba(59, 130, 246, 0.4);
 }
 
-/* Separatore */
+/* Separatore verticale */
 #quick-action-strip .qab-sep {
-    width: 32px;
-    height: 1px;
+    width: 1px;
+    height: 28px;
     background: #e2e8f0;
-    margin: 2px 0;
+    margin: 0 4px;
+    flex-shrink: 0;
 }
 

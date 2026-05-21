@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v108'; // v108 — Quick strip LIM, gomma-tratto OneNote, libreria silente, sfondo default
+const CACHE_NAME = 'eduboard-v109'; // v109 — Fix libreria bloccata dopo connessione Drive, quick strip top-center
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'Quick strip LIM (Penna/Gomma/Annulla/Ripristina/Sposta), gomma-tratto stile OneNote, libreria aggiornamento silente, sfondo predefinito applicato all\'avvio';
+const CHANGELOG  = 'Fix libreria non caricava dopo connessione Drive. Quick strip: centrata in alto, icone identiche toolbar, aggiunto Seleziona, icona Mano. Fix barra account sovrapposta alla libreria destra.';
 
 const urlsToCache = [
   '.',

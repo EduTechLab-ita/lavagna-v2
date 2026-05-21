@@ -5755,11 +5755,6 @@ let bgMgr, brush, laserMgr, canvasMgr, toolbarMgr, textMgr, projectMgr, selectMg
 document.addEventListener('DOMContentLoaded', () => {
     // 1. Inizializza i manager nell'ordine corretto (le dipendenze prima)
     bgMgr      = new BackgroundManager();
-    // Applica sfondo predefinito dalle preferenze (se impostato e non 'image')
-    try {
-        const _prefs = JSON.parse(localStorage.getItem('eduboard-prefs-v1') || '{}');
-        if (_prefs.defaultBg && _prefs.defaultBg !== 'image') bgMgr.setBackground(_prefs.defaultBg);
-    } catch(_) {}
     brush      = new BrushEngine();
     laserMgr   = new LaserManager(document.getElementById('overlay-canvas'));
     canvasMgr  = new CanvasManager(bgMgr, brush, laserMgr);

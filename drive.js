@@ -877,6 +877,7 @@ class LibraryManager {
                     <button class="tree-connect-btn" id="tree-connect-btn">Connetti Drive</button>
                 </div>`;
             document.getElementById('tree-connect-btn')?.addEventListener('click', () => this._connectAndRefresh());
+            this._refreshLock = false; // rilascia lock — permette nuovo refresh dopo connessione
             return;
         }
 
