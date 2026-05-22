@@ -361,11 +361,18 @@ button {
    RIGA OPZIONI CONTESTUALI (#tool-options-row) — popup pill flottante
    Appare sopra la toolbar aperta solo quando lo strumento ha opzioni
    ========================================================================== */
+/* Riga controlli: [pill opzioni] [∨ freccia] affiancati in cima alla toolbar aperta */
+#toolbar-controls-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 6px 12px 2px;
+}
+
+/* Pill opzioni (colori + dimensioni): ora nel flusso normale accanto alla freccia */
 #tool-options-row {
-    position: absolute;
-    bottom: calc(100% + 8px);
-    left: 50%;
-    transform: translateX(-50%);
+    position: static;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -377,7 +384,32 @@ button {
     border: 1px solid rgba(0,0,0,0.08);
     box-shadow: 0 4px 16px rgba(0,0,0,0.12);
     white-space: nowrap;
-    z-index: 201;
+}
+
+/* Freccia ∨ per chiudere la toolbar — stessa estetica del ^ per aprire */
+#toolbar-toggle-open {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    background: rgba(255, 255, 255, 0.97);
+    border: 1px solid rgba(0,0,0,0.10);
+    border-radius: 50px;
+    cursor: pointer;
+    color: #475569;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.10);
+    transition: background 0.18s, color 0.18s;
+    flex-shrink: 0;
+}
+#toolbar-toggle-open:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+}
+#toolbar-toggle-open svg {
+    width: 20px;
+    height: 20px;
+    stroke: currentColor;
 }
 
 .options-colors,
@@ -2328,16 +2360,10 @@ body.has-page-bar #toolbar-wrapper {
 #toolbar-wrapper.visible #mini-color-bar { display: none !important; }
 #toolbar-wrapper.visible #mini-size-bar  { display: none !important; }
 
-/* Toggle standalone (toolbar aperta): aspetto a pillola compatta */
-/* position:relative + z-index:202 → appare SOPRA il tool-options-row (z-index:201) */
+/* Toolbar aperta: il toggle originale (in toolbar-top-row) si nasconde.
+   Il nuovo #toolbar-toggle-open in #toolbar-controls-row lo sostituisce. */
 #toolbar-wrapper.visible #toolbar-toggle {
-    background: rgba(255, 255, 255, 0.97);
-    border-radius: 50px;
-    border-color: rgba(0,0,0,0.08);
-    box-shadow: 0 4px 16px rgba(0,0,0,0.10);
-    padding: 0 20px;
-    position: relative;
-    z-index: 202;
+    display: none;
 }
 
 /* BUG 2 fix: quando il wrapper NON è visible, nascondi completamente il contenuto

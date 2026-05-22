@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v113'; // v113 — Fix toggle sopra options row; libreria: no flash riapertura, highlight real-time
+const CACHE_NAME = 'eduboard-v114'; // v114 — Freccia chiudi toolbar affiancata alle opzioni; libreria OneNote-style
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'Fix toolbar: il pulsante chiudi è ora sempre sopra il selettore colori/dimensioni. Libreria: si riapre istantaneamente senza flash, la lezione corrente si evidenzia subito.';
+const CHANGELOG  = 'Freccia chiudi toolbar: ora a fianco delle opzioni colore/dimensione, non sopra. Libreria: tutte le cartelle sempre espanse come OneNote, si riapre senza flash.';
 
 const urlsToCache = [
   '.',

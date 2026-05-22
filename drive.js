@@ -816,8 +816,10 @@ class LibraryManager {
         // FileId dell'ultima lezione aperta/salvata (per ripristino posizione)
         this.currentFileId = null;
 
-        // Stato cartelle espanse: sopravvive al refresh
-        this._expandedFolders = new Set();
+        // Stato cartelle COLLASSATE manualmente: sopravvive al refresh.
+        // Per default TUTTE le cartelle sono espanse (OneNote-style) —
+        // solo quelle che l'utente chiude esplicitamente finiscono qui.
+        this._collapsedFolders = new Set();
 
         // Cache ordini per cartella: { [folderId]: { orderId: string|null } }
         this._orderCache = {};
@@ -1042,6 +1044,9 @@ class LibraryManager {
                         const icon = folderRow.querySelector('.tree-icon');
                         if (icon) icon.textContent = '📂';
                     }
+                    // Assicura che la cartella genitore non sia marcata come collassata
+                    const fid = p.dataset.folderId;
+                    if (fid) this._collapsedFolders.delete(fid);
                 }
                 p = p.parentElement;
             }
@@ -1132,7 +1137,6 @@ class LibraryManager {
                 const iconEl = item.querySelector('.tree-icon');
                 subContainer.style.display = 'block';
                 if (iconEl) iconEl.textContent = '📂';
-                this._expandedFolders.add(folder.id);
                 if (subContainer.dataset.loaded === 'false') {
                     subContainer.dataset.loaded = 'true';
                     subContainer.innerHTML = `<div class="tree-loading">⏳ Caricamento...</div>`;
@@ -1158,18 +1162,16 @@ class LibraryManager {
                     subContainer.style.display = 'none';
                     const iconEl = item.querySelector('.tree-icon');
                     if (iconEl) iconEl.textContent = '📁';
-                    this._expandedFolders.delete(folder.id);
+                    this._collapsedFolders.add(folder.id); // utente ha chiuso: ricorda
                 } else {
+                    this._collapsedFolders.delete(folder.id); // utente ha riaperto
                     await expandFolder();
                 }
             });
 
-            // Auto-espandi se era aperta prima del refresh
-            // oppure se è una cartella di primo livello (depth === 0) — aperta di default
-            if (this._expandedFolders.has(folder.id) || depth === 0) {
-                if (!this._expandedFolders.has(folder.id)) {
-                    this._expandedFolders.add(folder.id);
-                }
+            // Espandi SEMPRE tutte le cartelle (OneNote-style),
+            // tranne quelle che l'utente ha esplicitamente chiuso (_collapsedFolders).
+            if (!this._collapsedFolders.has(folder.id)) {
                 expandFolder(); // non awaita per non bloccare il render iniziale
             }
 

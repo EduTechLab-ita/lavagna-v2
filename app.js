@@ -1531,8 +1531,9 @@ class CanvasManager {
 class ToolbarManager {
     constructor() {
         this.wrapper    = document.getElementById('toolbar-wrapper');
-        this.toggleBtn  = document.getElementById('toolbar-toggle');
-        this.optionsRow = document.getElementById('tool-options-row');
+        this.toggleBtn     = document.getElementById('toolbar-toggle');
+        this.toggleBtnOpen = document.getElementById('toolbar-toggle-open');
+        this.optionsRow    = document.getElementById('tool-options-row');
         this.visible    = false;
 
         this._setupToggle();
@@ -1574,6 +1575,11 @@ class ToolbarManager {
 
     _setupToggle() {
         this.toggleBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.toggle();
+        });
+        // Freccia ∨ dentro toolbar-controls-row (visibile quando toolbar è aperta)
+        this.toggleBtnOpen?.addEventListener('click', (e) => {
             e.stopPropagation();
             this.toggle();
         });

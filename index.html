@@ -26,7 +26,7 @@
                 <img src="./icon-192x192.png" alt="EduBoard" class="logo-icon">
                 <div class="logo-info">
                     <span class="logo-text"><span class="logo-edu">Edu</span><span class="logo-board">Board</span></span>
-                    <span class="logo-sub">v113 &nbsp;·&nbsp; © EduTechLab di Rizzotto Fabio</span>
+                    <span class="logo-sub">v114 &nbsp;·&nbsp; © EduTechLab di Rizzotto Fabio</span>
                 </div>
             </div>
             <div class="project-badge" id="project-name">Nuova Lavagna</div>
@@ -159,8 +159,10 @@
         <!-- Toolbar principale -->
         <div id="floating-toolbar">
 
-            <!-- Riga opzioni contestuali (colore + dimensione) -->
-            <div id="tool-options-row" class="toolbar-row options-row" style="display:none">
+            <!-- Riga controlli: opzioni strumento + freccia chiudi (affiancati) -->
+            <div id="toolbar-controls-row">
+                <!-- Opzioni contestuali (colore + dimensione) — appare solo per strumenti che le supportano -->
+                <div id="tool-options-row" class="toolbar-row options-row" style="display:none">
                 <div class="options-colors" id="options-colors">
                     <button class="color-swatch active" data-color="#000000" style="background:#000000" title="Nero"></button>
                     <button class="color-swatch" data-color="#1d4ed8" style="background:#1d4ed8" title="Blu"></button>
@@ -198,6 +200,13 @@
                     </button>
                 </div>
             </div>
+                <!-- Freccia chiudi toolbar — affiancata alle opzioni, stessa estetica del ^ per aprire -->
+                <button id="toolbar-toggle-open" title="Chiudi strumenti">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <polyline points="18 9 12 15 6 9"/>
+                    </svg>
+                </button>
+            </div><!-- fine toolbar-controls-row -->
 
             <!-- Riga strumenti principali -->
             <div class="toolbar-row main-row">
@@ -721,7 +730,7 @@
                     <img src="./icon-192x192.png" alt="EduBoard" width="64" height="64" style="border-radius:14px">
                     <div>
                         <div class="settings-info-appname"><span style="color:#3b82f6">Edu</span>Board</div>
-                        <div class="settings-info-version" id="info-version-text">v113</div>
+                        <div class="settings-info-version" id="info-version-text">v114</div>
                     </div>
                 </div>
                 <div class="settings-section">
