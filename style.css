@@ -2329,12 +2329,15 @@ body.has-page-bar #toolbar-wrapper {
 #toolbar-wrapper.visible #mini-size-bar  { display: none !important; }
 
 /* Toggle standalone (toolbar aperta): aspetto a pillola compatta */
+/* position:relative + z-index:202 → appare SOPRA il tool-options-row (z-index:201) */
 #toolbar-wrapper.visible #toolbar-toggle {
     background: rgba(255, 255, 255, 0.97);
     border-radius: 50px;
     border-color: rgba(0,0,0,0.08);
     box-shadow: 0 4px 16px rgba(0,0,0,0.10);
     padding: 0 20px;
+    position: relative;
+    z-index: 202;
 }
 
 /* BUG 2 fix: quando il wrapper NON è visible, nascondi completamente il contenuto

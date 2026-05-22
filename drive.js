@@ -834,6 +834,11 @@ class LibraryManager {
         } else {
             this.panel.classList.add('open');
             this.refresh();
+            // Aggiorna highlight immediatamente se l'albero è già in memoria
+            // (evita di aspettare il re-render: la lezione corrente si evidenzia subito)
+            if (this._treeLoaded && this.treeEl.hasChildNodes() && this.currentFileId) {
+                setTimeout(() => this._highlightCurrentLesson(), 80);
+            }
         }
     }
 
@@ -897,7 +902,7 @@ class LibraryManager {
             }
             if (this.currentFileId) {
                 // Espansione cartelle di primo livello è asincrona — attendi il DOM
-                setTimeout(() => this._highlightCurrentLesson(), 1500);
+                setTimeout(() => this._highlightCurrentLesson(), 300);
             } else {
                 this.treeEl.scrollTop = savedScroll;
             }
@@ -950,10 +955,10 @@ class LibraryManager {
             // Pannello aperto: aggiornamento silenzioso senza spinner
             const savedScroll = this.treeEl.scrollTop || 0;
             this._backgroundRefresh('eduboard-lib-cache', savedScroll);
-        } else {
-            // Pannello chiuso o vuoto: forza ricarica completa al prossimo open
-            this._treeLoaded = false;
         }
+        // NON resettare _treeLoaded quando il pannello è chiuso:
+        // il DOM dell'albero persiste ed è riutilizzabile — alla riapertura
+        // mostra l'albero esistente immediatamente (zero flash) e fa bg refresh.
     }
 
     /** Aggiornamento silenzioso da Drive in background dopo render da cache. */
@@ -971,11 +976,18 @@ class LibraryManager {
             await this.drive._ensureLessonsFolder();
             // Controlla se siamo stati annullati (nuovo refresh partito)
             if ((this._bgRefreshToken || 0) !== myToken) return;
-            this.treeEl.innerHTML = '';
-            await this.renderTree(this.drive.lessonsFolderId, this.treeEl, 0);
+            // Render in container temporaneo: l'albero corrente rimane visibile
+            // mentre si scaricano i dati da Drive — zero flash/collasso.
+            const tmpContainer = document.createElement('div');
+            await this.renderTree(this.drive.lessonsFolderId, tmpContainer, 0);
             if ((this._bgRefreshToken || 0) !== myToken) return; // annullato durante renderTree
-            if (!this.treeEl.hasChildNodes()) {
+            const scrollPos = this.treeEl.scrollTop;
+            if (!tmpContainer.hasChildNodes()) {
                 this.treeEl.innerHTML = '<div class="tree-empty">Nessuna lezione salvata.</div>';
+            } else {
+                this.treeEl.innerHTML = '';
+                while (tmpContainer.firstChild) this.treeEl.appendChild(tmpContainer.firstChild);
+                this.treeEl.scrollTop = scrollPos;
             }
             this._treeLoaded = true;
             // Aggiorna timestamp cache dopo fetch riuscito
@@ -983,7 +995,7 @@ class LibraryManager {
                 localStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now() }));
             } catch (_) {}
             if (this.currentFileId) {
-                setTimeout(() => this._highlightCurrentLesson(), 1500);
+                setTimeout(() => this._highlightCurrentLesson(), 200);
             } else {
                 this.treeEl.scrollTop = savedScroll;
             }

@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v112'; // v112 — Quick strip: icona dinamica, gomma+size, seleziona vicino mano, popup opzioni
+const CACHE_NAME = 'eduboard-v113'; // v113 — Fix toggle sopra options row; libreria: no flash riapertura, highlight real-time
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'Quick strip: icona penna cambia con lo strumento attivo, dimensioni visibili anche con gomma, seleziona vicino a mano. Opzioni colore/dimensione come popup pill sopra la toolbar.';
+const CHANGELOG  = 'Fix toolbar: il pulsante chiudi è ora sempre sopra il selettore colori/dimensioni. Libreria: si riapre istantaneamente senza flash, la lezione corrente si evidenzia subito.';
 
 const urlsToCache = [
   '.',
