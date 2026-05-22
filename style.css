@@ -347,11 +347,9 @@ button {
 #floating-toolbar {
     position: relative;
     overflow: visible;
-    background: rgba(255, 255, 255, 0.97);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border-top: 1px solid rgba(15, 23, 42, 0.08);
-    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
+    background: transparent;
+    border-top: none;
+    box-shadow: none;
     padding: 6px 12px 12px;
     width: 100%;
 }
@@ -530,32 +528,34 @@ button {
 .main-row {
     display: flex;
     align-items: center;
-    gap: 2px;
+    gap: 8px;
     flex-wrap: nowrap;        /* mai 2 righe — lo scrolling è orizzontale */
     overflow-x: auto;         /* scroll orizzontale se non entra tutto */
     overflow-y: hidden;
     scrollbar-width: none;    /* Firefox: nasconde scrollbar */
     -ms-overflow-style: none; /* IE/Edge */
     justify-content: center;
-    padding-bottom: 2px;      /* spazio per scrollbar su WebKit se necessario */
+    padding-bottom: 6px;
 }
 .main-row::-webkit-scrollbar { display: none; } /* Chrome/Safari: nasconde scrollbar */
 
-/* Gruppi di strumenti correlati */
+/* Gruppi di strumenti correlati — pillola separata (Option C) */
 .tool-group {
     display: flex;
     gap: 2px;
-    flex-shrink: 0; /* non si comprimono mai — permettono lo scroll */
+    flex-shrink: 0;
+    background: rgba(255, 255, 255, 0.97);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 50px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.10);
+    padding: 5px 8px;
 }
 
-/* Separatore verticale tra gruppi */
+/* Separatore verticale tra gruppi — nascosto con le pillole separate */
 .tool-separator {
-    width: 1px;
-    height: 44px;
-    background: var(--border);
-    margin: 0 6px;
-    flex-shrink: 0;
-    align-self: center;
+    display: none;
 }
 
 /* --------------------------------------------------------------------------

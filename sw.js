@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v114'; // v114 — Freccia chiudi toolbar affiancata alle opzioni; libreria OneNote-style
+const CACHE_NAME = 'eduboard-v115'; // v115 — Toolbar a pillole separate per gruppo (Option C); highlight lezione con retry automatico
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'Freccia chiudi toolbar: ora a fianco delle opzioni colore/dimensione, non sopra. Libreria: tutte le cartelle sempre espanse come OneNote, si riapre senza flash.';
+const CHANGELOG  = 'Toolbar: ogni gruppo di strumenti ha ora la sua pillola separata, senza rettangolo di sfondo. Libreria: evidenziazione lezione corrente con retry automatico (max 6 tentativi).';
 
 const urlsToCache = [
   '.',

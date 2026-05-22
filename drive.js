@@ -839,7 +839,7 @@ class LibraryManager {
             // Aggiorna highlight immediatamente se l'albero è già in memoria
             // (evita di aspettare il re-render: la lezione corrente si evidenzia subito)
             if (this._treeLoaded && this.treeEl.hasChildNodes() && this.currentFileId) {
-                setTimeout(() => this._highlightCurrentLesson(), 80);
+                setTimeout(() => this._highlightCurrentLesson(), 100);
             }
         }
     }
@@ -1016,14 +1016,20 @@ class LibraryManager {
      * genitrici e fa scroll fino all'elemento.
      * Se il file non è ancora nel DOM (cartella non caricata), espande tutto l'albero e riprova.
      */
-    async _highlightCurrentLesson() {
+    async _highlightCurrentLesson(retries = 6) {
         if (!this.currentFileId) return;
         const panel = this.treeEl;
         if (!panel) return;
         panel.querySelectorAll('.lesson-item--active').forEach(el => el.classList.remove('lesson-item--active'));
         // Prima prova: cerca nel DOM già caricato
         if (this._applyHighlight(panel)) return;
-        // Non trovato → espandi forzatamente tutti i nodi non ancora caricati e riprova
+        // Non trovato: le cartelle async potrebbero non essere ancora nel DOM.
+        // Riprova ogni 400ms fino a retries volte prima di forzare l'espansione.
+        if (retries > 0) {
+            setTimeout(() => this._highlightCurrentLesson(retries - 1), 400);
+            return;
+        }
+        // Ultimo tentativo → espandi forzatamente tutti i nodi non ancora caricati e riprova
         await this._forceExpandAll(panel);
         this._applyHighlight(panel);
     }
