@@ -2739,11 +2739,14 @@ body.has-page-bar #zoom-indicator {
     top: 100px;
     right: 20px;
     background: rgba(20,20,30,0.92);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.12);
     color: #fff;
-    border-radius: 14px;
-    box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+    border-radius: 20px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
     z-index: 9000;
-    min-width: 180px;
+    width: 200px;
     user-select: none;
     font-family: 'Segoe UI', sans-serif;
     display: none;
@@ -2752,30 +2755,31 @@ body.has-page-bar #zoom-indicator {
     gap: 0;
 }
 .timer-drag-bar, #timer-drag-bar {
-    background: rgba(255,255,255,0.08);
-    border-radius: 14px 14px 0 0;
+    background: rgba(255,255,255,0.06);
+    border-radius: 20px 20px 0 0;
     padding: 6px 12px;
     cursor: grab;
-    font-size: 11px;
-    color: #aaa;
+    font-size: 9px;
+    color: rgba(255,255,255,0.4);
     text-align: center;
     width: 100%;
     box-sizing: border-box;
+    letter-spacing: 2px;
 }
 .timer-drag-bar:active, #timer-drag-bar:active { cursor: grabbing; }
 .timer-display, #timer-display {
-    font-size: 42px;
-    font-weight: 700;
+    font-size: 56px;
+    font-weight: 800;
     letter-spacing: 2px;
     font-variant-numeric: tabular-nums;
     color: #fff;
     transition: color 0.3s;
-    padding: 10px 14px 4px;
+    padding: 8px 14px 2px;
 }
 .timer-controls {
     display: flex;
     gap: 8px;
-    padding: 4px 14px;
+    padding: 6px 14px;
 }
 .timer-presets, #timer-presets {
     display: flex;
@@ -2789,9 +2793,10 @@ body.has-page-bar #zoom-indicator {
     border: none;
     color: #fff;
     border-radius: 6px;
-    padding: 3px 8px;
-    font-size: 12px;
+    padding: 5px 10px;
+    font-size: 13px;
     cursor: pointer;
+    min-height: 32px;
     transition: background 0.2s;
 }
 .timer-preset:hover { background: rgba(255,255,255,0.25); }
@@ -2833,18 +2838,30 @@ body.has-page-bar #zoom-indicator {
     background: rgba(255,255,255,0.15);
     border: none;
     color: #fff;
-    border-radius: 8px;
-    padding: 5px 12px;
-    font-size: 14px;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    font-size: 16px;
     cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     transition: background 0.2s;
+    padding: 0;
 }
 .timer-btn:hover, .timer-mode:hover, .timer-close:hover { background: rgba(255,255,255,0.3); }
 .timer-close { background: rgba(220,50,50,0.3); }
 .timer-close:hover { background: rgba(220,50,50,0.6); }
+#timer-widget.timer-finished {
+    border: 2px solid #ef4444;
+    box-shadow: 0 0 20px rgba(239,68,68,0.4);
+}
 #timer-widget.timer-finished .timer-display,
 #timer-widget.timer-finished #timer-display { color: #ef4444; animation: timer-blink 0.5s step-end 6; }
 @keyframes timer-blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+@keyframes timer-pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.03)} }
+#timer-widget.timer-low .timer-display,
+#timer-widget.timer-low #timer-display { animation: timer-pulse 1s ease-in-out infinite; }
 
 /* --- Spotlight --- */
 #spotlight-canvas {

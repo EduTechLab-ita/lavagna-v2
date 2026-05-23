@@ -689,6 +689,9 @@
   let scannerStream    = null;
   let scannerAnimFrame = null;
   let deferredInstall  = null; // BeforeInstallPromptEvent
+  let _timerPollInt    = null; // polling GET /timer/:limId
+  let _timerAlarmInt   = null; // loop audio allarme sul telefono
+  let _timerAudioCtx   = null; // AudioContext per beep telefono
 
   // ══════════════════════════════════════════════════════════════
   // SHOW SCREEN
@@ -998,6 +1001,107 @@
     if (cls === 'ok') setTimeout(() => { el.textContent = ''; el.className = 'timer-status'; }, 3000);
   }
 
+  function _timerBeep(freq, duration) {
+    try {
+      if (!_timerAudioCtx) {
+        _timerAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      const osc  = _timerAudioCtx.createOscillator();
+      const gain = _timerAudioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(_timerAudioCtx.destination);
+      osc.frequency.value = freq || 880;
+      gain.gain.setValueAtTime(0.5, _timerAudioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, _timerAudioCtx.currentTime + (duration || 0.5));
+      osc.start(_timerAudioCtx.currentTime);
+      osc.stop(_timerAudioCtx.currentTime + (duration || 0.5));
+    } catch(_) {}
+  }
+
+  function _stopTimerAlarm() {
+    if (_timerAlarmInt) { clearInterval(_timerAlarmInt); _timerAlarmInt = null; }
+  }
+
+  function _stopTimerPoll() {
+    if (_timerPollInt) { clearInterval(_timerPollInt); _timerPollInt = null; }
+  }
+
+  function _startTimerPoll() {
+    _stopTimerPoll();
+    _timerPollInt = setInterval(async () => {
+      try {
+        const res = await fetch(`${CF_WORKER}/timer/${limId}`).then(r => r.json());
+        if (res.expired) {
+          _stopTimerPoll();
+          _showTimerExpired();
+        }
+      } catch(_) {}
+    }, 1000);
+  }
+
+  function _showTimerExpired() {
+    // Vibrazione sul telefono
+    if (navigator.vibrate) navigator.vibrate([500, 200, 500, 200, 500]);
+
+    // Avvia beep audio in loop sul telefono
+    _stopTimerAlarm();
+    _timerBeep(880, 0.5);
+    setTimeout(() => _timerBeep(1100, 0.4), 350);
+    _timerAlarmInt = setInterval(() => {
+      _timerBeep(880, 0.5);
+      setTimeout(() => _timerBeep(1100, 0.4), 350);
+    }, 2000);
+
+    // Cambia UI: nascondi inputs, mostra pannello scaduto
+    document.querySelector('.timer-inputs').style.display = 'none';
+    document.querySelector('.timer-btns').style.display = 'none';
+    document.getElementById('timer-status').textContent = '';
+    document.getElementById('timer-status').className = 'timer-status';
+
+    // Crea o mostra il pannello "TEMPO SCADUTO"
+    let expDiv = document.getElementById('timer-expired-panel');
+    if (!expDiv) {
+      expDiv = document.createElement('div');
+      expDiv.id = 'timer-expired-panel';
+      expDiv.style.cssText = `
+        display:flex; flex-direction:column; align-items:center; gap:20px;
+        padding:20px 0;
+      `;
+      expDiv.innerHTML = `
+        <div id="timer-expired-label" style="
+          font-size:1.6rem; font-weight:800; color:#ef4444;
+          animation:timerExpiredBlink 1s step-start infinite;
+          text-align:center;
+        ">⏰ TEMPO SCADUTO!</div>
+        <button id="btn-timer-stop-alarm" style="
+          background:#ef4444; color:#fff; border:none; border-radius:16px;
+          font-size:1.5rem; font-weight:800; padding:20px 40px;
+          cursor:pointer; box-shadow:0 4px 20px rgba(239,68,68,0.5);
+          letter-spacing:0.05em; width:100%;
+        ">⏹ STOP</button>
+      `;
+      // Aggiunge keyframes per lampeggio se non già presenti
+      if (!document.getElementById('timer-blink-style')) {
+        const st = document.createElement('style');
+        st.id = 'timer-blink-style';
+        st.textContent = '@keyframes timerExpiredBlink { 0%,100%{opacity:1} 50%{opacity:0.3} }';
+        document.head.appendChild(st);
+      }
+      document.querySelector('.timer-body').appendChild(expDiv);
+      document.getElementById('btn-timer-stop-alarm').addEventListener('click', timerStop);
+    }
+    expDiv.style.display = 'flex';
+  }
+
+  function _hideTimerExpired() {
+    const expDiv = document.getElementById('timer-expired-panel');
+    if (expDiv) expDiv.style.display = 'none';
+    const inputs = document.querySelector('.timer-inputs');
+    const btns   = document.querySelector('.timer-btns');
+    if (inputs) inputs.style.display = '';
+    if (btns)   btns.style.display   = '';
+  }
+
   async function timerStart() {
     const min = parseInt(document.getElementById('timer-min').value, 10) || 0;
     const sec = parseInt(document.getElementById('timer-sec').value, 10) || 0;
@@ -1012,12 +1116,16 @@
       }).then(r => r.json());
       if (!res.ok) throw new Error(res.error || 'Errore');
       timerSetStatus('Timer avviato sulla LIM!', 'ok');
+      _startTimerPoll();
     } catch (e) {
       timerSetStatus('Errore: ' + e.message, 'err');
     }
   }
 
   async function timerStop() {
+    _stopTimerPoll();
+    _stopTimerAlarm();
+    _hideTimerExpired();
     timerSetStatus('Stop timer...');
     try {
       const res = await fetch(`${CF_WORKER}/timer/${limId}`, {

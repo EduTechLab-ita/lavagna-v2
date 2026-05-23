@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v115'; // v115 — Toolbar a pillole separate per gruppo (Option C); highlight lezione con retry automatico
+const CACHE_NAME = 'eduboard-v116'; // v116 — Timer widget redesign (stile MyViewBoard, bottoni rotondi, pulse ultimi 10s); rimossa logica 2-dita globale canvas (fix conflitto Spotlight)
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'Toolbar: ogni gruppo di strumenti ha ora la sua pillola separata, senza rettangolo di sfondo. Libreria: evidenziazione lezione corrente con retry automatico (max 6 tentativi).';
+const CHANGELOG  = 'Timer ridisegnato: aspetto elegante stile MyViewBoard, bottoni rotondi, animazione pulsante negli ultimi 10 secondi. Correzione: il gesto a 2 dita non interferisce più con lo Spotlight.';
 
 const urlsToCache = [
   '.',

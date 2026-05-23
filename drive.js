@@ -2274,6 +2274,7 @@ class EduBoardConnect {
         this._photoInt       = null;
         this._laserInt       = null;
         this._timerInt       = null;
+        this._alarmInt       = null;
         this._panel          = null;
         this._phoneConnected = false;
         this._timerWasActive = false;
@@ -2726,19 +2727,73 @@ class EduBoardConnect {
         [0, 500, 1000].forEach(d => setTimeout(() => this._beep(880, 0.45), d));
     }
 
+    _stopAlarm() {
+        if (this._alarmInt) {
+            clearInterval(this._alarmInt);
+            this._alarmInt = null;
+        }
+    }
+
+    _startAlarm() {
+        if (this._alarmInt) return; // già attivo
+        // Suona subito il primo beep, poi ripete ogni 2s
+        this._beep(880, 0.6, 0.6);
+        this._alarmInt = setInterval(() => {
+            this._beep(880, 0.45, 0.5);
+            setTimeout(() => this._beep(1100, 0.35, 0.4), 300);
+        }, 2000);
+    }
+
     _updateTimer(data) {
         // Crea/aggiorna overlay timer sulla LIM
         let overlay = document.getElementById('eduboard-timer-overlay');
-        if (!data.active) {
-            if (this._timerWasActive) {
-                // Transizione attivo→scaduto: suona l'allarme
-                this._playTimerAlarm();
-                if (typeof toast === 'function') toast('⏰ Tempo scaduto!', 'info');
-            }
+
+        // Caso: KV eliminato (STOP premuto dal telefono) → ferma allarme
+        if (!data.active && !data.expired) {
+            this._stopAlarm();
             this._timerWasActive = false;
             if (overlay) overlay.style.display = 'none';
             return;
         }
+
+        // Caso: timer scaduto (expired) → avvia allarme in loop + overlay rosso lampeggiante
+        if (data.expired) {
+            if (!this._alarmInt) {
+                // Prima volta che vediamo expired: avvia allarme
+                this._startAlarm();
+                if (typeof toast === 'function') toast('⏰ Tempo scaduto!', 'info');
+            }
+            this._timerWasActive = false;
+            if (!overlay) {
+                overlay = document.createElement('div');
+                overlay.id = 'eduboard-timer-overlay';
+                overlay.style.cssText = `
+                    position:fixed; top:20px; right:20px; z-index:8000;
+                    background:rgba(15,23,42,0.92); color:#ef4444;
+                    border-radius:16px; padding:16px 24px; font-size:2rem;
+                    font-weight:700; font-family:system-ui; letter-spacing:0.05em;
+                    box-shadow:0 8px 32px rgba(0,0,0,0.4); backdrop-filter:blur(8px);
+                    border:2px solid #ef4444; min-width:120px; text-align:center;
+                    animation:timerExpiredBlink 1s step-start infinite;
+                `;
+                // Aggiunge keyframes per il lampeggio se non già presenti
+                if (!document.getElementById('timer-expired-style')) {
+                    const st = document.createElement('style');
+                    st.id = 'timer-expired-style';
+                    st.textContent = '@keyframes timerExpiredBlink { 0%,100%{opacity:1} 50%{opacity:0.35} }';
+                    document.head.appendChild(st);
+                }
+                document.body.appendChild(overlay);
+            }
+            overlay.style.display = 'block';
+            overlay.style.color = '#ef4444';
+            overlay.style.border = '2px solid #ef4444';
+            overlay.style.animation = 'timerExpiredBlink 1s step-start infinite';
+            overlay.textContent = '⏰ TEMPO SCADUTO!';
+            return;
+        }
+
+        // Caso: timer attivo
         this._timerWasActive = true;
         if (!overlay) {
             overlay = document.createElement('div');
@@ -2754,6 +2809,8 @@ class EduBoardConnect {
             document.body.appendChild(overlay);
         }
         overlay.style.display = 'block';
+        overlay.style.animation = '';
+        overlay.style.border = '1px solid rgba(255,255,255,0.1)';
         // Calcola tempo rimanente
         const elapsed = Math.floor((Date.now() - data.startedAt) / 1000);
         const remaining = Math.max(0, data.seconds - elapsed);

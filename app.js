@@ -1042,65 +1042,12 @@ class CanvasManager {
         el.style.pointerEvents = 'auto'; // overlay riceve eventi
         this.canvas.style.pointerEvents = 'none'; // draw-canvas non riceve eventi diretti
 
-        // Traccia tutti i pointer attivi (supporta 2 dita indipendentemente dal pointerType)
-        // Necessario per LIM con penna che emula il dito (pointerType = 'pen' non 'touch')
-        this._activePointers = new Map(); // pointerId → {x, y}
-        this._twoFingerMode  = false;
-        this._twoFingerStart = null;
-
-        // ── Regola FONDAMENTALE ───────────────────────────────────────────────────
-        // _activePointers traccia SOLO i pointer che hanno fatto pointerdown.
-        // pointermove aggiorna la posizione SOLO se il pointer è già nella mappa
-        // (evita di aggiungere pointer "hover" o mouse passante → bug twoFingerMode).
-        // pointerup viene ascoltato su document per catturare i rilasci anche
-        // quando il dito esce dall'overlay senza setPointerCapture.
-        // ─────────────────────────────────────────────────────────────────────────
-
         el.addEventListener('pointerdown', e => {
             e.preventDefault();
-            this._activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-
-            if (this._activePointers.size >= 2 && typeof panMgr !== 'undefined') {
-                // Modalità 2 dita: pan + zoom
-                this._twoFingerMode = true;
-                CONFIG.isDrawing = false;
-                const pts = Array.from(this._activePointers.values());
-                this._twoFingerStart = {
-                    dx:    panMgr.dx,
-                    dy:    panMgr.dy,
-                    scale: panMgr.scale,
-                    midX:  (pts[0].x + pts[1].x) / 2,
-                    midY:  (pts[0].y + pts[1].y) / 2,
-                    dist:  Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y) || 1,
-                };
-                return;
-            }
             this._onStart(e);
         }, { passive: false });
 
         el.addEventListener('pointermove', e => {
-            // Aggiorna SOLO pointer già tracciati — il mouse in hover NON viene aggiunto
-            if (this._activePointers.has(e.pointerId)) {
-                this._activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-            }
-
-            if (this._twoFingerMode && this._activePointers.size >= 2 &&
-                typeof panMgr !== 'undefined' && this._twoFingerStart) {
-                const pts = Array.from(this._activePointers.values());
-                const newMidX = (pts[0].x + pts[1].x) / 2;
-                const newMidY = (pts[0].y + pts[1].y) / 2;
-                const newDist = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y) || 1;
-                const sf = this._twoFingerStart;
-                const newScale = Math.max(0.2, Math.min(4, sf.scale * (newDist / sf.dist)));
-                panMgr.dx    = sf.midX - (sf.midX - sf.dx) * (newScale / sf.scale) + (newMidX - sf.midX);
-                panMgr.dy    = sf.midY - (sf.midY - sf.dy) * (newScale / sf.scale) + (newMidY - sf.midY);
-                panMgr.scale = newScale;
-                panMgr._applyTransform();
-                panMgr._showZoomIndicator();
-                return;
-            }
-
-            if (!this._activePointers.has(e.pointerId)) return; // ignora hover
             if (e.pointerType === 'touch' && e.isPrimary === false) return;
             const evts = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
             for (const ev of evts) this._onMove(ev);
@@ -1109,27 +1056,11 @@ class CanvasManager {
         // Listener su document per catturare pointerup anche fuori dall'overlay
         // (senza setPointerCapture il browser non garantisce pointerup sull'elemento)
         const _onDocUp = (e) => {
-            if (!this._activePointers.has(e.pointerId)) return; // non era tracciato
-            this._activePointers.delete(e.pointerId);
-            if (this._twoFingerMode) {
-                if (this._activePointers.size < 2) {
-                    this._twoFingerMode  = false;
-                    this._twoFingerStart = null;
-                    CONFIG.isDrawing = false;
-                }
-                return;
-            }
             if (e.pointerType === 'touch' && e.isPrimary === false) return;
             this._onEnd(e);
         };
 
         const _onDocCancel = (e) => {
-            if (!this._activePointers.has(e.pointerId)) return;
-            this._activePointers.delete(e.pointerId);
-            if (this._twoFingerMode && this._activePointers.size < 2) {
-                this._twoFingerMode  = false;
-                this._twoFingerStart = null;
-            }
             CONFIG.isDrawing = false;
         };
 
@@ -5267,7 +5198,7 @@ class TimerWidget {
         const el = document.createElement('div');
         el.id = 'timer-widget';
         el.innerHTML = `
-            <div class="timer-drag-bar" id="timer-drag-bar" title="Trascina">⠿ Timer</div>
+            <div class="timer-drag-bar" id="timer-drag-bar" title="Trascina">⠿</div>
             <div class="timer-display" id="timer-display">00:00</div>
             <div class="timer-custom-row" id="timer-custom-row" title="Imposta minuti e secondi">
                 <input class="timer-input" id="timer-input-min" type="number" min="0" max="99" value="0" placeholder="mm">
@@ -5331,6 +5262,7 @@ class TimerWidget {
         this.el.querySelector('#timer-mode-btn').textContent = '⏱';
         this.el.querySelector('#timer-presets').style.display = 'flex';
         this.el.classList.remove('timer-finished');
+        this.el.classList.remove('timer-low');
     }
 
     _toggleRun() {
@@ -5347,12 +5279,18 @@ class TimerWidget {
                         clearInterval(this._interval);
                         this._running = false;
                         this.el.querySelector('#timer-start').textContent = '▶';
+                        this.el.classList.remove('timer-low');
                         this.el.classList.add('timer-finished');
                         this._playBeep();
                         setTimeout(() => this.el.classList.remove('timer-finished'), 3000);
                         return;
                     }
                     this._seconds--;
+                    if (this._seconds > 0 && this._seconds <= 10) {
+                        this.el.classList.add('timer-low');
+                    } else {
+                        this.el.classList.remove('timer-low');
+                    }
                 } else {
                     this._seconds++;
                 }
@@ -5368,6 +5306,7 @@ class TimerWidget {
         this._updateDisplay();
         this.el.querySelector('#timer-start').textContent = '▶';
         this.el.classList.remove('timer-finished');
+        this.el.classList.remove('timer-low');
     }
 
     _toggleMode() {

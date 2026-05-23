@@ -152,11 +152,19 @@ export default {
       const raw = await env.SESSIONS.get(`timer:${id}`);
       if (!raw) return json({ active: false });
       const data = JSON.parse(raw);
-      // Auto-scade se tempo esaurito
+      // Già scaduto: ritorna expired finché non viene fermato con STOP
+      if (data.expired) {
+        return json({ active: false, expired: true });
+      }
+      // Auto-scade se tempo esaurito: marca expired con TTL 5 minuti
       const elapsed = Math.floor((Date.now() - data.startedAt) / 1000);
       if (elapsed >= data.seconds) {
-        await env.SESSIONS.delete(`timer:${id}`);
-        return json({ active: false });
+        await env.SESSIONS.put(
+          `timer:${id}`,
+          JSON.stringify({ active: false, expired: true }),
+          { expirationTtl: 300 }
+        );
+        return json({ active: false, expired: true });
       }
       return json({ active: true, seconds: data.seconds, startedAt: data.startedAt });
     }
