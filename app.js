@@ -1044,6 +1044,7 @@ class CanvasManager {
 
         el.addEventListener('pointerdown', e => {
             e.preventDefault();
+            if (e.pointerType === 'touch' && e.isPrimary === false) return;
             this._onStart(e);
         }, { passive: false });
 

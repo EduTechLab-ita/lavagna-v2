@@ -1,4 +1,4 @@
-const CACHE_NAME = 'eduboard-v116'; // v116 — Timer widget redesign (stile MyViewBoard, bottoni rotondi, pulse ultimi 10s); rimossa logica 2-dita globale canvas (fix conflitto Spotlight)
+const CACHE_NAME = 'eduboard-v117'; // v116 — Timer widget redesign (stile MyViewBoard, bottoni rotondi, pulse ultimi 10s); rimossa logica 2-dita globale canvas (fix conflitto Spotlight)
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
 const CHANGELOG  = 'Timer ridisegnato: aspetto elegante stile MyViewBoard, bottoni rotondi, animazione pulsante negli ultimi 10 secondi. Correzione: il gesto a 2 dita non interferisce più con lo Spotlight.';
 
