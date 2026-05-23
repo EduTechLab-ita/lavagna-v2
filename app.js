@@ -2885,6 +2885,8 @@ class PanManager {
         // Ascolta su document per catturare pinch da qualsiasi elemento
         document.addEventListener('touchstart', (e) => {
             if (e.touches.length === 2) {
+                // Se lo Spotlight è attivo, lascia che gestisca lui il 2-dita (pinch focus)
+                if (typeof spotlightTool !== 'undefined' && spotlightTool?.visible) return;
                 // Controlla che il pinch sia dentro l'area della lavagna
                 const area = document.getElementById('canvas-area');
                 if (!area) return;

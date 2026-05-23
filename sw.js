@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v117'; // v116 — Timer widget redesign (stile MyViewBoard, bottoni rotondi, pulse ultimi 10s); rimossa logica 2-dita globale canvas (fix conflitto Spotlight)
+const CACHE_NAME = 'eduboard-v118'; // v118 — Fix: gesto 2 dita non sposta più la lavagna quando Focus è attivo; fix SW bypass workers.dev per connessione EduConnect
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'Timer ridisegnato: aspetto elegante stile MyViewBoard, bottoni rotondi, animazione pulsante negli ultimi 10 secondi. Correzione: il gesto a 2 dita non interferisce più con lo Spotlight.';
+const CHANGELOG  = 'Correzione Focus: il gesto a 2 dita ridimensiona il Focus senza spostare la lavagna. Correzione connessione EduConnect: comunicazione con il server migliorata.';
 
 const urlsToCache = [
   '.',
@@ -79,14 +79,15 @@ self.addEventListener('fetch', (event) => {
   const request = event.request;
   const url = request.url;
 
-  // CRITICO: bypass completo per Google OAuth, Drive API e servizi Google correlati.
+  // CRITICO: bypass completo per Google OAuth, Drive API, Cloudflare Workers e servizi esterni.
   // Non chiamare event.respondWith() — lascia passare tutto al network senza intercettare.
   if (
     url.includes('googleapis.com') ||
     url.includes('gstatic.com') ||
     url.includes('accounts.google.com') ||
     url.includes('drive.google.com') ||
-    url.includes('script.google.com')
+    url.includes('script.google.com') ||
+    url.includes('workers.dev')
   ) {
     return;
   }
