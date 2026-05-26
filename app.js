@@ -2315,6 +2315,12 @@ class ProjectManager {
         }
         canvasMgr.clear();
         if (typeof objectLayer !== 'undefined' && objectLayer) objectLayer.clear();
+        // FIX newBoard: reset PageManager → pagine vecchie non restano in memoria
+        if (window.pageMgr) {
+            window.pageMgr.pages = [{ drawImageData: null, objects: [], background: { type: 'white', color: '#ffffff', orientation: 'landscape' } }];
+            window.pageMgr.currentIndex = 0;
+            window.pageMgr._renderPageBar();
+        }
         bgMgr.setBackground('white');
         CONFIG.projectName = 'Nuova Lavagna';
         CONFIG.isDirty = false;

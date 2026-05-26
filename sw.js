@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v118'; // v118 — Fix: gesto 2 dita non sposta più la lavagna quando Focus è attivo; fix SW bypass workers.dev per connessione EduConnect
+const CACHE_NAME = 'eduboard-v119'; // v119 — Fix: tasto + pagine bloccato dalla toolbar; nuova lavagna non puliva le pagine; QR 404 al cambio account
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'Correzione Focus: il gesto a 2 dita ridimensiona il Focus senza spostare la lavagna. Correzione connessione EduConnect: comunicazione con il server migliorata.';
+const CHANGELOG  = 'Correzioni: tasto + per aggiungere pagine ora funziona, nuova lavagna parte sempre pulita, cambio account via QR non dà più errore 404.';
 
 const urlsToCache = [
   '.',

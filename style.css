@@ -298,6 +298,7 @@ button {
     align-items: center;
     max-width: min(98vw, 1200px);
     width: 100%;
+    pointer-events: none; /* FIX + button: il wrapper non blocca click su page-bar */
 }
 
 #toolbar-wrapper.visible {
@@ -308,6 +309,7 @@ button {
    Toggle toolbar — bottone freccia dentro il quick strip
    -------------------------------------------------------------------------- */
 #toolbar-toggle {
+    pointer-events: auto;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -345,6 +347,7 @@ button {
    Pannello toolbar principale (#floating-toolbar)
    -------------------------------------------------------------------------- */
 #floating-toolbar {
+    pointer-events: auto;
     position: relative;
     overflow: visible;
     background: transparent;
@@ -3699,6 +3702,7 @@ body.has-page-bar #zoom-indicator {
    Pensata per uso LIM: bottoni touch-friendly, sempre visibile
    ============================================================================= */
 #quick-strip {
+    pointer-events: auto;
     display: flex;
     flex-direction: row;
     align-items: center;

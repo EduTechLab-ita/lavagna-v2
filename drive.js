@@ -1349,7 +1349,7 @@ class LibraryManager {
                 window.autoSaveMgr?.reset();
             }, 500);
             // Memorizza come ultima lezione aperta per auto-open al prossimo avvio
-            localStorage.setItem('eduboard_last_lesson', JSON.stringify({ fileId, fileName }));
+            localStorage.setItem('eduboard_last_lesson', JSON.stringify({ fileId, fileName, userEmail: this.drive?.userEmail || null }));
             // Chiude il pannello, poi aspetta il resize effettivo del canvas prima di centerView.
             // Il pannello che si chiude allarga il viewport → il canvas si ridimensiona →
             // solo DOPO il resize centerView calcola le proporzioni corrette.
@@ -1423,7 +1423,7 @@ class LibraryManager {
             // Traccia fileId corrente
             if (savedFileId) {
                 this.currentFileId = savedFileId;
-                localStorage.setItem('eduboard_last_lesson', JSON.stringify({ fileId: savedFileId, fileName: name.trim() + '.json' }));
+                localStorage.setItem('eduboard_last_lesson', JSON.stringify({ fileId: savedFileId, fileName: name.trim() + '.json', userEmail: this.drive?.userEmail || null }));
             }
 
             CONFIG.projectName = name.trim();
@@ -1911,6 +1911,8 @@ async function _autoOpenLastLesson() {
         if (!raw) return;
         const last = JSON.parse(raw);
         if (!last?.fileId) return;
+        // FIX QR 404: salta se il fileId appartiene a un account diverso
+        if (last.userEmail && driveMgr.userEmail && last.userEmail !== driveMgr.userEmail) return;
         await libraryMgr.openLesson(last.fileId, last.fileName || 'ultima lezione');
     } catch (_) {}
 }
