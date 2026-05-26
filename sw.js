@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v119'; // v119 — Fix: tasto + pagine bloccato dalla toolbar; nuova lavagna non puliva le pagine; QR 404 al cambio account
+const CACHE_NAME = 'eduboard-v120'; // v120 — Fix cerchietti colore cartelle libreria invisibili su sfondo chiaro
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'Correzioni: tasto + per aggiungere pagine ora funziona, nuova lavagna parte sempre pulita, cambio account via QR non dà più errore 404.';
+const CHANGELOG  = 'Correzione: i cerchietti per colorare le cartelle nella libreria sono di nuovo visibili.';
 
 const urlsToCache = [
   '.',

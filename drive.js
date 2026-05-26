@@ -2191,13 +2191,13 @@ function _injectDriveStyles() {
     border-radius: 50%;
     cursor: pointer;
     flex-shrink: 0;
-    border: 1px solid rgba(255,255,255,0.3);
+    border: 1px solid rgba(0,0,0,0.2);
     transition: transform 0.1s;
     margin-right: 4px;
 }
 .folder-color-dot.no-color {
     background: transparent;
-    border: 1px dashed rgba(255,255,255,0.25);
+    border: 1px dashed rgba(0,0,0,0.25);
 }
 .folder-color-dot:hover { transform: scale(1.3); }
 .folder-color-popup {
