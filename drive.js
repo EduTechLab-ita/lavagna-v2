@@ -1315,15 +1315,19 @@ class LibraryManager {
                 // Offset calcolato ORA (sincrono), non dentro onload
                 let offsetX = 0, offsetY = 0;
                 if (lesson.pagePx != null && typeof bgMgr !== 'undefined') {
-                    const W = canvasMgr.canvas.width, H = canvasMgr.canvas.height;
+                    const W = canvasMgr._canvasW || 0, H = canvasMgr._canvasH || 0;
                     const curr = bgMgr._getPageRect(W, H);
                     offsetX = curr.px - lesson.pagePx;
                     offsetY = curr.py - lesson.pagePy;
                 }
                 img.onload = () => {
+                    // OffscreenCanvas: costruiamo il canvas sul main thread, poi lo inviamo al Worker
                     canvasMgr._saveUndo();
-                    canvasMgr.ctx.clearRect(0, 0, canvasMgr.canvas.width, canvasMgr.canvas.height);
-                    canvasMgr.ctx.drawImage(img, offsetX, offsetY);
+                    const W = canvasMgr._canvasW || 0, H = canvasMgr._canvasH || 0;
+                    const off = document.createElement('canvas');
+                    off.width = W; off.height = H;
+                    off.getContext('2d').drawImage(img, offsetX, offsetY);
+                    canvasMgr.putDataURL(off.toDataURL('image/png'));
                 };
                 img.src = lesson.drawing;
             }
@@ -1411,13 +1415,13 @@ class LibraryManager {
             const savedFileId = await this.drive.saveLesson({
                 name:           name.trim(),
                 folderId:       targetFolder,
-                drawingDataURL: canvasMgr.getDataURL(),
+                drawingDataURL: await canvasMgr.getDataURL(),
                 bgKey:          bgMgr.currentBg,
                 bgImageBase64,
-                pages:          window.pageManager ? window.pageManager.serialize() : null,
-                canvasWidth: canvasMgr?.canvas?.width || 0,
-                pagePx: (typeof bgMgr !== 'undefined' && canvasMgr?.canvas) ? bgMgr._getPageRect(canvasMgr.canvas.width, canvasMgr.canvas.height).px : null,
-                pagePy: (typeof bgMgr !== 'undefined' && canvasMgr?.canvas) ? bgMgr._getPageRect(canvasMgr.canvas.width, canvasMgr.canvas.height).py : null
+                pages:          window.pageManager ? await window.pageManager.serialize() : null,
+                canvasWidth: canvasMgr?._canvasW || 0,
+                pagePx: (typeof bgMgr !== 'undefined' && canvasMgr?._canvasW) ? bgMgr._getPageRect(canvasMgr._canvasW, canvasMgr._canvasH).px : null,
+                pagePy: (typeof bgMgr !== 'undefined' && canvasMgr?._canvasW) ? bgMgr._getPageRect(canvasMgr._canvasW, canvasMgr._canvasH).py : null
             });
 
             // Traccia fileId corrente
@@ -1470,11 +1474,11 @@ class LibraryManager {
                         key:         bgMgr.currentBg,
                         imageBase64: bgImageBase64
                     },
-                    drawing: canvasMgr.getDataURL(),
-                    pages:   window.pageManager ? window.pageManager.serialize() : null,
-                    canvasWidth: canvasMgr?.canvas?.width || 0,
-                    pagePx: (typeof bgMgr !== 'undefined' && canvasMgr?.canvas) ? bgMgr._getPageRect(canvasMgr.canvas.width, canvasMgr.canvas.height).px : null,
-                    pagePy: (typeof bgMgr !== 'undefined' && canvasMgr?.canvas) ? bgMgr._getPageRect(canvasMgr.canvas.width, canvasMgr.canvas.height).py : null
+                    drawing: await canvasMgr.getDataURL(),
+                    pages:   window.pageManager ? await window.pageManager.serialize() : null,
+                    canvasWidth: canvasMgr?._canvasW || 0,
+                    pagePx: (typeof bgMgr !== 'undefined' && canvasMgr?._canvasW) ? bgMgr._getPageRect(canvasMgr._canvasW, canvasMgr._canvasH).px : null,
+                    pagePy: (typeof bgMgr !== 'undefined' && canvasMgr?._canvasW) ? bgMgr._getPageRect(canvasMgr._canvasW, canvasMgr._canvasH).py : null
                 },
                 this.currentFileId  // PATCH sul file esistente
             );

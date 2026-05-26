@@ -1,11 +1,12 @@
-const CACHE_NAME = 'eduboard-v120'; // v120 — Fix cerchietti colore cartelle libreria invisibili su sfondo chiaro
+const CACHE_NAME = 'eduboard-v2-001'; // v2-001 — OffscreenCanvas: rendering canvas in Web Worker
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'Correzione: i cerchietti per colorare le cartelle nella libreria sono di nuovo visibili.';
+const CHANGELOG  = 'EduBoard v2: disegno in background thread (meno jank, più fluidità).';
 
 const urlsToCache = [
   '.',
   './index.html',
   './app.js',
+  './draw-worker.js',
   './style.css',
   './drive.js',
   './geometry.js',
