@@ -663,7 +663,8 @@
   // ══════════════════════════════════════════════════════════════
   const CLIENT_ID   = '374342529488-c123a5j5v8hnfs241udbl55fos5thfq6.apps.googleusercontent.com';
   const SCOPE       = 'https://www.googleapis.com/auth/drive.file email profile';
-  const CF_WORKER   = 'https://eduboard-connect.edutechlab-ita.workers.dev';
+  const CF_WORKER   = 'https://eduboard-connect.edutechlab-ita.workers.dev'; // timer
+  const FIREBASE_DB = 'https://eduboard-connect-default-rtdb.europe-west1.firebasedatabase.app';
   const STORAGE_EMAIL   = 'ec_saved_email';
   const STORAGE_TOKEN   = 'ec_access_token';
   const STORAGE_EXPIRY  = 'ec_token_expiry';
@@ -820,10 +821,10 @@
   // CONNESSIONE LIM (usata sia da token fresco che da cache)
   // ══════════════════════════════════════════════════════════════
   async function connectToLim(token, expiry, email) {
-    // Se c'è una vecchia LIM diversa, segnalale di disconnettersi dal Drive
+    // Se c'è una vecchia LIM diversa, segnalale di disconnettersi (via Firebase)
     if (prevLimId) {
-      fetch(`${CF_WORKER}/session/${prevLimId}`, {
-        method: 'POST',
+      fetch(`${FIREBASE_DB}/sessions/${prevLimId}.json`, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'transferred' })
       }).catch(() => {}); // silenzioso — non bloccante
@@ -831,12 +832,12 @@
     }
     showScreen('screen-connecting');
     try {
-      const res = await fetch(`${CF_WORKER}/session/${limId}`, {
-        method: 'POST',
+      const res = await fetch(`${FIREBASE_DB}/sessions/${limId}.json`, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, email, expiry })
-      }).then(r => r.json());
-      if (!res.ok) throw new Error(res.error || 'Errore server');
+        body: JSON.stringify({ status: 'pending', token, email, expiry })
+      });
+      if (!res.ok) throw new Error('Errore database: ' + res.status);
       showConnected(email);
     } catch (err) {
       showError(err.message || 'Errore di rete. Riprova.');

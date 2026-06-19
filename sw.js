@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-001'; // v2-001 — Branch V2: codice v131 + migrazione Firebase EduConnect
+const CACHE_NAME = 'eduboard-v2-002'; // v2-002 — Migrazione EduConnect: CF Worker polling → Firebase RTDB WebSocket
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2 — branch sviluppo (base v131, migrazione Firebase in corso).';
+const CHANGELOG  = 'EduBoard V2 — EduConnect ora usa Firebase (zero polling, connessione istantanea).';
 
 const urlsToCache = [
   '.',
@@ -87,7 +87,8 @@ self.addEventListener('fetch', (event) => {
     url.includes('accounts.google.com') ||
     url.includes('drive.google.com') ||
     url.includes('script.google.com') ||
-    url.includes('workers.dev')
+    url.includes('workers.dev') ||
+    url.includes('firebasedatabase.app')
   ) {
     return;
   }

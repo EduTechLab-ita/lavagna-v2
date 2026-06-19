@@ -2383,15 +2383,16 @@ function _injectDriveStyles() {
 
 // =============================================================================
 // SEZIONE 3b — EduBoardConnect
-// Gestisce il pannello QR per connettere Drive via telefono (backend: Cloudflare Workers)
+// Gestisce il pannello QR per connettere Drive via telefono (backend: Firebase RTDB)
 // =============================================================================
 
-const CONNECT_SERVER = 'https://eduboard-connect.edutechlab-ita.workers.dev';
+const FIREBASE_DB    = 'https://eduboard-connect-default-rtdb.europe-west1.firebasedatabase.app';
+const CONNECT_SERVER = 'https://eduboard-connect.edutechlab-ita.workers.dev'; // foto/laser/timer
 
 class EduBoardConnect {
     constructor() {
         this._limId          = this._getLimId();
-        this._pollInt        = null;
+        this._eventSource    = null;
         this._photoInt       = null;
         this._laserInt       = null;
         this._timerInt       = null;
@@ -2424,7 +2425,7 @@ class EduBoardConnect {
 
     // Mostra il pannello QR (modal centrato a due colonne)
     show() {
-        if (this._panel) { this._panel.style.display = 'flex'; this._startPolling(); return; }
+        if (this._panel) { this._panel.style.display = 'flex'; this._startListening(); return; }
 
         const panel = document.createElement('div');
         panel.id = 'ec-panel';
@@ -2502,7 +2503,7 @@ class EduBoardConnect {
             qrEl.appendChild(img);
         }
 
-        this._startPolling();
+        this._startListening();
     }
 
     _switchToInstall() {
@@ -2536,62 +2537,48 @@ class EduBoardConnect {
 
     _switchToConnect() {
         if (this._panel) this._panel.style.display = 'flex';
-        this._startPolling();
+        this._startListening();
     }
 
     hide() {
-        if (this._pollInt) { clearInterval(this._pollInt); this._pollInt = null; }
         if (this._panel) { this._panel.style.display = 'none'; }
+        // EventSource resta aperto in background per ricevere il segnale 'transferred'
     }
 
-    _startPolling() {
-        this._stopPolling();
-        this._pollInt = setInterval(() => this._poll(), 2000);
+    _startListening() {
+        this._stopListening();
+        const es = new EventSource(`${FIREBASE_DB}/sessions/${this._limId}.json`);
+        es.addEventListener('put', (e) => {
+            try {
+                const { data } = JSON.parse(e.data);
+                if (!data) return; // null = vuoto o appena cancellato
+                if (data.status === 'pending') {
+                    // Aggiorna UI di conferma
+                    const statusEl = document.getElementById('ec-status');
+                    if (statusEl) statusEl.innerHTML = '<span style="color:#22c55e">Connesso come ' + data.email + '</span>';
+                    // Nascondi pannello PRIMA di aprire lezione (evita decentramento canvas)
+                    setTimeout(() => {
+                        this.hide();
+                        if (window.driveMgr) window.driveMgr._onExternalToken(data.token, data.email, data.expiry);
+                        this._onExternalConnect(data.email);
+                        // Pulisci sessione da Firebase (l'EventSource resta aperto per 'transferred')
+                        fetch(`${FIREBASE_DB}/sessions/${this._limId}.json`, { method: 'DELETE' }).catch(() => {});
+                    }, 800);
+                } else if (data.status === 'transferred') {
+                    // Questa LIM è stata scalzata da un'altra sessione dello stesso account
+                    toast('Sessione Drive trasferita ad un\'altra classe.', 'info');
+                    if (window.driveMgr) window.driveMgr.disconnect();
+                    if (window.driveConnectBtn) window.driveConnectBtn.update();
+                    fetch(`${FIREBASE_DB}/sessions/${this._limId}.json`, { method: 'DELETE' }).catch(() => {});
+                }
+            } catch(_) { /* silenzioso */ }
+        });
+        es.onerror = () => { /* EventSource si riconnette automaticamente */ };
+        this._eventSource = es;
     }
 
-    _stopPolling() {
-        if (this._pollInt) { clearInterval(this._pollInt); this._pollInt = null; }
-        if (this._transferPollInt) { clearInterval(this._transferPollInt); this._transferPollInt = null; }
-    }
-
-    async _poll() {
-        try {
-            const res = await fetch(`${CONNECT_SERVER}/session/${this._limId}`).then(r => r.json());
-            if (res.status === 'connected') {
-                this._stopPolling();
-                // Aggiorna UI di conferma
-                const statusEl = document.getElementById('ec-status');
-                if (statusEl) statusEl.innerHTML = '<span style="color:#22c55e">Connesso come ' + res.email + '</span>';
-                // Nascondi pannello PRIMA di aprire lezione (evita decentramento canvas)
-                setTimeout(() => {
-                    this.hide();
-                    if (window.driveMgr) window.driveMgr._onExternalToken(res.token, res.email, res.expiry);
-                    this._onExternalConnect(res.email);
-                    // Poll lento (10s) per rilevare se questa LIM viene scalzata da un'altra classe
-                    this._transferPollInt = setInterval(() => this._pollTransfer(), 10000);
-                }, 800);
-            } else if (res.status === 'transferred') {
-                // Questa LIM è stata scalzata da un'altra sessione dello stesso account
-                toast('Sessione Drive trasferita ad un\'altra classe.', 'info');
-                this._stopPolling();
-                if (window.driveMgr) window.driveMgr.disconnect();
-                if (window.driveConnectBtn) window.driveConnectBtn.update();
-            }
-        } catch(e) { /* silenzioso — polling continua */ }
-    }
-
-    // Poll lento post-connessione: controlla solo se la sessione è stata trasferita
-    async _pollTransfer() {
-        try {
-            const res = await fetch(`${CONNECT_SERVER}/session/${this._limId}`).then(r => r.json());
-            if (res.status === 'transferred') {
-                clearInterval(this._transferPollInt);
-                this._transferPollInt = null;
-                toast('Sessione Drive trasferita ad un\'altra classe.', 'info');
-                if (window.driveMgr) window.driveMgr.disconnect();
-                if (window.driveConnectBtn) window.driveConnectBtn.update();
-            }
-        } catch(e) { /* silenzioso */ }
+    _stopListening() {
+        if (this._eventSource) { this._eventSource.close(); this._eventSource = null; }
     }
 
     _onExternalConnect(email) {
