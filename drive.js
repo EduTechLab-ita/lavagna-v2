@@ -2460,6 +2460,9 @@ class EduBoardConnect {
             if (this._audioCtx?.state === 'suspended') this._audioCtx.resume().catch(() => {});
         };
         ['click','touchstart','keydown'].forEach(ev => document.addEventListener(ev, unlockAudio, { once: false, passive: true }));
+        // Avvia subito l'ascolto Firebase: l'EventSource sopravvive ai reload del SW
+        // e permette al telefono di riconnettersi senza dover riaprire il pannello QR.
+        this._startListening();
     }
 
     // ID univoco per questa finestra LIM — sessionStorage (per-tab) evita che
@@ -2660,7 +2663,6 @@ class EduBoardConnect {
         this._pendingPhotos = this._pendingPhotos || [];
 
         this._photoInt = setInterval(async () => {
-            if (!this._phoneConnected) return;
             try {
                 const res = await fetch(`${CONNECT_SERVER}/photos/${this._limId}`).then(r => r.json());
                 if (!res.photos?.length) return;
@@ -2719,8 +2721,9 @@ class EduBoardConnect {
         const bell  = document.getElementById('photo-bell-btn');
         const badge = document.getElementById('photo-bell-badge');
         if (!bell) return;
-        // Mostra la campanella solo se il telefono è connesso
-        bell.style.display = this._phoneConnected ? 'flex' : 'none';
+        // Mostra la campanella se il telefono è connesso o ci sono foto in attesa
+        const hasPending = (this._pendingPhotos || []).filter(p => !p.added).length > 0;
+        bell.style.display = (this._phoneConnected || hasPending) ? 'flex' : 'none';
         if (!badge) return;
         const count = (this._pendingPhotos || []).filter(p => !p.added).length;
         badge.textContent = count > 9 ? '9+' : String(count);
@@ -2873,7 +2876,6 @@ class EduBoardConnect {
     startTimerPolling() {
         if (this._timerInt) return;
         this._timerInt = setInterval(async () => {
-            if (!this._phoneConnected) return;
             try {
                 const res = await fetch(`${CONNECT_SERVER}/timer/${this._limId}`).then(r => r.json());
                 this._updateTimer(res);

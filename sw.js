@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-015'; // v2-015 — Ultima lezione salvata su Drive (_prefs.json)
+const CACHE_NAME = 'eduboard-v2-016'; // v2-016 — Fix foto/timer da EduConnect dopo reload automatico LIM
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-015 — Ripristino ultima lezione indipendente dalla cache.';
+const CHANGELOG  = 'EduBoard V2-016 — Foto e timer da EduConnect ora persistono dopo aggiornamenti automatici.';
 
 const urlsToCache = [
   '.',
