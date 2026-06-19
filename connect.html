@@ -920,7 +920,9 @@
   // SHOW CONNECTED
   // ══════════════════════════════════════════════════════════════
   function showConnected(email) {
-    document.getElementById('connected-email').textContent = email || savedEmail || '—';
+    // DEBUG: mostra anche le prime 8 cifre del limId per verifica
+    const limCode = (limId || '?').slice(0, 8).toUpperCase();
+    document.getElementById('connected-email').textContent = (email || savedEmail || '—') + ' · LIM:' + limCode;
     // Reset stato login dopo connessione riuscita
     _needsExplicitLogin = false;
     const btn = document.getElementById('btn-continue');
