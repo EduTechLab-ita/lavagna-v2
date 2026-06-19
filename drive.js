@@ -2550,8 +2550,13 @@ class EduBoardConnect {
         // Reset stato ogni volta che si (ri)avvia l'ascolto
         const statusEl = document.getElementById('ec-status');
         if (statusEl) statusEl.innerHTML = '<span class="ec-dot"></span> In attesa del telefono...';
-        const es = new EventSource(`${FIREBASE_DB}/sessions/${this._limId}.json`);
+        const fbUrl = `${FIREBASE_DB}/sessions/${this._limId}.json`;
+        console.log('[EC-LIM] Ascolto Firebase:', fbUrl);
+        const es = new EventSource(fbUrl);
+        es.onopen  = () => console.log('[EC-LIM] EventSource APERTO');
+        es.onerror = (e) => console.warn('[EC-LIM] EventSource ERRORE (stato:', es.readyState, ')');
         es.addEventListener('put', (e) => {
+            console.log('[EC-LIM] put ricevuto:', e.data?.slice(0, 120));
             try {
                 const { data } = JSON.parse(e.data);
                 if (!data) return; // null = vuoto o appena cancellato
@@ -2578,7 +2583,6 @@ class EduBoardConnect {
                 }
             } catch(_) { /* silenzioso */ }
         });
-        es.onerror = () => { /* EventSource si riconnette automaticamente */ };
         this._eventSource = es;
     }
 
