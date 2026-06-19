@@ -80,6 +80,7 @@ class DriveManager {
         this.rootFolderId    = null;   // "EduBoard"
         this.lessonsFolderId = null;   // "EduBoard/Lezioni"
         this.bgFolderId      = null;   // "EduBoard/Sfondi"
+        this._folderColorsId = null;   // "_folder_colors.json" in EduBoard
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -119,6 +120,7 @@ class DriveManager {
                         await this._ensureRootFolder();
                         await this._ensureLessonsFolder();
                         await this._ensureBgFolder();
+                        await this._loadFolderColors();
 
                         this.connected = true;
                         this._saveSession();
@@ -177,6 +179,7 @@ class DriveManager {
                             await this._ensureRootFolder();
                             await this._ensureLessonsFolder();
                             await this._ensureBgFolder();
+                            await this._loadFolderColors();
                         } catch (_) {}
 
                         resolve(true);
@@ -204,6 +207,7 @@ class DriveManager {
         this.rootFolderId    = null;
         this.lessonsFolderId = null;
         this.bgFolderId      = null;
+        this._folderColorsId = null;
         sessionStorage.removeItem('eduboard_drive_session');
         localStorage.removeItem('eduboard_drive_session');
         localStorage.removeItem('eduboard_user_email');
@@ -247,6 +251,7 @@ class DriveManager {
                 await this._ensureRootFolder();
                 await this._ensureLessonsFolder();
                 await this._ensureBgFolder();
+                await this._loadFolderColors();
                 this._saveSession();
             } catch (err) {
                 const errMsg = err.message || 'errore sconosciuto';
@@ -347,6 +352,43 @@ class DriveManager {
         this.bgFolderId = await this._findOrCreateFolder('Sfondi', this.rootFolderId);
         this._saveSession();
         return this.bgFolderId;
+    }
+
+    /** Carica i colori cartelle da Drive (_folder_colors.json) e li applica a localStorage. */
+    async _loadFolderColors() {
+        if (!this.rootFolderId) return;
+        try {
+            const fileId = await this._findFileInFolder('_folder_colors.json', this.rootFolderId);
+            if (!fileId) return;
+            this._folderColorsId = fileId;
+            const data = await this._apiFetch(
+                `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`
+            );
+            if (data && typeof data === 'object') {
+                for (const [id, color] of Object.entries(data)) {
+                    if (color) localStorage.setItem('folder-color-' + id, color);
+                    else localStorage.removeItem('folder-color-' + id);
+                }
+            }
+        } catch (_) {}
+    }
+
+    /** Salva i colori cartelle (da localStorage) su Drive come _folder_colors.json. */
+    async _saveFolderColors() {
+        if (!this.rootFolderId) return;
+        const colors = {};
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith('folder-color-')) {
+                colors[key.replace('folder-color-', '')] = localStorage.getItem(key);
+            }
+        }
+        try {
+            const newId = await this._uploadMultipart(
+                '_folder_colors.json', colors, this._folderColorsId || null, this.rootFolderId
+            );
+            if (newId) this._folderColorsId = newId;
+        } catch (_) {}
     }
 
     /**
@@ -816,18 +858,27 @@ class LibraryManager {
         // FileId dell'ultima lezione aperta/salvata (per ripristino posizione)
         this.currentFileId = null;
 
-        // Stato cartelle COLLASSATE manualmente: sopravvive al refresh.
-        // Per default TUTTE le cartelle sono espanse (OneNote-style) —
-        // solo quelle che l'utente chiude esplicitamente finiscono qui.
-        this._collapsedFolders = new Set();
+        // Cartelle espanse dall'utente: sopravvive al refresh (localStorage).
+        // Default: CHIUSE — solo quelle che l'utente apre esplicitamente (o che
+        // contengono la lezione corrente) vengono espanse.
+        const _saved = JSON.parse(localStorage.getItem('eduboard-expanded-folders') || '[]');
+        this._expandedFolders = new Set(_saved);
 
         // Cache ordini per cartella: { [folderId]: { orderId: string|null } }
         this._orderCache = {};
+
+        // Cache indentazioni lezioni: { [folderId]: { fileId: 1 } }
+        this._indentCache = {};
     }
 
     // ──────────────────────────────────────────────────────────────────────────
     // APERTURA / CHIUSURA
     // ──────────────────────────────────────────────────────────────────────────
+
+    /** Persiste _expandedFolders in localStorage. */
+    _saveExpandedFolders() {
+        localStorage.setItem('eduboard-expanded-folders', JSON.stringify([...this._expandedFolders]));
+    }
 
     toggle() {
         const isOpen = this.panel.classList.contains('open');
@@ -836,10 +887,10 @@ class LibraryManager {
         } else {
             this.panel.classList.add('open');
             this.refresh();
-            // Aggiorna highlight immediatamente se l'albero è già in memoria
-            // (evita di aspettare il re-render: la lezione corrente si evidenzia subito)
-            if (this._treeLoaded && this.treeEl.hasChildNodes() && this.currentFileId) {
-                setTimeout(() => this._highlightCurrentLesson(), 100);
+            // Evidenzia la lezione corrente ogni volta che il pannello si apre.
+            // _highlightCurrentLesson ha già i retry interni per gestire il tree ancora in caricamento.
+            if (this.currentFileId) {
+                setTimeout(() => this._highlightCurrentLesson(), 400);
             }
         }
     }
@@ -1050,9 +1101,9 @@ class LibraryManager {
                         const icon = folderRow.querySelector('.tree-icon');
                         if (icon) icon.textContent = '📂';
                     }
-                    // Assicura che la cartella genitore non sia marcata come collassata
+                    // Assicura che la cartella genitore risulti espansa
                     const fid = p.dataset.folderId;
-                    if (fid) this._collapsedFolders.delete(fid);
+                    if (fid) { this._expandedFolders.add(fid); this._saveExpandedFolders(); }
                 }
                 p = p.parentElement;
             }
@@ -1118,11 +1169,9 @@ class LibraryManager {
             const item = this._createTreeItem('folder', '📁', folder.name, 0, depth);
             container.appendChild(item);
 
-            // Sfondo colorato sulla riga
-            const folderColor = localStorage.getItem('folder-color-' + folder.id);
-            if (folderColor) {
-                item.style.background = _hexToRgba(folderColor, 0.15);
-            }
+            // Stile linguetta colorata
+            const folderColor = localStorage.getItem('folder-color-' + folder.id) || null;
+            this._applyFolderTabStyle(item, folderColor);
             item.dataset.folderId = folder.id;
 
             // Cerchietto colore cartella
@@ -1168,16 +1217,17 @@ class LibraryManager {
                     subContainer.style.display = 'none';
                     const iconEl = item.querySelector('.tree-icon');
                     if (iconEl) iconEl.textContent = '📁';
-                    this._collapsedFolders.add(folder.id); // utente ha chiuso: ricorda
+                    this._expandedFolders.delete(folder.id); // utente ha chiuso
+                    this._saveExpandedFolders();
                 } else {
-                    this._collapsedFolders.delete(folder.id); // utente ha riaperto
+                    this._expandedFolders.add(folder.id); // utente ha aperto
+                    this._saveExpandedFolders();
                     await expandFolder();
                 }
             });
 
-            // Espandi SEMPRE tutte le cartelle (OneNote-style),
-            // tranne quelle che l'utente ha esplicitamente chiuso (_collapsedFolders).
-            if (!this._collapsedFolders.has(folder.id)) {
+            // Espandi solo le cartelle che l'utente ha aperto esplicitamente.
+            if (this._expandedFolders.has(folder.id)) {
                 expandFolder(); // non awaita per non bloccare il render iniziale
             }
 
@@ -1189,12 +1239,19 @@ class LibraryManager {
             this._makeDropTarget(item, subContainer, folder.id);
         }
 
+        // Cache indentazioni per questa cartella
+        if (!this._indentCache) this._indentCache = {};
+        this._indentCache[parentId] = orderData.indents || {};
+
         // --- File lezioni ---
         for (const file of files) {
-            const name = file.name.replace(/\.json$/, '');
-            const item = this._createTreeItem('lesson', '📄', name, 0, depth + 1);
-            item.dataset.fileId  = file.id;  // necessario per _highlightCurrentLesson()
-            item.dataset.folderId = parentId; // necessario per il riordino
+            const name   = file.name.replace(/\.json$/, '');
+            const indent = orderData.indents?.[file.id] || 0;
+            const item   = this._createTreeItem('lesson', '📄', name, indent, depth + 1);
+            item.dataset.fileId   = file.id;
+            item.dataset.folderId = parentId;
+            item.dataset.indent   = indent;
+            if (indent > 0) item.classList.add('lesson-indented');
             container.appendChild(item);
 
             // Click su file: apre la lezione
@@ -1205,11 +1262,63 @@ class LibraryManager {
 
             this._addContextButtons(item, { id: file.id, name }, 'lesson');
 
-            // Drag-and-drop spostamento cartella — i file sono solo draggable (non drop target)
+            // Pulsante indent/dedent: ↳ = rendi sotto-lezione, ↑ = riporta al livello
+            const _actEl = item.querySelector('.tree-actions');
+            const _indBtn = document.createElement('button');
+            _indBtn.className = 'tree-btn';
+            _indBtn.dataset.action = 'indent';
+            _indBtn.title  = indent > 0 ? 'Riporta al livello principale' : 'Rendi sotto-lezione';
+            _indBtn.textContent = indent > 0 ? '↑' : '↳';
+            _actEl.insertBefore(_indBtn, _actEl.firstChild);
+            _indBtn.addEventListener('click', async e => {
+                e.stopPropagation();
+                const cur  = parseInt(item.dataset.indent || '0');
+                const next = cur === 0 ? 1 : 0;
+                item.dataset.indent = next;
+                if (next > 0) { item.classList.add('lesson-indented');    _indBtn.textContent = '↑'; _indBtn.title = 'Riporta al livello principale'; }
+                else          { item.classList.remove('lesson-indented'); _indBtn.textContent = '↳'; _indBtn.title = 'Rendi sotto-lezione'; }
+                if (!this._indentCache[parentId]) this._indentCache[parentId] = {};
+                this._indentCache[parentId][file.id] = next;
+                const order = [...container.querySelectorAll(`.tree-item.lesson[data-folder-id="${parentId}"]`)]
+                    .map(el => el.dataset.fileId);
+                await this._saveOrder(parentId, order, this._indentCache[parentId]);
+            });
+
+            // Drag-and-drop spostamento cartella
             this._makeDraggable(item, file.id, parentId, file.name, 'lesson');
 
             // Drag handle per riordino nella stessa cartella
             this._attachReorderHandle(item, file.id, parentId, container);
+
+            // Swipe orizzontale → indent/dedent visivo (stile OneNote)
+            let _swX = 0, _swY = 0, _swOk = false, _swPid = -1;
+            item.addEventListener('pointerdown', e => {
+                if (e.target.classList.contains('drag-handle')) return;
+                if (e.target.closest('.tree-actions')) return;
+                _swX = e.clientX; _swY = e.clientY; _swOk = true; _swPid = e.pointerId;
+                // Pointer capture: garantisce pointerup anche se il dito esce dall'elemento
+                try { item.setPointerCapture(e.pointerId); } catch(_) {}
+            });
+            item.addEventListener('pointerup', async e => {
+                if (!_swOk || e.pointerId !== _swPid) return;
+                _swOk = false;
+                try { item.releasePointerCapture(e.pointerId); } catch(_) {}
+                const dx = e.clientX - _swX, dy = e.clientY - _swY;
+                if (Math.abs(dx) < 25 || Math.abs(dy) > 35) return; // soglia 25px
+                // Previeni il click che aprirebbe la lezione
+                item.addEventListener('click', ev => ev.stopPropagation(), { once: true, capture: true });
+                const cur  = parseInt(item.dataset.indent || '0');
+                const next = dx > 0 ? Math.min(cur + 1, 1) : Math.max(cur - 1, 0);
+                if (next === cur) return;
+                item.dataset.indent = next;
+                if (next > 0) item.classList.add('lesson-indented');
+                else          item.classList.remove('lesson-indented');
+                if (!this._indentCache[parentId]) this._indentCache[parentId] = {};
+                this._indentCache[parentId][file.id] = next;
+                const order = [...container.querySelectorAll(`.tree-item.lesson[data-folder-id="${parentId}"]`)]
+                    .map(el => el.dataset.fileId);
+                await this._saveOrder(parentId, order, this._indentCache[parentId]);
+            });
         }
     }
 
@@ -1315,19 +1424,15 @@ class LibraryManager {
                 // Offset calcolato ORA (sincrono), non dentro onload
                 let offsetX = 0, offsetY = 0;
                 if (lesson.pagePx != null && typeof bgMgr !== 'undefined') {
-                    const W = canvasMgr._canvasW || 0, H = canvasMgr._canvasH || 0;
+                    const W = canvasMgr.canvas.width, H = canvasMgr.canvas.height;
                     const curr = bgMgr._getPageRect(W, H);
                     offsetX = curr.px - lesson.pagePx;
                     offsetY = curr.py - lesson.pagePy;
                 }
                 img.onload = () => {
-                    // OffscreenCanvas: costruiamo il canvas sul main thread, poi lo inviamo al Worker
                     canvasMgr._saveUndo();
-                    const W = canvasMgr._canvasW || 0, H = canvasMgr._canvasH || 0;
-                    const off = document.createElement('canvas');
-                    off.width = W; off.height = H;
-                    off.getContext('2d').drawImage(img, offsetX, offsetY);
-                    canvasMgr.putDataURL(off.toDataURL('image/png'));
+                    canvasMgr.ctx.clearRect(0, 0, canvasMgr.canvas.width, canvasMgr.canvas.height);
+                    canvasMgr.ctx.drawImage(img, offsetX, offsetY);
                 };
                 img.src = lesson.drawing;
             }
@@ -1345,6 +1450,8 @@ class LibraryManager {
             toast('Lezione "' + name + '" caricata!', 'success');
             // Memorizza fileId corrente per ripristino posizione
             this.currentFileId = fileId;
+            // Evidenzia subito la lezione nel pannello (se aperto) o alla prossima apertura
+            setTimeout(() => this._highlightCurrentLesson(), 100);
             window.autoSaveMgr?.endLoading();
             // Reset isDirty con delay: le operazioni asincrone di ripristino (img.onload, ecc.)
             // potrebbero impostare isDirty=true dopo il reset sincrono — lo riesegiamo dopo
@@ -1354,21 +1461,9 @@ class LibraryManager {
             }, 500);
             // Memorizza come ultima lezione aperta per auto-open al prossimo avvio
             localStorage.setItem('eduboard_last_lesson', JSON.stringify({ fileId, fileName, userEmail: this.drive?.userEmail || null }));
-            // Chiude il pannello, poi aspetta il resize effettivo del canvas prima di centerView.
-            // Il pannello che si chiude allarga il viewport → il canvas si ridimensiona →
-            // solo DOPO il resize centerView calcola le proporzioni corrette.
-            this.close();
-            const _ca = document.getElementById('canvas-area');
-            if (_ca && typeof ResizeObserver !== 'undefined' && panMgr) {
-                let _cvDone = false;
-                const _cvOnce = () => { if (_cvDone) return; _cvDone = true; panMgr.centerView(); };
-                const _ro = new ResizeObserver(() => { _ro.disconnect(); _cvOnce(); });
-                _ro.observe(_ca);
-                // Fallback: pannello già chiuso (nessun resize) o PC molto lento
-                setTimeout(() => { _ro.disconnect(); _cvOnce(); }, 500);
-            } else {
-                setTimeout(() => panMgr?.centerView(), 500);
-            }
+            // NON chiude il pannello: rimane aperto stile OneNote per passare velocemente tra lezioni.
+            // centerView si adatta alle dimensioni correnti (pannello aperto o chiuso).
+            setTimeout(() => panMgr?.centerView(), 100);
         } catch (err) {
             window.autoSaveMgr?.endLoading();
             toast('Errore apertura lezione: ' + err.message, 'error');
@@ -1415,13 +1510,13 @@ class LibraryManager {
             const savedFileId = await this.drive.saveLesson({
                 name:           name.trim(),
                 folderId:       targetFolder,
-                drawingDataURL: await canvasMgr.getDataURL(),
+                drawingDataURL: canvasMgr.getDataURL(),
                 bgKey:          bgMgr.currentBg,
                 bgImageBase64,
-                pages:          window.pageManager ? await window.pageManager.serialize() : null,
-                canvasWidth: canvasMgr?._canvasW || 0,
-                pagePx: (typeof bgMgr !== 'undefined' && canvasMgr?._canvasW) ? bgMgr._getPageRect(canvasMgr._canvasW, canvasMgr._canvasH).px : null,
-                pagePy: (typeof bgMgr !== 'undefined' && canvasMgr?._canvasW) ? bgMgr._getPageRect(canvasMgr._canvasW, canvasMgr._canvasH).py : null
+                pages:          window.pageManager ? window.pageManager.serialize() : null,
+                canvasWidth: canvasMgr?.canvas?.width || 0,
+                pagePx: (typeof bgMgr !== 'undefined' && canvasMgr?.canvas) ? bgMgr._getPageRect(canvasMgr.canvas.width, canvasMgr.canvas.height).px : null,
+                pagePy: (typeof bgMgr !== 'undefined' && canvasMgr?.canvas) ? bgMgr._getPageRect(canvasMgr.canvas.width, canvasMgr.canvas.height).py : null
             });
 
             // Traccia fileId corrente
@@ -1474,11 +1569,11 @@ class LibraryManager {
                         key:         bgMgr.currentBg,
                         imageBase64: bgImageBase64
                     },
-                    drawing: await canvasMgr.getDataURL(),
-                    pages:   window.pageManager ? await window.pageManager.serialize() : null,
-                    canvasWidth: canvasMgr?._canvasW || 0,
-                    pagePx: (typeof bgMgr !== 'undefined' && canvasMgr?._canvasW) ? bgMgr._getPageRect(canvasMgr._canvasW, canvasMgr._canvasH).px : null,
-                    pagePy: (typeof bgMgr !== 'undefined' && canvasMgr?._canvasW) ? bgMgr._getPageRect(canvasMgr._canvasW, canvasMgr._canvasH).py : null
+                    drawing: canvasMgr.getDataURL(),
+                    pages:   window.pageManager ? window.pageManager.serialize() : null,
+                    canvasWidth: canvasMgr?.canvas?.width || 0,
+                    pagePx: (typeof bgMgr !== 'undefined' && canvasMgr?.canvas) ? bgMgr._getPageRect(canvasMgr.canvas.width, canvasMgr.canvas.height).px : null,
+                    pagePy: (typeof bgMgr !== 'undefined' && canvasMgr?.canvas) ? bgMgr._getPageRect(canvasMgr.canvas.width, canvasMgr.canvas.height).py : null
                 },
                 this.currentFileId  // PATCH sul file esistente
             );
@@ -1607,6 +1702,18 @@ class LibraryManager {
             .replace(/"/g, '&quot;');
     }
 
+    /** Applica lo stile "linguetta colorata" a una riga cartella. */
+    _applyFolderTabStyle(itemEl, color) {
+        itemEl.classList.add('folder-tab');
+        if (color) {
+            itemEl.style.background  = _hexToRgba(color, 0.30);
+            itemEl.style.borderLeft  = '3px solid ' + color;
+        } else {
+            itemEl.style.background  = '';
+            itemEl.style.borderLeft  = '3px solid rgba(255,255,255,0.10)';
+        }
+    }
+
     // ──────────────────────────────────────────────────────────────────────────
     // COLORI CARTELLE
     // ──────────────────────────────────────────────────────────────────────────
@@ -1653,15 +1760,16 @@ class LibraryManager {
                 localStorage.setItem(storageKey, color);
                 dotEl.style.backgroundColor = color;
                 dotEl.classList.remove('no-color');
-                if (itemEl) itemEl.style.background = _hexToRgba(color, 0.15);
+                if (itemEl) this._applyFolderTabStyle(itemEl, color);
             } else {
                 // Rimuovi colore
                 localStorage.removeItem(storageKey);
                 dotEl.style.backgroundColor = '';
                 dotEl.classList.add('no-color');
-                if (itemEl) itemEl.style.background = '';
+                if (itemEl) this._applyFolderTabStyle(itemEl, null);
             }
             popup.remove();
+            window.driveMgr?._saveFolderColors();
         };
 
         // ── Pulsante "Nessun colore" ───────────────────────────────────────
@@ -1799,15 +1907,15 @@ class LibraryManager {
         // Legge il nuovo ordine dal DOM (solo file della stessa cartella)
         const newOrder = [...container.querySelectorAll(`.tree-item.lesson[data-folder-id="${folderId}"]`)]
             .map(el => el.dataset.fileId);
-        this._saveOrder(folderId, newOrder);
+        this._saveOrder(folderId, newOrder, this._indentCache?.[folderId] || {});
     }
 
-    /** Salva l'ordine in _order.json nella cartella su Drive. */
-    async _saveOrder(folderId, fileIds) {
+    /** Salva l'ordine (e le indentazioni) in _order.json nella cartella su Drive. */
+    async _saveOrder(folderId, fileIds, indents = {}) {
         try {
             const cache   = this._orderCache?.[folderId];
             const orderId = cache?.orderId ?? null;
-            const payload = { v: 1, folderId, order: fileIds, updatedAt: new Date().toISOString() };
+            const payload = { v: 2, folderId, order: fileIds, indents, updatedAt: new Date().toISOString() };
             const newId   = await this.drive._uploadMultipart('_order.json', payload, orderId, folderId);
             if (!this._orderCache) this._orderCache = {};
             this._orderCache[folderId] = { orderId: newId || orderId };
@@ -1824,13 +1932,13 @@ class LibraryManager {
                 `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id)&pageSize=1`
             );
             const found = (resp.files || [])[0];
-            if (!found) return { orderId: null, order: [] };
+            if (!found) return { orderId: null, order: [], indents: {} };
             const raw = await this.drive._apiFetch(
                 `https://www.googleapis.com/drive/v3/files/${found.id}?alt=media`
             );
-            return { orderId: found.id, order: Array.isArray(raw?.order) ? raw.order : [] };
+            return { orderId: found.id, order: Array.isArray(raw?.order) ? raw.order : [], indents: raw?.indents || {} };
         } catch (_) {
-            return { orderId: null, order: [] };
+            return { orderId: null, order: [], indents: {} };
         }
     }
 
@@ -2243,17 +2351,24 @@ function _injectDriveStyles() {
     padding-left: 8px;
     border-left: 1.5px solid rgba(148,163,184,0.20);
 }
-/* Riga cartella con sfondo colorato: hover e selected usano blend */
-.tree-item.folder[style*="background"] {
-    transition: background 0.15s, filter 0.15s;
+/* ── Linguetta cartella (stile OneNote verticale) ── */
+.tree-item.folder-tab {
+    border-radius: 0 5px 5px 0;
+    transition: background 0.15s, filter 0.15s, border-left-color 0.15s;
 }
-.tree-item.folder[style*="background"]:hover {
-    filter: brightness(1.28);
+.tree-item.folder-tab:hover {
+    filter: brightness(1.35);
 }
-.tree-item.folder[style*="background"].selected {
-    filter: brightness(1.45) saturate(1.3);
-    outline: 1px solid rgba(59,130,246,0.35);
+.tree-item.folder-tab.selected {
+    filter: brightness(1.55) saturate(1.2);
+    outline: 1px solid rgba(255,255,255,0.20);
     outline-offset: -1px;
+}
+/* ── Lezione indentata (sotto-pagina stile OneNote) ── */
+.tree-item.lesson.lesson-indented {
+    padding-left: 24px;
+    opacity: 0.88;
+    font-size: 0.93em;
 }
 
 /* ── Drag and drop ── */

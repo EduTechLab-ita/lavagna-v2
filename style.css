@@ -2631,6 +2631,7 @@ body.has-page-bar #zoom-indicator {
     border-radius: 18px;     /* pillola completa — fianco al quick strip */
     margin-bottom: 0;
     touch-action: none;
+    pointer-events: auto;    /* FIX: override pointer-events:none del #toolbar-wrapper */
     transition: background 0.2s;
 }
 

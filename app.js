@@ -939,70 +939,24 @@ class LaserManager {
 class CanvasManager {
     constructor(bgMgr, brush, laserMgr) {
         this.bgMgr = bgMgr;
+        this.brush = brush;
         this.laser = laserMgr;
-        // NON più this.brush (il brush è nel Worker)
-        // NON più this.ctx (il canvas è trasferito al Worker)
 
         this.canvas = document.getElementById('draw-canvas');
+        this.ctx = this.canvas.getContext('2d');
         this.overlayCanvas = document.getElementById('overlay-canvas');
         this.overlayCtx = this.overlayCanvas.getContext('2d');
 
-        // Stato undo (ricevuto dal Worker)
-        this._canUndo = false;
-        this._canRedo = false;
+        this.undoStack = [];
+        this.redoStack = [];
 
-        // Promise pending per getDataURL
-        this._pendingRequests = new Map();
-        this._reqCounter = 0;
-
-        // Punti in batch per addPoints
-        this._pointBatch = [];
-        this._batchFlushPending = false;
-
-        // Tracking vettoriale per gomma-tratto (rimane sul main thread)
+        // Tracking vettoriale per gomma-tratto: parallelo a undoStack
         this._vectorStrokes = []; // null | {tool, color, size, points[]}
         this._currentPoints  = []; // punti del tratto in corso
 
-        // Variabili tracking tratto (rimangono sul main thread per getCoords)
-        this._isDrawing = false;
-        this._lastX = 0; this._lastY = 0;
-        this._currentTool = 'pen';
-
-        // Dimensioni correnti del canvas (canvas.width/height non affidabili dopo transferControlToOffscreen)
-        this._canvasW = 0;
-        this._canvasH = 0;
-
-        this._initWorker();
         this._setupEvents();
         this.resize();
         window.addEventListener('resize', () => this.resize());
-    }
-
-    _initWorker() {
-        this.worker = new Worker('./draw-worker.js');
-        this.worker.onmessage = (e) => this._onWorkerMessage(e.data);
-
-        // Trasferisce il canvas al Worker (da questo momento main thread NON può usare this.canvas)
-        const offscreen = this.canvas.transferControlToOffscreen();
-        this.worker.postMessage({type: 'init', canvas: offscreen}, [offscreen]);
-    }
-
-    _onWorkerMessage(msg) {
-        if (msg.type === 'dataURL') {
-            const resolve = this._pendingRequests.get(msg.reqId);
-            if (resolve) { resolve(msg.data); this._pendingRequests.delete(msg.reqId); }
-        } else if (msg.type === 'undoStateChanged') {
-            this._canUndo = msg.canUndo;
-            this._canRedo = msg.canRedo;
-        }
-    }
-
-    _flushBatch() {
-        if (this._pointBatch.length > 0) {
-            this.worker.postMessage({type: 'addPoints', points: this._pointBatch});
-            this._pointBatch = [];
-        }
-        this._batchFlushPending = false;
     }
 
     resize() {
@@ -1010,8 +964,8 @@ class CanvasManager {
         const headerH = document.body.classList.contains('fullscreen-mode') ? 0 : 56;
         const vH = window.innerHeight - headerH;
 
-        const prevCanvasW = this._canvasW;
-        const prevCanvasH = this._canvasH;
+        const prevCanvasW = this.canvas.width;
+        const prevCanvasH = this.canvas.height;
         const isFirstResize = prevCanvasW === 0;
 
         // Il canvas NON deve mai rimpicciolirsi: passare da fullscreen a normale
@@ -1020,17 +974,11 @@ class CanvasManager {
         const W = Math.max(vW * 3, prevCanvasW);
         const H = Math.max(vH * 3, prevCanvasH);
 
+        const savedURL = prevCanvasW > 0 ? this.canvas.toDataURL() : null;
         const prevDx = (typeof panMgr !== 'undefined' && panMgr) ? panMgr.dx : 0;
         const prevDy = (typeof panMgr !== 'undefined' && panMgr) ? panMgr.dy : 0;
 
-        // Aggiorna il tracking interno delle dimensioni
-        this._canvasW = W;
-        this._canvasH = H;
-
-        // NON più this.canvas.width/height (canvas è trasferito al Worker)
-        // Il Worker gestisce internamente il salvataggio/ripristino del contenuto
-        this.worker.postMessage({type: 'resize', width: W, height: H});
-
+        this.canvas.width  = W; this.canvas.height  = H;
         this.canvas.style.width  = W + 'px'; this.canvas.style.height = H + 'px';
         this.overlayCanvas.width = W; this.overlayCanvas.height = H;
         this.overlayCanvas.style.width = W + 'px'; this.overlayCanvas.style.height = H + 'px';
@@ -1046,6 +994,12 @@ class CanvasManager {
         }
         this.bgMgr.resize(W, H);
         if (this.laser) this.laser.resize(W, H);
+
+        if (savedURL) {
+            const img = new Image();
+            img.onload = () => this.ctx.drawImage(img, 0, 0);
+            img.src = savedURL;
+        }
 
         if (typeof panMgr !== 'undefined' && panMgr) {
             if (isFirstResize) {
@@ -1152,17 +1106,24 @@ class CanvasManager {
         if (CONFIG.currentTool === 'shape') {
             CONFIG.shapeStartX = x;
             CONFIG.shapeStartY = y;
-            this.getDataURL().then(url => { CONFIG.shapeSnapshot = url; });
+            CONFIG.shapeSnapshot = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
             return;
         }
 
-        // Tutti gli altri strumenti: il Worker salva undo state prima del tratto
-        this.worker.postMessage({type: 'startStroke', tool: CONFIG.currentTool, color: CONFIG.currentColor, size: CONFIG.currentSize, opacity: CONFIG.currentOpacity});
+        // Tutti gli altri strumenti: salva undo state all'inizio del tratto
+        this._saveUndo();
         CONFIG.lastX = x;
         CONFIG.lastY = y;
         this._smoothMidX = x; // midpoint precedente per Bézier smoothing
         this._smoothMidY = y;
         this._currentPoints = [{x, y}]; // primo punto per tracking vettoriale
+
+        // Disegna il punto iniziale (dot)
+        if (CONFIG.currentTool === 'eraser') {
+            this.brush.eraser(this.ctx, x, y, CONFIG.currentSize * 2);
+        } else {
+            this._drawSegment(x, y, x, y, x, y);
+        }
     }
 
     _onMove(e) {
@@ -1199,24 +1160,30 @@ class CanvasManager {
             return;
         }
         if (CONFIG.currentTool === 'shape') {
-            // Preview live: il Worker gestisce snapshot/restore, qui solo invio coordinate
-            this.worker.postMessage({
-                type: 'shapePreview',
-                shape: CONFIG.currentShape,
-                startX: CONFIG.shapeStartX, startY: CONFIG.shapeStartY,
-                endX: x, endY: y,
-                size: CONFIG.currentSize,
-                color: CONFIG.currentColor,
-                fill: CONFIG.shapeFill
-            });
+            // Preview live: ripristina snapshot + disegna forma aggiornata
+            this.ctx.putImageData(CONFIG.shapeSnapshot, 0, 0);
+            this.brush.shape(
+                this.ctx,
+                CONFIG.currentShape,
+                CONFIG.shapeStartX, CONFIG.shapeStartY,
+                x, y,
+                CONFIG.currentSize,
+                CONFIG.currentColor,
+                CONFIG.shapeFill
+            );
             return;
         }
 
-        // Accumula punti nel batch, flush via requestAnimationFrame
-        this._pointBatch.push({x, y, p: e.pressure || 0.5});
-        if (!this._batchFlushPending) {
-            this._batchFlushPending = true;
-            requestAnimationFrame(() => this._flushBatch());
+        if (CONFIG.currentTool === 'eraser') {
+            this.brush.eraser(this.ctx, x, y, CONFIG.currentSize * 2);
+        } else {
+            // Bézier smoothing: usa il midpoint come endpoint e il punto corrente come controllo
+            // Questo elimina gli spigoli vivi tra segmenti su PC lenti (pochi eventi pointer)
+            const midX = (CONFIG.lastX + x) / 2;
+            const midY = (CONFIG.lastY + y) / 2;
+            this._drawSegment(this._smoothMidX, this._smoothMidY, CONFIG.lastX, CONFIG.lastY, midX, midY);
+            this._smoothMidX = midX;
+            this._smoothMidY = midY;
         }
 
         this._currentPoints.push({x, y}); // raccolta punti per tracking vettoriale
@@ -1249,63 +1216,147 @@ class CanvasManager {
             return;
         }
         if (CONFIG.currentTool === 'shape') {
-            // La forma è già sul canvas (dall'ultimo _onMove nel Worker)
-            this.worker.postMessage({type: 'endStroke'});
+            // La forma è già sul canvas (dall'ultimo _onMove)
+            this._saveUndo(true); // salva DOPO aver disegnato la forma, notifica dirty
             CONFIG.shapeSnapshot = null;
-            CONFIG.isDirty = true;
-            window.autoSaveMgr?.onDirty();
             return;
         }
 
-        // Fine tratto: flush finale del batch + notifica Worker
-        this._flushBatch();
-        this.worker.postMessage({type: 'endStroke'});
-
-        // Finalizza dati vettoriali per strumenti di disegno
+        // Fine tratto per strumenti di disegno (pen, pencil, pastel, marker, eraser):
+        // salva dati vettoriali + notifica dirty
         if (CONFIG.drawTools.includes(CONFIG.currentTool)) {
-            this._vectorStrokes.push({
-                tool:   CONFIG.currentTool,
-                color:  CONFIG.currentColor,
-                size:   CONFIG.currentSize,
-                points: [...this._currentPoints],
-            });
+            // Finalizza il vector stroke nell'ultimo slot di _vectorStrokes
+            const lastIdx = this._vectorStrokes.length - 1;
+            if (lastIdx >= 0 && this._currentPoints.length > 0) {
+                this._vectorStrokes[lastIdx] = {
+                    tool:   CONFIG.currentTool,
+                    color:  CONFIG.currentColor,
+                    size:   CONFIG.currentSize,
+                    points: [...this._currentPoints],
+                };
+            }
             this._currentPoints = [];
             CONFIG.isDirty = true;
             window.autoSaveMgr?.onDirty();
         }
     }
 
-    // saveUndo / undo / redo / canUndo / canRedo — delegano al Worker
-    saveUndo() { this.worker.postMessage({type: 'saveUndo'}); }
-    _saveUndo() { this.saveUndo(); } // alias per retrocompatibilità con chiamate interne
-    undo() { this.worker.postMessage({type: 'undo'}); }
-    redo() { this.worker.postMessage({type: 'redo'}); }
+    _drawSegment(x0, y0, cpX, cpY, x1, y1) {
+        const tool  = CONFIG.currentTool;
+        const color = CONFIG.currentColor;
+        const size  = CONFIG.currentSize;
 
-    // Disegno di primitive geometriche (usato da GeometryManager)
-    drawCircle(cx, cy, radius, color, lineWidth) {
-        this.worker.postMessage({type: 'drawCircle', cx, cy, radius, color, lineWidth});
+        switch (tool) {
+            case 'pen':    this.brush.pen(this.ctx, x0, y0, cpX, cpY, x1, y1, size, color);    break;
+            case 'pencil': this.brush.pencil(this.ctx, x0, y0, cpX, cpY, x1, y1, size, color); break;
+            case 'pastel': this.brush.pastel(this.ctx, x0, y0, cpX, cpY, x1, y1, size, color); break;
+            case 'marker': this.brush.marker(this.ctx, x0, y0, cpX, cpY, x1, y1, size, color); break;
+        }
     }
-    canUndo() { return this._canUndo; }
-    canRedo() { return this._canRedo; }
+
+    // Snapshot degli oggetti nel layer (riferimenti img stabili, nessuna serializzazione pesante)
+    _snapshotObjects() {
+        if (typeof objectLayer === 'undefined' || !objectLayer) return null;
+        return objectLayer.objects.map(o => ({ ...o })); // shallow copy
+    }
+
+    _saveUndo(notifyDirty = false) {
+        this.undoStack.push({ canvas: this.canvas.toDataURL(), objects: this._snapshotObjects() });
+        this._vectorStrokes.push(null); // placeholder, aggiornato in _onEnd
+        if (this.undoStack.length > CONFIG.maxUndo) {
+            this.undoStack.shift();
+            this._vectorStrokes.shift();
+        }
+        this.redoStack = [];
+        this._currentPoints = [];
+        if (notifyDirty) {
+            CONFIG.isDirty = true;
+            window.autoSaveMgr?.onDirty();
+        }
+    }
+
+    _applyUndoEntry(entry) {
+        // Retrocompatibilità: entry può essere stringa (vecchio formato) o {canvas, objects}
+        const canvasUrl = (typeof entry === 'string') ? entry : entry.canvas;
+        const objs      = (typeof entry === 'string') ? null  : entry.objects;
+        this._loadURL(canvasUrl);
+        if (objs !== null && objs !== undefined && typeof objectLayer !== 'undefined' && objectLayer) {
+            objectLayer.objects = objs;
+            objectLayer.render();
+        }
+    }
+
+    undo() {
+        if (this.undoStack.length === 0) return;
+        this.redoStack.push({ canvas: this.canvas.toDataURL(), objects: this._snapshotObjects() });
+        this._vectorStrokes.pop();
+        this._applyUndoEntry(this.undoStack.pop());
+    }
+
+    redo() {
+        if (this.redoStack.length === 0) return;
+        this.undoStack.push({ canvas: this.canvas.toDataURL(), objects: this._snapshotObjects() });
+        this._vectorStrokes.push(null);
+        this._applyUndoEntry(this.redoStack.pop());
+    }
+
+    _loadURL(url) {
+        const img = new Image();
+        img.onload = () => {
+            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            this.ctx.drawImage(img, 0, 0);
+        };
+        img.src = url;
+    }
+
+    _loadURLAsync(url) {
+        return new Promise(resolve => {
+            const img = new Image();
+            img.onload = () => {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                this.ctx.drawImage(img, 0, 0);
+                resolve();
+            };
+            img.src = url;
+        });
+    }
 
     // Cancella un tratto specifico per indice (modalità gomma-tratto)
-    eraseStroke(strokeIndex) {
+    async eraseStroke(strokeIndex) {
         if (strokeIndex < 0 || strokeIndex >= this._vectorStrokes.length) return;
         if (this._eraseInProgress) return; // evita cancellazioni concorrenti
         this._eraseInProgress = true;
 
-        // Nascondi hover highlight
-        this.overlayCtx.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height);
+        try {
+            // Nascondi hover highlight
+            this.overlayCtx.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height);
 
-        // Invia al Worker l'indice del tratto da cancellare
-        this.worker.postMessage({type: 'vectorEraseStroke', strokeIndex});
+            // Ripristina lo snapshot prima del tratto — undoStack può avere formato stringa o {canvas,objects}
+            const entry = this.undoStack[strokeIndex];
+            const canvasUrl = (typeof entry === 'string') ? entry : entry?.canvas;
+            const objs      = (typeof entry === 'string') ? null  : entry?.objects;
+            if (!canvasUrl) { this._eraseInProgress = false; return; }
+            await this._loadURLAsync(canvasUrl);
+            if (objs !== null && objs !== undefined && typeof objectLayer !== 'undefined' && objectLayer) {
+                objectLayer.objects = objs;
+                objectLayer.render();
+            }
 
-        // Rimuovi dai dati vettoriali locali
-        this._vectorStrokes.splice(strokeIndex, 1);
+            // Ridisegna tutti i tratti successivi tramite dati vettoriali
+            for (let i = strokeIndex + 1; i < this._vectorStrokes.length; i++) {
+                const stroke = this._vectorStrokes[i];
+                if (stroke) this._replayStroke(stroke);
+            }
 
-        CONFIG.isDirty = true;
-        window.autoSaveMgr?.onDirty();
-        this._eraseInProgress = false;
+            // Rimuovi il tratto cancellato dagli stack
+            this.undoStack.splice(strokeIndex, 1);
+            this._vectorStrokes.splice(strokeIndex, 1);
+
+            CONFIG.isDirty = true;
+            window.autoSaveMgr?.onDirty();
+        } finally {
+            this._eraseInProgress = false;
+        }
     }
 
     // Trova il tratto più vicino al punto (x,y) — ritorna l'indice in _vectorStrokes
@@ -1323,6 +1374,34 @@ class CanvasManager {
             }
         }
         return bestIdx;
+    }
+
+    // Ridisegna un tratto da dati vettoriali (usato dopo eraseStroke)
+    _replayStroke(stroke) {
+        const { tool, color, size, points } = stroke;
+        if (!points || points.length === 0) return;
+
+        if (tool === 'eraser') {
+            for (const { x, y } of points) {
+                this.brush.eraser(this.ctx, x, y, size * 2);
+            }
+            return;
+        }
+        // Dot iniziale
+        this._drawSegmentWith(tool, color, size, points[0].x, points[0].y, points[0].x, points[0].y);
+        for (let i = 1; i < points.length; i++) {
+            this._drawSegmentWith(tool, color, size, points[i-1].x, points[i-1].y, points[i].x, points[i].y);
+        }
+    }
+
+    // Come _drawSegment ma con parametri tool/color/size espliciti (per replay)
+    _drawSegmentWith(tool, color, size, x0, y0, x1, y1) {
+        switch (tool) {
+            case 'pen':    this.brush.pen(this.ctx, x0, y0, x1, y1, size, color);    break;
+            case 'pencil': this.brush.pencil(this.ctx, x0, y0, x1, y1, size, color); break;
+            case 'pastel': this.brush.pastel(this.ctx, x0, y0, x1, y1, size, color); break;
+            case 'marker': this.brush.marker(this.ctx, x0, y0, x1, y1, size, color); break;
+        }
     }
 
     // Evidenzia il tratto sotto il cursore (overlay canvas rosso semitrasparente)
@@ -1347,44 +1426,31 @@ class CanvasManager {
     }
 
     clear() {
-        this.worker.postMessage({type: 'clear'});
-        this._vectorStrokes = [];
-        this.laser?.clear();
+        this._saveUndo();
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.laser.clear();
     }
 
-    async exportPNG() {
+    exportPNG() {
         // Assicura che le righe/quadretti CSS siano sul canvas per l'export
         this.bgMgr.renderForCapture();
-        const drawUrl = await this.getDataURL();
         const tmp = document.createElement('canvas');
-        tmp.width  = this.bgMgr.canvas.width;
-        tmp.height = this.bgMgr.canvas.height;
+        tmp.width  = this.canvas.width;
+        tmp.height = this.canvas.height;
         const tCtx = tmp.getContext('2d');
         tCtx.drawImage(this.bgMgr.canvas, 0, 0);
-        const img = new Image();
-        img.onload = () => {
-            tCtx.drawImage(img, 0, 0);
-            const url = tmp.toDataURL('image/png');
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = (CONFIG.projectName || 'eduboard') + '.png';
-            a.click();
-            // Ripristina bg-canvas trasparente dopo l'export
-            this.bgMgr.render();
-        };
-        img.src = drawUrl;
+        tCtx.drawImage(this.canvas, 0, 0);
+        const url = tmp.toDataURL('image/png');
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = (CONFIG.projectName || 'eduboard') + '.png';
+        a.click();
+        // Ripristina bg-canvas trasparente dopo l'export
+        this.bgMgr.render();
     }
 
     getDataURL() {
-        return new Promise(resolve => {
-            const reqId = ++this._reqCounter;
-            this._pendingRequests.set(reqId, resolve);
-            this.worker.postMessage({type: 'getDataURL', reqId});
-        });
-    }
-
-    putDataURL(dataURL) {
-        this.worker.postMessage({type: 'putDataURL', dataURL});
+        return this.canvas.toDataURL();
     }
 }
 
@@ -2197,14 +2263,14 @@ class TextManager {
 // =============================================================================
 
 class ProjectManager {
-    async save() {
+    save() {
         const name = prompt('Nome progetto:', CONFIG.projectName) || CONFIG.projectName;
         CONFIG.projectName = name;
         document.getElementById('project-name').textContent = name;
 
         const data = {
             name,
-            drawing: await canvasMgr.getDataURL(),
+            drawing: canvasMgr.getDataURL(),
             bg: CONFIG.currentBg,
             ts: Date.now()
         };
@@ -2216,10 +2282,10 @@ class ProjectManager {
         toast('Progetto salvato!', 'success');
     }
 
-    async saveQuiet() {
+    saveQuiet() {
         const data = {
             name: CONFIG.projectName,
-            drawing: await canvasMgr.getDataURL(),
+            drawing: canvasMgr.getDataURL(),
             bg: CONFIG.currentBg,
             ts: Date.now()
         };
@@ -2247,23 +2313,34 @@ class ProjectManager {
             const ok = await confirmIfDirty();
             if (!ok) return;
         }
+        // Leggi preferenze utente salvate nelle Impostazioni
+        const _prefs = (() => { try { return JSON.parse(localStorage.getItem('eduboard-prefs-v1') || '{}'); } catch(e) { return {}; } })();
+        const defBg    = _prefs.defaultBg    || 'white';
+        const defTool  = _prefs.defaultTool  || 'pen';
+        const defColor = _prefs.defaultColor || '#000000';
+
         canvasMgr.clear();
         if (typeof objectLayer !== 'undefined' && objectLayer) objectLayer.clear();
         // FIX newBoard: reset PageManager → pagine vecchie non restano in memoria
         if (window.pageMgr) {
-            window.pageMgr.pages = [{ drawImageData: null, objects: [], background: { type: 'white', color: '#ffffff', orientation: 'landscape' } }];
+            window.pageMgr.pages = [{ drawImageData: null, objects: [], background: { type: defBg, color: '#ffffff', orientation: 'landscape' } }];
             window.pageMgr.currentIndex = 0;
             window.pageMgr._renderPageBar();
         }
-        bgMgr.setBackground('white');
+        bgMgr.setBackground(defBg);
         CONFIG.projectName = 'Nuova Lavagna';
         CONFIG.isDirty = false;
         window.autoSaveMgr?.reset();
         if (typeof libraryMgr !== 'undefined' && libraryMgr) libraryMgr.currentFileId = null;
         document.getElementById('project-name').textContent = CONFIG.projectName;
         document.querySelectorAll('.bg-opt').forEach(b => b.classList.remove('active'));
-        const whiteBtn = document.querySelector('.bg-opt[data-bg="white"]');
-        if (whiteBtn) whiteBtn.classList.add('active');
+        const defBgBtn = document.querySelector(`.bg-opt[data-bg="${defBg}"]`);
+        if (defBgBtn) defBgBtn.classList.add('active');
+        // Applica strumento e colore di default
+        document.querySelector(`.tool-btn[data-tool="${defTool}"]`)?.click();
+        CONFIG.currentColor = defColor;
+        if (typeof brush !== 'undefined' && brush) brush.color = defColor;
+        document.dispatchEvent(new CustomEvent('minicolor:update', { detail: { color: defColor } }));
     }
 }
 
@@ -3069,10 +3146,7 @@ class SelectManager {
     constructor(drawCanvas, bgCanvas) {
         this.drawCanvas = drawCanvas;
         this.bgCanvas   = bgCanvas;
-        // Dopo transferControlToOffscreen il canvas non ha più un ctx sul main thread.
-        // Le operazioni pixel (selection, cut/copy/paste) non funzioneranno in v2;
-        // la selezione di oggetti ObjectLayer rimane operativa.
-        this.ctx        = drawCanvas.getContext('2d') || null;
+        this.ctx        = drawCanvas.getContext('2d');
         this.active     = false;   // strumento attivo
         this.selection  = null;    // { x, y, w, h } rettangolo selezionato
         this.dragData   = null;    // { startX, startY, imgData, selX, selY }
@@ -4715,40 +4789,24 @@ class PageManager {
     }
 
     _init() {
-        // Canvas vuoto all'avvio: non serve catturarlo dal Worker
-        this.pages.push({
-            drawImageData: null,
-            objects: [],
-            background: {
-                type:        this.backgroundManager?.currentBg || 'white',
-                color:       this.backgroundManager?.bgColor   || '#ffffff',
-                orientation: this.backgroundManager?.orientation || 'landscape'
-            }
-        });
+        this.pages.push(this._captureCurrentPage());
         this._renderPageBar();
     }
 
-    async _captureCurrentPage() {
+    _captureCurrentPage() {
         const drawCanvas = document.getElementById('draw-canvas');
         const W = drawCanvas?.width || 0;
         const H = drawCanvas?.height || 0;
         // Salva SOLO il ritaglio del foglio A4 (non l'intero canvas).
         // Al ripristino viene disegnato alla posizione corrente del foglio →
         // nessuno spostamento indipendentemente dalle dimensioni del canvas.
-        // OffscreenCanvas: il canvas principale è controllato dal Worker →
-        // si ottiene il dataURL tramite canvasMgr.getDataURL() e si ritaglia qui.
         let drawImageData = null;
-        if (W > 0 && typeof bgMgr !== 'undefined' && typeof canvasMgr !== 'undefined') {
+        if (drawCanvas && W > 0 && typeof bgMgr !== 'undefined') {
             const r = bgMgr._getPageRect(W, H);
-            const fullUrl = await canvasMgr.getDataURL();
             const off = document.createElement('canvas');
             off.width  = r.pw;
             off.height = r.ph;
-            await new Promise(resolve => {
-                const img = new Image();
-                img.onload = () => { off.getContext('2d').drawImage(img, -r.px, -r.py); resolve(); };
-                img.src = fullUrl;
-            });
+            off.getContext('2d').drawImage(drawCanvas, -r.px, -r.py);
             drawImageData = off.toDataURL('image/png');
         }
         // Calcola offset foglio per salvare coordinate oggetti come frazione del foglio A4.
@@ -4792,44 +4850,46 @@ class PageManager {
     }
 
     _restorePage(pageData) {
+        this._restoring = true;
+
+        // ── 0. Ripristina orientamento/sfondo PRIMA di qualsiasi _getPageRect ──
+        // CRITICO: _getPageRect usa bgMgr.orientation. Se fosse ancora impostato
+        // sull'orientamento della pagina precedente, disegno e oggetti sarebbero
+        // posizionati con pw/px/py SBAGLIATI → oggetti spostati/ridimensionati.
+        if (pageData.background && typeof bgMgr !== 'undefined') {
+            bgMgr.orientation = pageData.background.orientation || 'landscape';
+        }
+
         const drawCanvas = document.getElementById('draw-canvas');
-        const W = drawCanvas.width;
-        const H = drawCanvas.height;
-        // OffscreenCanvas: il canvas principale è controllato dal Worker →
-        // ricostruiamo l'immagine su un canvas temporaneo main-thread e la
-        // inviamo al Worker tramite canvasMgr.putDataURL().
-        const off = document.createElement('canvas');
-        off.width = W;
-        off.height = H;
-        const offCtx = off.getContext('2d');
+        const ctx = drawCanvas.getContext('2d');
+        ctx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+
+        const allRestorePromises = [];
+
         if (pageData.drawImageData) {
             const img = new Image();
             if (pageData.drawFormat === 'page' && typeof bgMgr !== 'undefined') {
                 // Formato corrente: drawImageData è il ritaglio del foglio A4.
                 // Disegna SCALANDO alla dimensione corrente del foglio → funziona su qualsiasi schermo.
-                const r = bgMgr._getPageRect(W, H);
-                img.onload = () => {
-                    offCtx.drawImage(img, r.px, r.py, r.pw, r.ph);
-                    canvasMgr.putDataURL(off.toDataURL('image/png'));
-                };
+                const r = bgMgr._getPageRect(drawCanvas.width, drawCanvas.height);
+                allRestorePromises.push(new Promise(res => {
+                    img.onload = () => { ctx.drawImage(img, r.px, r.py, r.pw, r.ph); res(); };
+                    img.onerror = res;
+                }));
             } else {
                 // Vecchio formato: drawImageData è l'intero canvas.
-                // Usa il meccanismo offset (pagePx/pagePy) per compensare dimensioni diverse.
                 let offsetX = 0, offsetY = 0;
                 if (pageData.pagePx != null && typeof bgMgr !== 'undefined') {
-                    const curr = bgMgr._getPageRect(W, H);
+                    const curr = bgMgr._getPageRect(drawCanvas.width, drawCanvas.height);
                     offsetX = curr.px - pageData.pagePx;
                     offsetY = curr.py - pageData.pagePy;
                 }
-                img.onload = () => {
-                    offCtx.drawImage(img, offsetX, offsetY);
-                    canvasMgr.putDataURL(off.toDataURL('image/png'));
-                };
+                allRestorePromises.push(new Promise(res => {
+                    img.onload = () => { ctx.drawImage(img, offsetX, offsetY); res(); };
+                    img.onerror = res;
+                }));
             }
             img.src = pageData.drawImageData;
-        } else {
-            // Pagina vuota: invia canvas trasparente al Worker (equivale a clear)
-            canvasMgr.putDataURL(off.toDataURL('image/png'));
         }
         // Ripristina objects
         this.objectLayerRef.objects = [];
@@ -4860,9 +4920,12 @@ class PageManager {
             img.onerror = resolve;
             img.src = o.dataUrl;
         }));
-        Promise.all(loadPromises).then(() => this.objectLayerRef.render());
+        Promise.all([...allRestorePromises, ...loadPromises]).then(() => {
+            this.objectLayerRef.render();
+            this._restoring = false;
+        });
 
-        // Ripristina sfondo
+        // Ripristina sfondo (orientamento già impostato sopra — aggiorna solo il resto dell'UI)
         if (pageData.background) {
             this.backgroundManager.currentBg = pageData.background.type || 'white';
             this.backgroundManager.bgColor = pageData.background.color || '#ffffff';
@@ -4883,16 +4946,20 @@ class PageManager {
         }
     }
 
-    async goToPage(index) {
+    goToPage(index) {
         if (index < 0 || index >= this.pages.length) return;
-        this.pages[this.currentIndex] = await this._captureCurrentPage();
+        // Non sovrascrivere la pagina corrente se è ancora in fase di ripristino
+        // (race condition: capture avverrebbe su canvas ancora vuoto/parziale)
+        if (!this._restoring) {
+            this.pages[this.currentIndex] = this._captureCurrentPage();
+        }
         this.currentIndex = index;
         this._restorePage(this.pages[this.currentIndex]);
         this._updatePageBar();
     }
 
-    async addPage() {
-        this.pages[this.currentIndex] = await this._captureCurrentPage();
+    addPage() {
+        this.pages[this.currentIndex] = this._captureCurrentPage();
         // FIX PAGINE A: eredita sfondo (tipo, colore, orientamento) dalla pagina corrente
         const currentBg = this.pages[this.currentIndex].background;
         this.pages.push({
@@ -4923,8 +4990,8 @@ class PageManager {
         window.autoSaveMgr?.onDirty();
     }
 
-    async serialize() {
-        this.pages[this.currentIndex] = await this._captureCurrentPage();
+    serialize() {
+        this.pages[this.currentIndex] = this._captureCurrentPage();
         return this.pages;
     }
 
@@ -5727,6 +5794,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 2. Pulsanti header
     document.getElementById('btn-save').addEventListener('click',   () => projectMgr.save());
     document.getElementById('btn-export').addEventListener('click', () => handlePrint());
+    document.getElementById('btn-new-board-header')?.addEventListener('click', () => projectMgr.newBoard());
 
     // Installa EduBoard come PWA sul PC
     document.getElementById('btn-install-pwa')?.addEventListener('click', async () => {
@@ -5828,16 +5896,15 @@ function parsePageRange(input, totalPages) {
     return [...pages].sort((a, b) => a - b);
 }
 
-async function _buildPageDataURL(pageIndex) {
+function _buildPageDataURL(pageIndex) {
     // Componi bg + draw + objects per la pagina indicata,
     // ritagliando all'area del "foglio" (senza lo sfondo grigio infinito)
     const pm = window.pageManager;
     const pageData = pm ? pm.pages[pageIndex] : null;
 
-    // Dimensioni del canvas principale (3× viewport) — usa _canvasW/_canvasH
-    // perché canvas.width non è aggiornato dopo transferControlToOffscreen
-    const W = canvasMgr._canvasW || canvasMgr.canvas.width;
-    const H = canvasMgr._canvasH || canvasMgr.canvas.height;
+    // Dimensioni del canvas principale (3× viewport)
+    const W = canvasMgr.canvas.width;
+    const H = canvasMgr.canvas.height;
 
     // Determina orientamento per la pagina
     const orientation = (pageData?.background?.orientation) || bgMgr.orientation || 'landscape';
@@ -5865,18 +5932,10 @@ async function _buildPageDataURL(pageIndex) {
     const ctx  = tmp.getContext('2d');
 
     if (pageIndex === (pm ? pm.currentIndex : 0)) {
-        // Pagina corrente: usa i canvas live, ritagliati all'area del foglio.
-        // OffscreenCanvas: il canvas di disegno è controllato dal Worker →
-        // recupera il contenuto tramite canvasMgr.getDataURL().
+        // Pagina corrente: usa i canvas live, ritagliati all'area del foglio
         const bgCvs = document.getElementById('bg-canvas');
         if (bgCvs) ctx.drawImage(bgCvs, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
-        const drawUrl = await canvasMgr.getDataURL();
-        await new Promise(resolve => {
-            const drawImg = new Image();
-            drawImg.onload = () => { ctx.drawImage(drawImg, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH); resolve(); };
-            drawImg.onerror = resolve;
-            drawImg.src = drawUrl;
-        });
+        ctx.drawImage(canvasMgr.canvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
         const objCvs = document.getElementById('objects-canvas');
         if (objCvs) ctx.drawImage(objCvs, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
     } else if (pageData) {
@@ -5907,7 +5966,7 @@ async function _doPrint(pageIndices) {
     // Salva la pagina corrente prima di raccogliere i dataURL
     if (window.pageManager) {
         window.pageManager.pages[window.pageManager.currentIndex] =
-            await window.pageManager._captureCurrentPage();
+            window.pageManager._captureCurrentPage();
     }
 
     // Raccoglie dataURL per tutte le pagine richieste

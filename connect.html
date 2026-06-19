@@ -692,6 +692,7 @@
   let _timerPollInt    = null; // polling GET /timer/:limId
   let _timerAlarmInt   = null; // loop audio allarme sul telefono
   let _timerAudioCtx   = null; // AudioContext per beep telefono
+  let _needsExplicitLogin = false; // true se il silent refresh è già fallito una volta
 
   // ══════════════════════════════════════════════════════════════
   // SHOW SCREEN
@@ -772,13 +773,13 @@
   // TOKEN HELPERS
   // ══════════════════════════════════════════════════════════════
 
-  // Restituisce { token, expiry } se il token in cache è ancora valido (con 2 min buffer)
+  // Restituisce { token, expiry } se il token in cache è ancora valido (con 5 min buffer)
   // e include lo scope drive.file; altrimenti null (forza re-autenticazione)
   function getCachedToken() {
     const token  = localStorage.getItem(STORAGE_TOKEN);
     const expiry = parseInt(localStorage.getItem(STORAGE_EXPIRY) || '0', 10);
     const scopes = localStorage.getItem('ec_token_scopes') || '';
-    if (token && Date.now() < expiry - 120000 && scopes.includes('drive.file')) return { token, expiry };
+    if (token && Date.now() < expiry - 300000 && scopes.includes('drive.file')) return { token, expiry };
     return null;
   }
 
@@ -852,7 +853,31 @@
     });
 
     if (response.error) {
-      if (response.error !== 'access_denied') {
+      ['btn-continue', 'btn-login'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.disabled = false;
+      });
+      if (response.error === 'access_denied' && savedEmail) {
+        // Silent refresh fallito: sessione Google scaduta sul telefono.
+        // Torna a screen-saved con messaggio e forza popup esplicito al prossimo tap.
+        _needsExplicitLogin = true;
+        document.getElementById('saved-email-label').textContent = savedEmail;
+        const btn = document.getElementById('btn-continue');
+        if (btn) btn.textContent = 'Accedi di nuovo';
+        showScreen('screen-saved');
+        const errEl = document.getElementById('screen-saved').querySelector('.card-text') ||
+                      document.getElementById('screen-saved');
+        // Mostra un messaggio sopra il bottone
+        let notice = document.getElementById('reauth-notice');
+        if (!notice) {
+          notice = document.createElement('div');
+          notice.id = 'reauth-notice';
+          notice.style.cssText = 'font-size:0.82rem;color:#dc2626;margin-bottom:12px;';
+          const btnEl = document.getElementById('btn-continue');
+          if (btnEl) btnEl.parentNode.insertBefore(notice, btnEl);
+        }
+        notice.textContent = 'Sessione Google scaduta. Tocca il pulsante per accedere di nuovo.';
+      } else if (response.error !== 'access_denied') {
         showError('Autenticazione non riuscita: ' + response.error);
       }
       return;
@@ -895,6 +920,12 @@
   // ══════════════════════════════════════════════════════════════
   function showConnected(email) {
     document.getElementById('connected-email').textContent = email || savedEmail || '—';
+    // Reset stato login dopo connessione riuscita
+    _needsExplicitLogin = false;
+    const btn = document.getElementById('btn-continue');
+    if (btn) { btn.textContent = 'Connetti'; btn.disabled = false; }
+    const notice = document.getElementById('reauth-notice');
+    if (notice) notice.textContent = '';
     showScreen('screen-success');
   }
 
@@ -1276,7 +1307,12 @@
   // Connetti (account salvato)
   document.getElementById('btn-continue').addEventListener('click', () => {
     document.getElementById('btn-continue').disabled = true;
-    waitForGIS(savedEmail, () => gisClient.requestAccessToken());
+    if (_needsExplicitLogin) {
+      // Silent refresh già fallito: forza popup account Google visibile
+      waitForGIS(null, () => gisClient.requestAccessToken({ prompt: 'select_account' }));
+    } else {
+      waitForGIS(savedEmail, () => gisClient.requestAccessToken());
+    }
   });
 
   // Login

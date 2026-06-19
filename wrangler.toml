@@ -1,0 +1,7 @@
+name = "eduboard-connect"
+main = "worker-new.js"
+compatibility_date = "2026-05-23"
+
+[[kv_namespaces]]
+binding = "SESSIONS"
+id = "5002a1354c4a46e0a499b5502ca3cf72"

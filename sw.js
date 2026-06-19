@@ -1,12 +1,11 @@
-const CACHE_NAME = 'eduboard-v2-001'; // v2-001 — OffscreenCanvas: rendering canvas in Web Worker
+const CACHE_NAME = 'eduboard-v2-001'; // v2-001 — Branch V2: codice v131 + migrazione Firebase EduConnect
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard v2: disegno in background thread (meno jank, più fluidità).';
+const CHANGELOG  = 'EduBoard V2 — branch sviluppo (base v131, migrazione Firebase in corso).';
 
 const urlsToCache = [
   '.',
   './index.html',
   './app.js',
-  './draw-worker.js',
   './style.css',
   './drive.js',
   './geometry.js',

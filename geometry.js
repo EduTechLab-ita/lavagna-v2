@@ -754,9 +754,17 @@ class CompassTool {
             return;
         }
 
-        // Disegna definitivamente sul draw canvas tramite Worker (OffscreenCanvas)
+        // Disegna definitivamente sul draw canvas
         canvasMgr._saveUndo();
-        canvasMgr.drawCircle(this.cx, this.cy, this.radius, CONFIG.currentColor, CONFIG.currentSize);
+        const ctx = canvasMgr.ctx;
+        ctx.save();
+        ctx.strokeStyle = CONFIG.currentColor;
+        ctx.lineWidth   = CONFIG.currentSize;
+        ctx.lineCap     = 'round';
+        ctx.beginPath();
+        ctx.arc(this.cx, this.cy, this.radius, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
 
         // Pulisce overlay
         const overlay = document.getElementById('overlay-canvas');
