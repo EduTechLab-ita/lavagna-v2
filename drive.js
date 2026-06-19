@@ -2018,12 +2018,22 @@ async function _autoOpenLastLesson() {
         if (!driveMgr?.isConnected() || !libraryMgr) return;
         if (typeof CONFIG !== 'undefined' && CONFIG.isDirty) return; // non sovrascrivere lavoro in corso
         const raw = localStorage.getItem('eduboard_last_lesson');
-        if (!raw) return;
-        const last = JSON.parse(raw);
-        if (!last?.fileId) return;
-        // FIX QR 404: salta se il fileId appartiene a un account diverso
-        if (last.userEmail && driveMgr.userEmail && last.userEmail !== driveMgr.userEmail) return;
-        await libraryMgr.openLesson(last.fileId, last.fileName || 'ultima lezione');
+        if (raw) {
+            const last = JSON.parse(raw);
+            if (!last?.fileId) return;
+            // FIX QR 404: salta se il fileId appartiene a un account diverso
+            if (last.userEmail && driveMgr.userEmail && last.userEmail !== driveMgr.userEmail) return;
+            await libraryMgr.openLesson(last.fileId, last.fileName || 'ultima lezione');
+        } else {
+            // Nessuna lezione in localStorage (es. seconda LIM con profilo Chrome diverso):
+            // cerca la più recentemente modificata nella cartella Lezioni su Drive.
+            await driveMgr._ensureLessonsFolder();
+            if (!driveMgr.lessonsFolderId) return;
+            const files = await driveMgr.listFiles(driveMgr.lessonsFolderId);
+            if (!files.length) return;
+            files.sort((a, b) => (b.modifiedTime || '').localeCompare(a.modifiedTime || ''));
+            await libraryMgr.openLesson(files[0].id, files[0].name || 'ultima lezione');
+        }
     } catch (_) {}
 }
 

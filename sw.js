@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-011'; // v2-007 — Rinominato "Cambia LIM" → "Connetti"
+const CACHE_NAME = 'eduboard-v2-012'; // v2-012 — Apre ultima lezione anche su LIM senza localStorage
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-007 — EduConnect: pulsante rinominato in "Connetti".';
+const CHANGELOG  = 'EduBoard V2-012 — Apertura ultima lezione su seconda LIM.';
 
 const urlsToCache = [
   '.',
