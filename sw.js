@@ -1,4 +1,4 @@
-const CACHE_NAME = 'eduboard-v2-002'; // v2-002 — Migrazione EduConnect: CF Worker polling → Firebase RTDB WebSocket
+const CACHE_NAME = 'eduboard-v2-003'; // v2-002 — Migrazione EduConnect: CF Worker polling → Firebase RTDB WebSocket
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
 const CHANGELOG  = 'EduBoard V2 — EduConnect ora usa Firebase (zero polling, connessione istantanea).';
 
