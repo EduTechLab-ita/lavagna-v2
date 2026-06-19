@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-013'; // v2-013 — Codice LIM leggibile (es. ALF3)
+const CACHE_NAME = 'eduboard-v2-014'; // v2-014 — Fix: ID LIM in localStorage per auto-disconnect stabile
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-013 — Codice LIM leggibile su EduConnect.';
+const CHANGELOG  = 'EduBoard V2-014 — Fix auto-disconnect dopo reload LIM.';
 
 const urlsToCache = [
   '.',

@@ -2425,17 +2425,20 @@ class EduBoardConnect {
     // due finestre dello stesso profilo Chrome condividano lo stesso ID e si
     // "rubino" la sessione EduConnect a vicenda.
     _getLimId() {
-        let id = sessionStorage.getItem('ec_lim_id');
-        if (!id) {
-            // Codice breve leggibile: 3 lettere + 1 cifra (es. "ALF3", "GMA7")
-            // Esclude I e O (confuse con 1 e 0), e 0 e 1 come cifre.
+        // localStorage (non sessionStorage): l'ID sopravvive ai reload automatici del SW,
+        // così EduConnect non perde il riferimento alla LIM e l'auto-disconnect funziona.
+        // Ogni profilo Chrome ha localStorage separato → nessun conflitto tra LIM diverse.
+        let id = localStorage.getItem('ec_lim_id');
+        if (!id || id.includes('-')) {
+            // Assente o vecchio UUID → genera codice breve (es. "ALF3", "GMA7")
+            // Esclude I/O (confusi con 1/0) e le cifre 0/1.
             const L = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
             const D = '23456789';
             id = L[Math.floor(Math.random()*L.length)]
                + L[Math.floor(Math.random()*L.length)]
                + L[Math.floor(Math.random()*L.length)]
                + D[Math.floor(Math.random()*D.length)];
-            sessionStorage.setItem('ec_lim_id', id);
+            localStorage.setItem('ec_lim_id', id);
         }
         return id;
     }
