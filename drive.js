@@ -195,11 +195,9 @@ class DriveManager {
         });
     }
 
-    /** Revoca il token e pulisce lo stato. */
+    /** Pulisce lo stato Drive (senza revocare il token: potrebbe essere in uso su EduConnect,
+     *  e scade comunque entro ~1 ora per policy Google). */
     async disconnect() {
-        if (this.accessToken && typeof google !== 'undefined' && google.accounts) {
-            google.accounts.oauth2.revoke(this.accessToken);
-        }
         this.accessToken     = null;
         this.tokenExpiry     = 0;
         this.connected       = false;
@@ -2264,6 +2262,8 @@ class DriveConnectButton {
                 this.update();
                 libraryMgr?.refresh();
                 toast('Drive disconnesso', 'info');
+                // Riapri il modal QR così la LIM è pronta a ricevere una nuova connessione
+                if (window.eduBoardConnect) setTimeout(() => window.eduBoardConnect.show(), 400);
             });
             // Chiudi cliccando fuori
             setTimeout(() => {
@@ -2570,6 +2570,8 @@ class EduBoardConnect {
                     if (window.driveMgr) window.driveMgr.disconnect();
                     if (window.driveConnectBtn) window.driveConnectBtn.update();
                     fetch(`${FIREBASE_DB}/sessions/${this._limId}.json`, { method: 'DELETE' }).catch(() => {});
+                    // Riapri il modal QR: la LIM è libera e pronta a ricevere una nuova connessione
+                    setTimeout(() => this.show(), 600);
                 }
             } catch(_) { /* silenzioso */ }
         });

@@ -1003,11 +1003,15 @@
     }
 
     if (savedEmail) {
-      // Account noto ma token scaduto → mostra "Connetti" (un tap, popup veloce)
+      // Account noto ma token scaduto → tenta silent refresh automatico.
+      // Se GIS riesce (sessione Google ancora attiva) → onTokenReceived → connessione istantanea.
+      // Se fallisce (access_denied) → onTokenReceived imposta _needsExplicitLogin → mostra screen-saved.
       document.getElementById('saved-email-label').textContent = savedEmail;
       updateUserHeader();
       showScreen('screen-saved');
-      waitForGIS(savedEmail, () => {});
+      waitForGIS(savedEmail, () => {
+        if (!_needsExplicitLogin) gisClient.requestAccessToken();
+      });
     } else {
       // Primo utilizzo → login completo
       showScreen('screen-login');
