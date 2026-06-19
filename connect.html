@@ -920,9 +920,7 @@
   // SHOW CONNECTED
   // ══════════════════════════════════════════════════════════════
   function showConnected(email) {
-    // DEBUG: mostra anche le prime 8 cifre del limId per verifica
-    const limCode = (limId || '?').slice(0, 8).toUpperCase();
-    document.getElementById('connected-email').textContent = (email || savedEmail || '—') + ' · LIM:' + limCode;
+    document.getElementById('connected-email').textContent = email || savedEmail || '—';
     // Reset stato login dopo connessione riuscita
     _needsExplicitLogin = false;
     const btn = document.getElementById('btn-continue');
@@ -1412,8 +1410,10 @@
   (function() {
     if (!('serviceWorker' in navigator) || location.protocol !== 'https:') return;
 
-    // Registra il SW (lo condivide con EduBoard, stesso dominio)
-    navigator.serviceWorker.register('./sw.js').catch(() => {});
+    // Registra il SW e forza controllo aggiornamenti ad ogni apertura
+    navigator.serviceWorker.register('./sw.js')
+      .then(reg => reg.update())
+      .catch(() => {});
 
     let _changelog = '';
 

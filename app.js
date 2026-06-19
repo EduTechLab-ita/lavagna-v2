@@ -2440,6 +2440,8 @@ class PWAManager {
             const hadController = !!navigator.serviceWorker.controller;
 
             navigator.serviceWorker.register('./sw.js').then(reg => {
+                // Forza controllo aggiornamenti ad ogni apertura (bypassa cache HTTP di GitHub Pages)
+                reg.update();
                 navigator.serviceWorker.addEventListener('controllerchange', () => {
                     window.location.reload();
                 });
