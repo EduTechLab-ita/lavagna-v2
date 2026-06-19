@@ -580,7 +580,7 @@
   <div id="screen-success" class="screen hidden">
     <div class="connected-header">
       <div class="connected-label">
-        Connesso a LIM
+        Connesso a LIM <span id="connected-lim-code" style="font-family:monospace;letter-spacing:0.15em;font-weight:800;color:#0f172a"></span>
         <strong id="connected-email">—</strong>
       </div>
       <div class="connected-dot"></div>
@@ -921,6 +921,8 @@
   // ══════════════════════════════════════════════════════════════
   function showConnected(email) {
     document.getElementById('connected-email').textContent = email || savedEmail || '—';
+    const codeEl = document.getElementById('connected-lim-code');
+    if (codeEl) codeEl.textContent = limId || '';
     // Reset stato login dopo connessione riuscita
     _needsExplicitLogin = false;
     const btn = document.getElementById('btn-continue');

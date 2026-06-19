@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-012'; // v2-012 — Apre ultima lezione anche su LIM senza localStorage
+const CACHE_NAME = 'eduboard-v2-013'; // v2-013 — Codice LIM leggibile (es. ALF3)
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-012 — Apertura ultima lezione su seconda LIM.';
+const CHANGELOG  = 'EduBoard V2-013 — Codice LIM leggibile su EduConnect.';
 
 const urlsToCache = [
   '.',

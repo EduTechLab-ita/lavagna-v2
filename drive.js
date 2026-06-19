@@ -2427,7 +2427,14 @@ class EduBoardConnect {
     _getLimId() {
         let id = sessionStorage.getItem('ec_lim_id');
         if (!id) {
-            id = (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2, 18));
+            // Codice breve leggibile: 3 lettere + 1 cifra (es. "ALF3", "GMA7")
+            // Esclude I e O (confuse con 1 e 0), e 0 e 1 come cifre.
+            const L = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+            const D = '23456789';
+            id = L[Math.floor(Math.random()*L.length)]
+               + L[Math.floor(Math.random()*L.length)]
+               + L[Math.floor(Math.random()*L.length)]
+               + D[Math.floor(Math.random()*D.length)];
             sessionStorage.setItem('ec_lim_id', id);
         }
         return id;
@@ -2439,7 +2446,7 @@ class EduBoardConnect {
 
         const panel = document.createElement('div');
         panel.id = 'ec-panel';
-        const limCode = this._limId.substring(0, 8).toUpperCase();
+        const limCode = this._limId; // già un codice breve (es. "ALF3")
         panel.innerHTML = `
             <div class="ec-modal-box">
                 <!-- Colonna sinistra: logo + QR + codice LIM -->
@@ -2450,9 +2457,9 @@ class EduBoardConnect {
                         <div id="ec-qr-canvas" class="ec-qr-canvas"></div>
                         <div class="ec-qr-loading" id="ec-qr-loading">Generazione QR...</div>
                     </div>
-                    <div style="font-size:0.7rem;color:#64748b;text-align:center;line-height:1.5">
-                        Oppure inserisci il codice:<br>
-                        <span id="ec-lim-code" style="font-size:1rem;color:#0f172a;letter-spacing:0.18em;font-weight:700;font-family:monospace">${limCode}</span>
+                    <div style="text-align:center;margin-top:2px">
+                        <div style="font-size:0.65rem;color:#94a3b8;letter-spacing:0.04em;text-transform:uppercase;margin-bottom:2px">Codice LIM</div>
+                        <span id="ec-lim-code" style="font-size:1.6rem;color:#0f172a;letter-spacing:0.22em;font-weight:800;font-family:monospace">${limCode}</span>
                     </div>
                     <div class="ec-status" id="ec-status">
                         <span class="ec-dot"></span> In attesa del telefono...
