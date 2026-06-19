@@ -371,6 +371,34 @@ class DriveManager {
         } catch (_) {}
     }
 
+    /**
+     * Salva le preferenze utente su Drive come _prefs.json nella cartella EduBoard.
+     * Usato per rendere il ripristino dell'ultima lezione indipendente dalla cache del browser.
+     * Fire-and-forget: gli errori vengono silenziati.
+     */
+    async _savePrefs(data) {
+        if (!this.rootFolderId) return;
+        try {
+            if (!this._prefsFileId) {
+                this._prefsFileId = await this._findFileInFolder('_prefs.json', this.rootFolderId);
+            }
+            const newId = await this._uploadMultipart('_prefs.json', data, this._prefsFileId || null, this.rootFolderId);
+            if (newId) this._prefsFileId = newId;
+        } catch (_) {}
+    }
+
+    /** Carica le preferenze utente da _prefs.json su Drive. Restituisce l'oggetto o null. */
+    async _loadPrefs() {
+        if (!this.rootFolderId) return null;
+        try {
+            if (!this._prefsFileId) {
+                this._prefsFileId = await this._findFileInFolder('_prefs.json', this.rootFolderId);
+            }
+            if (!this._prefsFileId) return null;
+            return await this.loadLesson(this._prefsFileId); // loadLesson legge qualsiasi JSON da Drive
+        } catch (_) { return null; }
+    }
+
     /** Salva i colori cartelle (da localStorage) su Drive come _folder_colors.json. */
     async _saveFolderColors() {
         if (!this.rootFolderId) return;
@@ -1458,7 +1486,10 @@ class LibraryManager {
                 window.autoSaveMgr?.reset();
             }, 500);
             // Memorizza come ultima lezione aperta per auto-open al prossimo avvio
-            localStorage.setItem('eduboard_last_lesson', JSON.stringify({ fileId, fileName, userEmail: this.drive?.userEmail || null }));
+            const _lastLessonData = { fileId, fileName, userEmail: this.drive?.userEmail || null };
+            localStorage.setItem('eduboard_last_lesson', JSON.stringify(_lastLessonData));
+            // Salva anche su Drive: ripristino indipendente dalla cache del browser (es. Chromebook)
+            this.drive._savePrefs({ lastLesson: _lastLessonData }).catch(() => {});
             // NON chiude il pannello: rimane aperto stile OneNote per passare velocemente tra lezioni.
             // centerView si adatta alle dimensioni correnti (pannello aperto o chiuso).
             setTimeout(() => panMgr?.centerView(), 100);
@@ -2025,8 +2056,18 @@ async function _autoOpenLastLesson() {
             if (last.userEmail && driveMgr.userEmail && last.userEmail !== driveMgr.userEmail) return;
             await libraryMgr.openLesson(last.fileId, last.fileName || 'ultima lezione');
         } else {
-            // Nessuna lezione in localStorage (es. seconda LIM con profilo Chrome diverso):
-            // cerca la più recentemente modificata nella cartella Lezioni su Drive.
+            // Nessuna lezione in localStorage (Chromebook fresco, seconda LIM, ecc.)
+            // → 1° tentativo: leggi _prefs.json da Drive (device-independent)
+            await driveMgr._ensureRootFolder();
+            const prefs = await driveMgr._loadPrefs();
+            if (prefs?.lastLesson?.fileId) {
+                const p = prefs.lastLesson;
+                if (!p.userEmail || !driveMgr.userEmail || p.userEmail === driveMgr.userEmail) {
+                    await libraryMgr.openLesson(p.fileId, p.fileName || 'ultima lezione');
+                    return;
+                }
+            }
+            // → 2° fallback: file più recente nella cartella Lezioni
             await driveMgr._ensureLessonsFolder();
             if (!driveMgr.lessonsFolderId) return;
             const files = await driveMgr.listFiles(driveMgr.lessonsFolderId);

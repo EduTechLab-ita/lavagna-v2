@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-014'; // v2-014 — Fix: ID LIM in localStorage per auto-disconnect stabile
+const CACHE_NAME = 'eduboard-v2-015'; // v2-015 — Ultima lezione salvata su Drive (_prefs.json)
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-014 — Fix auto-disconnect dopo reload LIM.';
+const CHANGELOG  = 'EduBoard V2-015 — Ripristino ultima lezione indipendente dalla cache.';
 
 const urlsToCache = [
   '.',
