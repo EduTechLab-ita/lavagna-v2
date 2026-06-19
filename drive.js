@@ -2547,6 +2547,9 @@ class EduBoardConnect {
 
     _startListening() {
         this._stopListening();
+        // Reset stato ogni volta che si (ri)avvia l'ascolto
+        const statusEl = document.getElementById('ec-status');
+        if (statusEl) statusEl.innerHTML = '<span class="ec-dot"></span> In attesa del telefono...';
         const es = new EventSource(`${FIREBASE_DB}/sessions/${this._limId}.json`);
         es.addEventListener('put', (e) => {
             try {
