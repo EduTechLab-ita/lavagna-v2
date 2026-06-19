@@ -1243,7 +1243,9 @@
   // ══════════════════════════════════════════════════════════════
   function disconnect() {
     limId = null;
-    localStorage.removeItem(LIM_ID_KEY);
+    // Non rimuoviamo LIM_ID_KEY: afterLidDetected lo legge per sapere quale
+    // LIM disconnettere via 'transferred' alla prossima scansione.
+    // Viene aggiornato automaticamente in afterLidDetected con il nuovo lid.
     startScanner();
   }
 

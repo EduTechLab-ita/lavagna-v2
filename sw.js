@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-005'; // v2-005 — Fix EduConnect: no revoca token, silent refresh, auto-riconnessione LIM
+const CACHE_NAME = 'eduboard-v2-006'; // v2-006 — Fix EduConnect: disconnect non rimuove lid, transferred funziona
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-005 — Fix EduConnect: riconnessione automatica e accesso persistente.';
+const CHANGELOG  = 'EduBoard V2-006 — Fix EduConnect: Cambia LIM e auto-disconnect ora funzionanti.';
 
 const urlsToCache = [
   '.',
