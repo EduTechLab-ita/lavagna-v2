@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-016'; // v2-016 — Fix foto/timer da EduConnect dopo reload automatico LIM
+const CACHE_NAME = 'eduboard-v2-017'; // v2-017 — Ripristino pagina corrente all'apertura automatica lezione
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-016 — Foto e timer da EduConnect ora persistono dopo aggiornamenti automatici.';
+const CHANGELOG  = 'EduBoard V2-017 — La LIM riapre l\'ultima lezione sulla pagina dove stavi lavorando.';
 
 const urlsToCache = [
   '.',

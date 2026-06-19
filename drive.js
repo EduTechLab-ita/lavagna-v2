@@ -1373,7 +1373,7 @@ class LibraryManager {
      * @param {string} fileId
      * @param {string} fileName - usato solo per il nome progetto
      */
-    async openLesson(fileId, fileName) {
+    async openLesson(fileId, fileName, startPage = 0) {
         if (!this.drive.isConnected()) {
             toast('Connetti Drive prima.', 'error'); return;
         }
@@ -1470,7 +1470,7 @@ class LibraryManager {
 
             // 4. Ripristina pagine multiple (se presenti)
             if (hasPages && typeof window.pageManager !== 'undefined' && window.pageManager) {
-                window.pageManager.deserialize(lesson.pages);
+                window.pageManager.deserialize(lesson.pages, startPage);
             }
 
             toast('Lezione "' + name + '" caricata!', 'success');
@@ -1486,7 +1486,7 @@ class LibraryManager {
                 window.autoSaveMgr?.reset();
             }, 500);
             // Memorizza come ultima lezione aperta per auto-open al prossimo avvio
-            const _lastLessonData = { fileId, fileName, userEmail: this.drive?.userEmail || null };
+            const _lastLessonData = { fileId, fileName, userEmail: this.drive?.userEmail || null, lastPage: startPage };
             localStorage.setItem('eduboard_last_lesson', JSON.stringify(_lastLessonData));
             // Salva anche su Drive: ripristino indipendente dalla cache del browser (es. Chromebook)
             this.drive._savePrefs({ lastLesson: _lastLessonData }).catch(() => {});
@@ -2054,7 +2054,7 @@ async function _autoOpenLastLesson() {
             if (!last?.fileId) return;
             // FIX QR 404: salta se il fileId appartiene a un account diverso
             if (last.userEmail && driveMgr.userEmail && last.userEmail !== driveMgr.userEmail) return;
-            await libraryMgr.openLesson(last.fileId, last.fileName || 'ultima lezione');
+            await libraryMgr.openLesson(last.fileId, last.fileName || 'ultima lezione', last.lastPage || 0);
         } else {
             // Nessuna lezione in localStorage (Chromebook fresco, seconda LIM, ecc.)
             // → 1° tentativo: leggi _prefs.json da Drive (device-independent)
@@ -2063,7 +2063,7 @@ async function _autoOpenLastLesson() {
             if (prefs?.lastLesson?.fileId) {
                 const p = prefs.lastLesson;
                 if (!p.userEmail || !driveMgr.userEmail || p.userEmail === driveMgr.userEmail) {
-                    await libraryMgr.openLesson(p.fileId, p.fileName || 'ultima lezione');
+                    await libraryMgr.openLesson(p.fileId, p.fileName || 'ultima lezione', p.lastPage || 0);
                     return;
                 }
             }

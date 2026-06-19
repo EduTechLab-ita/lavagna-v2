@@ -4958,6 +4958,15 @@ class PageManager {
         this.currentIndex = index;
         this._restorePage(this.pages[this.currentIndex]);
         this._updatePageBar();
+        // Aggiorna la pagina corrente in localStorage per il ripristino auto-open
+        try {
+            const raw = localStorage.getItem('eduboard_last_lesson');
+            if (raw) {
+                const d = JSON.parse(raw);
+                d.lastPage = this.currentIndex;
+                localStorage.setItem('eduboard_last_lesson', JSON.stringify(d));
+            }
+        } catch (_) {}
     }
 
     addPage() {
@@ -4997,11 +5006,12 @@ class PageManager {
         return this.pages;
     }
 
-    deserialize(pagesData) {
+    deserialize(pagesData, startPage = 0) {
         if (!pagesData || !pagesData.length) return;
         this.pages = pagesData;
-        this.currentIndex = 0;
-        this._restorePage(this.pages[0]);
+        const idx = (startPage > 0 && startPage < pagesData.length) ? startPage : 0;
+        this.currentIndex = idx;
+        this._restorePage(this.pages[idx]);
         this._renderPageBar();
     }
 
