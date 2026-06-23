@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-018'; // v2-018 — Firebase RTDB: login anonimo + regole sicure (auth != null)
+const CACHE_NAME = 'eduboard-v2-019'; // v2-019 — Fix toolbar nascosta sotto al riquadro zoom su schermi stretti
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-018 — Sicurezza: connessione database protetta da accessi non autorizzati.';
+const CHANGELOG  = 'EduBoard V2-019 — Fix: la toolbar aperta non finisce più sotto al riquadro zoom su schermi più stretti.';
 
 const urlsToCache = [
   '.',
