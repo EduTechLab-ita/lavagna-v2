@@ -39,7 +39,6 @@ const CONFIG = {
     lastY: 0,
     shapeStartX: 0,
     shapeStartY: 0,
-    shapeSnapshot: null,  // ImageData per preview live forme
     undoStack: [],
     redoStack: [],
     maxUndo: 50,
@@ -1106,7 +1105,6 @@ class CanvasManager {
         if (CONFIG.currentTool === 'shape') {
             CONFIG.shapeStartX = x;
             CONFIG.shapeStartY = y;
-            CONFIG.shapeSnapshot = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
             return;
         }
 
@@ -1160,10 +1158,10 @@ class CanvasManager {
             return;
         }
         if (CONFIG.currentTool === 'shape') {
-            // Preview live: ripristina snapshot + disegna forma aggiornata
-            this.ctx.putImageData(CONFIG.shapeSnapshot, 0, 0);
+            // Preview live sul livello overlay (leggero): nessuna copia pixel del canvas reale
+            this.overlayCtx.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height);
             this.brush.shape(
-                this.ctx,
+                this.overlayCtx,
                 CONFIG.currentShape,
                 CONFIG.shapeStartX, CONFIG.shapeStartY,
                 x, y,
@@ -1216,9 +1214,19 @@ class CanvasManager {
             return;
         }
         if (CONFIG.currentTool === 'shape') {
-            // La forma è già sul canvas (dall'ultimo _onMove)
-            this._saveUndo(true); // salva DOPO aver disegnato la forma, notifica dirty
-            CONFIG.shapeSnapshot = null;
+            // Preview era solo sull'overlay: ora disegna la forma definitiva una sola volta sul canvas reale
+            const { x, y } = this.getCoords(e);
+            this._saveUndo(true); // salva PRIMA di disegnare (stato corretto per l'undo), notifica dirty
+            this.brush.shape(
+                this.ctx,
+                CONFIG.currentShape,
+                CONFIG.shapeStartX, CONFIG.shapeStartY,
+                x, y,
+                CONFIG.currentSize,
+                CONFIG.currentColor,
+                CONFIG.shapeFill
+            );
+            this.overlayCtx.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height);
             return;
         }
 

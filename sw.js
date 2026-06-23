@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-021'; // v2-021 — Toolbar: zero sovrapposizione col riquadro zoom (non solo z-index)
+const CACHE_NAME = 'eduboard-v2-022'; // v2-022 — Forme fluide: preview su overlay invece di getImageData/putImageData
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-021 — Fix definitivo: il menù strumenti non si sovrappone più al riquadro zoom su nessuna risoluzione.';
+const CHANGELOG  = 'EduBoard V2-022 — Forme (linee, rettangoli, ecc.) ora fluide come la penna durante il disegno.';
 
 const urlsToCache = [
   '.',
