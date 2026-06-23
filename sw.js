@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-017'; // v2-017 — Ripristino pagina corrente all'apertura automatica lezione
+const CACHE_NAME = 'eduboard-v2-018'; // v2-018 — Firebase RTDB: login anonimo + regole sicure (auth != null)
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-017 — La LIM riapre l\'ultima lezione sulla pagina dove stavi lavorando.';
+const CHANGELOG  = 'EduBoard V2-018 — Sicurezza: connessione database protetta da accessi non autorizzati.';
 
 const urlsToCache = [
   '.',

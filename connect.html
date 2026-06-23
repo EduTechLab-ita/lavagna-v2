@@ -665,6 +665,7 @@
   const SCOPE       = 'https://www.googleapis.com/auth/drive.file email profile';
   const CF_WORKER   = 'https://eduboard-connect.edutechlab-ita.workers.dev'; // timer
   const FIREBASE_DB = 'https://eduboard-connect-default-rtdb.europe-west1.firebasedatabase.app';
+  const FIREBASE_API_KEY = 'AIzaSyAQqLPBBFXUKACLrChHrJljQfnlWA_tGg8';
   const STORAGE_EMAIL   = 'ec_saved_email';
   const STORAGE_TOKEN   = 'ec_access_token';
   const STORAGE_EXPIRY  = 'ec_token_expiry';
@@ -818,12 +819,40 @@
   }
 
   // ══════════════════════════════════════════════════════════════
+  // FIREBASE AUTH (anonimo) — richiesto dalle regole sicure del DB.
+  // Invisibile per l'utente: nessuna schermata, nessun click.
+  // ══════════════════════════════════════════════════════════════
+  async function getFirebaseAuthToken() {
+    const cached = localStorage.getItem('ec_fb_idtoken');
+    const expiry = parseInt(localStorage.getItem('ec_fb_expiry') || '0', 10);
+    if (cached && Date.now() < expiry - 300000) return cached;
+    const res = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${FIREBASE_API_KEY}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ returnSecureToken: true })
+    });
+    if (!res.ok) throw new Error('Autenticazione database non riuscita');
+    const data = await res.json();
+    const newExpiry = Date.now() + (parseInt(data.expiresIn, 10) || 3600) * 1000;
+    localStorage.setItem('ec_fb_idtoken', data.idToken);
+    localStorage.setItem('ec_fb_expiry', String(newExpiry));
+    return data.idToken;
+  }
+
+  // ══════════════════════════════════════════════════════════════
   // CONNESSIONE LIM (usata sia da token fresco che da cache)
   // ══════════════════════════════════════════════════════════════
   async function connectToLim(token, expiry, email) {
+    let fbToken;
+    try {
+      fbToken = await getFirebaseAuthToken();
+    } catch (err) {
+      showError('Errore di connessione al database. Riprova.');
+      return;
+    }
     // Se c'è una vecchia LIM diversa, segnalale di disconnettersi (via Firebase)
     if (prevLimId) {
-      fetch(`${FIREBASE_DB}/sessions/${prevLimId}.json`, {
+      fetch(`${FIREBASE_DB}/sessions/${prevLimId}.json?auth=${fbToken}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'transferred' })
@@ -832,7 +861,7 @@
     }
     showScreen('screen-connecting');
     try {
-      const res = await fetch(`${FIREBASE_DB}/sessions/${limId}.json`, {
+      const res = await fetch(`${FIREBASE_DB}/sessions/${limId}.json?auth=${fbToken}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'pending', token, email, expiry })

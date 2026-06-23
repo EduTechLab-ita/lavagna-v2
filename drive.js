@@ -2437,8 +2437,28 @@ function _injectDriveStyles() {
 // Gestisce il pannello QR per connettere Drive via telefono (backend: Firebase RTDB)
 // =============================================================================
 
-const FIREBASE_DB    = 'https://eduboard-connect-default-rtdb.europe-west1.firebasedatabase.app';
-const CONNECT_SERVER = 'https://eduboard-connect.edutechlab-ita.workers.dev'; // foto/laser/timer
+const FIREBASE_DB      = 'https://eduboard-connect-default-rtdb.europe-west1.firebasedatabase.app';
+const FIREBASE_API_KEY = 'AIzaSyAQqLPBBFXUKACLrChHrJljQfnlWA_tGg8';
+const CONNECT_SERVER   = 'https://eduboard-connect.edutechlab-ita.workers.dev'; // foto/laser/timer
+
+// Login anonimo Firebase — richiesto dalle regole sicure del DB (auth != null).
+// Invisibile per l'utente: nessuna schermata, nessun click. Token cache 1h con buffer 5min.
+async function _fbAuthToken() {
+    const cached = localStorage.getItem('ec_fb_idtoken');
+    const expiry = parseInt(localStorage.getItem('ec_fb_expiry') || '0', 10);
+    if (cached && Date.now() < expiry - 300000) return cached;
+    const res = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${FIREBASE_API_KEY}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ returnSecureToken: true })
+    });
+    if (!res.ok) throw new Error('Firebase auth fallita: ' + res.status);
+    const data = await res.json();
+    const newExpiry = Date.now() + (parseInt(data.expiresIn, 10) || 3600) * 1000;
+    localStorage.setItem('ec_fb_idtoken', data.idToken);
+    localStorage.setItem('ec_fb_expiry', String(newExpiry));
+    return data.idToken;
+}
 
 class EduBoardConnect {
     constructor() {
@@ -2614,40 +2634,48 @@ class EduBoardConnect {
         // Reset stato ogni volta che si (ri)avvia l'ascolto
         const statusEl = document.getElementById('ec-status');
         if (statusEl) statusEl.innerHTML = '<span class="ec-dot"></span> In attesa del telefono...';
-        const es = new EventSource(`${FIREBASE_DB}/sessions/${this._limId}.json`);
-        es.onerror = () => { /* EventSource si riconnette automaticamente */ };
-        es.addEventListener('put', (e) => {
-            try {
-                const { data } = JSON.parse(e.data);
-                if (!data) return; // null = vuoto o appena cancellato
-                if (data.status === 'pending') {
-                    // Aggiorna UI di conferma
-                    const statusEl = document.getElementById('ec-status');
-                    if (statusEl) statusEl.innerHTML = '<span style="color:#22c55e">Connesso come ' + data.email + '</span>';
-                    // Nascondi pannello PRIMA di aprire lezione (evita decentramento canvas)
-                    setTimeout(() => {
-                        this.hide();
-                        if (window.driveMgr) window.driveMgr._onExternalToken(data.token, data.email, data.expiry);
-                        this._onExternalConnect(data.email);
-                        // Pulisci sessione da Firebase (l'EventSource resta aperto per 'transferred')
-                        fetch(`${FIREBASE_DB}/sessions/${this._limId}.json`, { method: 'DELETE' }).catch(() => {});
-                    }, 800);
-                } else if (data.status === 'transferred') {
-                    // Questa LIM è stata scalzata da un'altra sessione dello stesso account
-                    toast('Sessione Drive trasferita ad un\'altra classe.', 'info');
-                    if (window.driveMgr) window.driveMgr.disconnect();
-                    if (window.driveConnectBtn) window.driveConnectBtn.update();
-                    fetch(`${FIREBASE_DB}/sessions/${this._limId}.json`, { method: 'DELETE' }).catch(() => {});
-                    // Riapri il modal QR: la LIM è libera e pronta a ricevere una nuova connessione
-                    setTimeout(() => this.show(), 600);
-                }
-            } catch(_) { /* silenzioso */ }
+        _fbAuthToken().then(fbToken => {
+            const es = new EventSource(`${FIREBASE_DB}/sessions/${this._limId}.json?auth=${fbToken}`);
+            es.onerror = () => { /* EventSource si riconnette automaticamente */ };
+            es.addEventListener('put', (e) => {
+                try {
+                    const { data } = JSON.parse(e.data);
+                    if (!data) return; // null = vuoto o appena cancellato
+                    if (data.status === 'pending') {
+                        // Aggiorna UI di conferma
+                        const statusEl = document.getElementById('ec-status');
+                        if (statusEl) statusEl.innerHTML = '<span style="color:#22c55e">Connesso come ' + data.email + '</span>';
+                        // Nascondi pannello PRIMA di aprire lezione (evita decentramento canvas)
+                        setTimeout(() => {
+                            this.hide();
+                            if (window.driveMgr) window.driveMgr._onExternalToken(data.token, data.email, data.expiry);
+                            this._onExternalConnect(data.email);
+                            // Pulisci sessione da Firebase (l'EventSource resta aperto per 'transferred')
+                            fetch(`${FIREBASE_DB}/sessions/${this._limId}.json?auth=${fbToken}`, { method: 'DELETE' }).catch(() => {});
+                        }, 800);
+                    } else if (data.status === 'transferred') {
+                        // Questa LIM è stata scalzata da un'altra sessione dello stesso account
+                        toast('Sessione Drive trasferita ad un\'altra classe.', 'info');
+                        if (window.driveMgr) window.driveMgr.disconnect();
+                        if (window.driveConnectBtn) window.driveConnectBtn.update();
+                        fetch(`${FIREBASE_DB}/sessions/${this._limId}.json?auth=${fbToken}`, { method: 'DELETE' }).catch(() => {});
+                        // Riapri il modal QR: la LIM è libera e pronta a ricevere una nuova connessione
+                        setTimeout(() => this.show(), 600);
+                    }
+                } catch(_) { /* silenzioso */ }
+            });
+            this._eventSource = es;
+            // L'idToken dura 1h: riapre la connessione con un token fresco prima che scada
+            this._fbRefreshTimer = setTimeout(() => this._startListening(), 50 * 60 * 1000);
+        }).catch(err => {
+            console.error('[EduBoardConnect] Firebase auth error:', err);
+            if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444">Errore connessione database</span>';
         });
-        this._eventSource = es;
     }
 
     _stopListening() {
         if (this._eventSource) { this._eventSource.close(); this._eventSource = null; }
+        if (this._fbRefreshTimer) { clearTimeout(this._fbRefreshTimer); this._fbRefreshTimer = null; }
     }
 
     _onExternalConnect(email) {
