@@ -289,14 +289,16 @@ button {
 #toolbar-wrapper {
     position: fixed;
     bottom: 0;
-    left: 50%;
+    /* Centro spostato di 105px a sinistra (metà dei 210px riservati al riquadro
+       zoom/account in basso a destra) cosi' il bordo destro non lo raggiunge mai */
+    left: calc(50% - 105px);
     transform: translateX(-50%) translateY(calc(100% - 54px));
     transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
     z-index: 610;
     display: flex;
     flex-direction: column;
     align-items: center;
-    max-width: min(98vw, 1200px);
+    max-width: min(98vw, 1200px, calc(100vw - 210px));
     width: 100%;
     pointer-events: none; /* FIX + button: il wrapper non blocca click su page-bar */
 }

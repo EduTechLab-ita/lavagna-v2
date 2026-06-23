@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-020'; // v2-020 — Aggiornata Novità V2 + Guida con strumenti mancanti
+const CACHE_NAME = 'eduboard-v2-021'; // v2-021 — Toolbar: zero sovrapposizione col riquadro zoom (non solo z-index)
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-020 — Sezione Novità aggiornata, Guida ampliata con tutti gli strumenti.';
+const CHANGELOG  = 'EduBoard V2-021 — Fix definitivo: il menù strumenti non si sovrappone più al riquadro zoom su nessuna risoluzione.';
 
 const urlsToCache = [
   '.',
