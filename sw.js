@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-022'; // v2-022 — Forme fluide: preview su overlay invece di getImageData/putImageData
+const CACHE_NAME = 'eduboard-v2-023'; // v2-023 — Toolbar adattiva: centrata nello spazio reale tra pagine e zoom/account
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-022 — Forme (linee, rettangoli, ecc.) ora fluide come la penna durante il disegno.';
+const CHANGELOG  = 'EduBoard V2-023 — Il menù strumenti ora si centra automaticamente tra le pagine e il riquadro zoom, su qualsiasi schermo.';
 
 const urlsToCache = [
   '.',

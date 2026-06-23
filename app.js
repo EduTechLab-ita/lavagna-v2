@@ -1488,6 +1488,26 @@ class ToolbarManager {
         // Mostra la riga opzioni subito (penna selezionata di default)
         this._updateOptionsRow();
         this._updateColorSwatches(CONFIG.currentTool);
+
+        // Centra il menu nello spazio libero reale tra barra pagine (sx) e barra zoom/account (dx)
+        window.addEventListener('resize', () => this._updateBounds());
+        requestAnimationFrame(() => this._updateBounds());
+    }
+
+    // Misura lo spazio disponibile tra #page-bar e #bottom-right-bar e centra
+    // #toolbar-wrapper esattamente in quello spazio — adattivo a qualsiasi
+    // risoluzione e a qualsiasi numero di pagine (la page-bar cambia larghezza).
+    _updateBounds() {
+        const pageBar  = document.getElementById('page-bar');
+        const rightBar = document.getElementById('bottom-right-bar');
+        if (!pageBar || !rightBar || !this.wrapper) return;
+        const GAP = 16; // margine di sicurezza da ogni lato
+        const leftEdge  = pageBar.getBoundingClientRect().right + GAP;
+        const rightEdge = rightBar.getBoundingClientRect().left - GAP;
+        const available = rightEdge - leftEdge;
+        if (available <= 200) return; // schermo troppo piccolo: resta sul fallback CSS centrato
+        this.wrapper.style.left = (leftEdge + available / 2) + 'px';
+        this.wrapper.style.maxWidth = Math.min(1200, available) + 'px';
     }
 
     show() {
@@ -5089,6 +5109,11 @@ class PageManager {
         addBtn.title = 'Aggiungi pagina';
         addBtn.addEventListener('click', () => this.addPage());
         bar.appendChild(addBtn);
+
+        // La larghezza della page-bar è cambiata (pagina aggiunta/rimossa): ricentra il menu
+        if (typeof toolbarMgr !== 'undefined' && toolbarMgr) {
+            requestAnimationFrame(() => toolbarMgr._updateBounds());
+        }
     }
 }
 
