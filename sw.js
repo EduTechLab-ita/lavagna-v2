@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-019'; // v2-019 — Fix toolbar nascosta sotto al riquadro zoom su schermi stretti
+const CACHE_NAME = 'eduboard-v2-020'; // v2-020 — Aggiornata Novità V2 + Guida con strumenti mancanti
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-019 — Fix: la toolbar aperta non finisce più sotto al riquadro zoom su schermi più stretti.';
+const CHANGELOG  = 'EduBoard V2-020 — Sezione Novità aggiornata, Guida ampliata con tutti gli strumenti.';
 
 const urlsToCache = [
   '.',
