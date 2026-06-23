@@ -1497,15 +1497,30 @@ class ToolbarManager {
     // Misura lo spazio disponibile tra #page-bar e #bottom-right-bar e centra
     // #toolbar-wrapper esattamente in quello spazio — adattivo a qualsiasi
     // risoluzione e a qualsiasi numero di pagine (la page-bar cambia larghezza).
+    // Se lo spazio non basta nemmeno per la toolbar "con etichette", passa in
+    // modalità compatta (solo icone) invece di farla sbordare fuori dallo schermo.
     _updateBounds() {
         const pageBar  = document.getElementById('page-bar');
         const rightBar = document.getElementById('bottom-right-bar');
-        if (!pageBar || !rightBar || !this.wrapper) return;
+        const inner    = document.getElementById('floating-toolbar');
+        if (!pageBar || !rightBar || !inner || !this.wrapper) return;
         const GAP = 16; // margine di sicurezza da ogni lato
         const leftEdge  = pageBar.getBoundingClientRect().right + GAP;
         const rightEdge = rightBar.getBoundingClientRect().left - GAP;
-        const available = rightEdge - leftEdge;
-        if (available <= 200) return; // schermo troppo piccolo: resta sul fallback CSS centrato
+        const available = Math.max(rightEdge - leftEdge, 0);
+
+        // Misura la larghezza naturale "con etichette" (rimuovendo temporaneamente
+        // il limite corrente) per decidere se serve la modalità compatta
+        const prevMaxWidth = this.wrapper.style.maxWidth;
+        const wasCompact = this.wrapper.classList.contains('compact');
+        this.wrapper.classList.remove('compact');
+        this.wrapper.style.maxWidth = 'none';
+        const naturalWidth = inner.scrollWidth;
+        this.wrapper.style.maxWidth = prevMaxWidth;
+        if (wasCompact) this.wrapper.classList.add('compact');
+        this.wrapper.classList.toggle('compact', naturalWidth > available);
+
+        if (available <= 150) return; // schermo troppo piccolo anche in compatta: resta sul fallback CSS centrato
         this.wrapper.style.left = (leftEdge + available / 2) + 'px';
         this.wrapper.style.maxWidth = Math.min(1200, available) + 'px';
     }

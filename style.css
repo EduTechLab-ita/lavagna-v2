@@ -1426,6 +1426,17 @@ button {
    RESPONSIVE
    ========================================================================== */
 
+/* Modalità compatta: applicata via JS (ToolbarManager._updateBounds) quando lo
+   spazio reale tra page-bar e bottom-right-bar non basta per le etichette,
+   indipendentemente dalla larghezza dello schermo */
+#toolbar-wrapper.compact .tool-btn span {
+    display: none;
+}
+#toolbar-wrapper.compact .tool-btn {
+    width: 46px;
+    height: 46px;
+}
+
 /* Tablet / mobile medio */
 @media (max-width: 600px) {
     /* Nascondi etichette testuali dei bottoni strumento */
