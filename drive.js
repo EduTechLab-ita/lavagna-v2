@@ -2309,6 +2309,9 @@ class DriveConnectButton {
             });
             document.getElementById('fab-panel-disconnect')?.addEventListener('click', async () => {
                 panel.remove();
+                if (window.libraryMgr?.currentFileId) {
+                    try { await window.libraryMgr.overwriteCurrentLesson(true); } catch(_) {}
+                }
                 await this.drive.disconnect();
                 this.update();
                 libraryMgr?.refresh();
@@ -2656,11 +2659,17 @@ class EduBoardConnect {
                     } else if (data.status === 'transferred') {
                         // Questa LIM è stata scalzata da un'altra sessione dello stesso account
                         toast('Sessione Drive trasferita ad un\'altra classe.', 'info');
-                        if (window.driveMgr) window.driveMgr.disconnect();
-                        if (window.driveConnectBtn) window.driveConnectBtn.update();
-                        fetch(`${FIREBASE_DB}/sessions/${this._limId}.json?auth=${fbToken}`, { method: 'DELETE' }).catch(() => {});
-                        // Riapri il modal QR: la LIM è libera e pronta a ricevere una nuova connessione
-                        setTimeout(() => this.show(), 600);
+                        (async () => {
+                            // Salva lo stato corrente prima di disconnettersi (es. immagine riposizionata non ancora auto-salvata)
+                            if (window.libraryMgr?.currentFileId) {
+                                try { await window.libraryMgr.overwriteCurrentLesson(true); } catch(_) {}
+                            }
+                            if (window.driveMgr) window.driveMgr.disconnect();
+                            if (window.driveConnectBtn) window.driveConnectBtn.update();
+                            fetch(`${FIREBASE_DB}/sessions/${this._limId}.json?auth=${fbToken}`, { method: 'DELETE' }).catch(() => {});
+                            // Riapri il modal QR: la LIM è libera e pronta a ricevere una nuova connessione
+                            setTimeout(() => this.show(), 600);
+                        })();
                     }
                 } catch(_) { /* silenzioso */ }
             });

@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-024'; // v2-024 — Toolbar: modalità compatta automatica se lo spazio è troppo stretto
+const CACHE_NAME = 'eduboard-v2-025'; // v2-025 — Salvataggio automatico prima di disconnect (trasferimento QR e manuale)
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-024 — Il menù strumenti non sborda più fuori schermo su risoluzioni strette o con tante pagine aperte.';
+const CHANGELOG  = 'EduBoard V2-025 — Le immagini e i PDF restano al loro posto anche dopo uno spostamento tra LIM o una disconnessione manuale.';
 
 const urlsToCache = [
   '.',
