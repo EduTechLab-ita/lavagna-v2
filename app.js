@@ -5999,21 +5999,46 @@ function _buildPageDataURL(pageIndex) {
         const objCvs = document.getElementById('objects-canvas');
         if (objCvs) ctx.drawImage(objCvs, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
     } else if (pageData) {
-        // Altra pagina: ricostruiamo da drawImageData
+        // Altra pagina: ricostruiamo da drawImageData + oggetti (immagini/PDF)
         ctx.fillStyle = pageData.background ? (pageData.background.color || '#ffffff') : '#ffffff';
         ctx.fillRect(0, 0, cropW, cropH);
+
+        const loaders = [];
+
         if (pageData.drawImageData) {
-            return new Promise(resolve => {
+            // NOTA: drawImageData è GIÀ il ritaglio del foglio A4 (vedi _captureCurrentPage,
+            // dimensioni r.pw × r.ph) — va scalato per intero nell'area di destinazione,
+            // NON ri-ritagliato con cropX/cropY (altrimenti si legge fuori dai bordi
+            // dell'immagine e la pagina risulta vuota).
+            loaders.push(new Promise(resolve => {
+                const img = new Image();
+                img.onload = () => { ctx.drawImage(img, 0, 0, cropW, cropH); resolve(); };
+                img.onerror = resolve;
+                img.src = pageData.drawImageData;
+            }));
+        }
+
+        // Disegna anche gli oggetti (immagini/PDF) della pagina — mancavano del tutto
+        (pageData.objects || []).forEach(o => {
+            if (!o.dataUrl) return;
+            loaders.push(new Promise(resolve => {
                 const img = new Image();
                 img.onload = () => {
-                    // Ritaglia all'area del foglio anche per le pagine non correnti
-                    ctx.drawImage(img, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
-                    resolve(tmp.toDataURL('image/png'));
+                    // Coordinate salvate come frazione di pw, relative all'origine del foglio
+                    // (vedi _captureCurrentPage) — qui il canvas tmp è già page-local.
+                    const ox = pageData.objectFormat === 'page-fraction' ? o.x * cropW : o.x;
+                    const oy = pageData.objectFormat === 'page-fraction' ? o.y * cropW : o.y;
+                    const ow = pageData.objectFormat === 'page-fraction' ? o.w * cropW : o.w;
+                    const oh = pageData.objectFormat === 'page-fraction' ? o.h * cropW : o.h;
+                    ctx.drawImage(img, ox, oy, ow, oh);
+                    resolve();
                 };
-                img.onerror = () => resolve(tmp.toDataURL('image/png'));
-                img.src = pageData.drawImageData;
-            });
-        }
+                img.onerror = resolve;
+                img.src = o.dataUrl;
+            }));
+        });
+
+        return Promise.all(loaders).then(() => tmp.toDataURL('image/png'));
     } else {
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, cropW, cropH);

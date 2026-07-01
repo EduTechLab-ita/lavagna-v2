@@ -392,8 +392,26 @@ class ProtractorTool {
         this.cx    = 0;
         this.cy    = 0;
 
+        // Modalità: semicerchio 180° (default) oppure cerchio intero 360°
+        this.full360 = false;
+        // Scala numeri invertita (lettura destra→sinistra)
+        this.flipped = false;
+
         this._drag = { active: false, startX: 0, startY: 0, origX: 0, origY: 0 };
         this._rot  = { active: false, startAngle: 0, startMouse: 0 };
+    }
+
+    // ------------------------------------------------------------------
+    // Dimensioni correnti (dipendono dalla modalità 180°/360°)
+    // ------------------------------------------------------------------
+    // NOTA: cx/cy (centro del cerchio) restano identici nelle due modalità
+    // — il canvas cresce solo verso il basso per rivelare la metà inferiore.
+    // Questo mantiene il perno visivo (transform-origin) fermo allo swap.
+
+    _dims() {
+        return this.full360
+            ? { W: 300, H: 300, cx: 150, cy: 150, R: 140 }
+            : { W: 300, H: 160, cx: 150, cy: 150, R: 140 };
     }
 
     // ------------------------------------------------------------------
@@ -413,6 +431,8 @@ class ProtractorTool {
                 <div class="protractor-rotate-handle" id="protractor-rotate" title="Ruota">&#8635;</div>
                 <div class="geo-close" id="protractor-close" title="Chiudi">&#215;</div>
                 <div class="protractor-drag-handle" id="protractor-drag" title="Trascina per spostare">⠿</div>
+                <div class="protractor-mode-btn" id="protractor-full360" title="Passa a goniometro 360°">360&#176;</div>
+                <div class="protractor-flip-btn" id="protractor-flip" title="Inverti la scala destra/sinistra">&#8644;</div>
             </div>`;
 
         document.body.appendChild(wrapper);
@@ -424,6 +444,7 @@ class ProtractorTool {
         this._setupDrag();
         this._setupResize();
         this._setupRotate();
+        this._setupModeButtons();
         wrapper.querySelector('#protractor-close').addEventListener('click', () => this.hide());
         const angleInput = wrapper.querySelector('#protractor-angle-input');
         angleInput.addEventListener('pointerdown', (e) => e.stopPropagation());
@@ -443,36 +464,42 @@ class ProtractorTool {
     _render() {
         const canvas = this.cvs;
         const ctx    = canvas.getContext('2d');
-        const W      = canvas.width;
-        const H      = canvas.height;
-        const cx     = W / 2;
-        const cy     = H - 10;
-        const R      = H - 20;
+        const { W, H, cx, cy, R } = this._dims();
+        const maxDeg = this.full360 ? 360 : 180;
+        const loopEnd = this.full360 ? maxDeg - 5 : maxDeg;
 
+        canvas.width  = W;
+        canvas.height = H;
         ctx.clearRect(0, 0, W, H);
 
-        // Sfondo semicircolare semitrasparente
+        // Sfondo semicircolare o circolare completo, semitrasparente
         ctx.beginPath();
-        ctx.arc(cx, cy, R, Math.PI, 0);
-        ctx.lineTo(cx + R, cy);
-        ctx.lineTo(cx - R, cy);
-        ctx.closePath();
+        if (this.full360) {
+            ctx.arc(cx, cy, R, 0, Math.PI * 2);
+        } else {
+            ctx.arc(cx, cy, R, Math.PI, 0);
+            ctx.lineTo(cx + R, cy);
+            ctx.lineTo(cx - R, cy);
+            ctx.closePath();
+        }
         ctx.fillStyle   = 'rgba(219, 234, 254, 0.70)';
         ctx.fill();
         ctx.strokeStyle = 'rgba(59, 130, 246, 0.80)';
         ctx.lineWidth   = 1.5;
         ctx.stroke();
 
-        // Diametro di base
-        ctx.beginPath();
-        ctx.moveTo(cx - R, cy);
-        ctx.lineTo(cx + R, cy);
-        ctx.strokeStyle = 'rgba(30, 58, 138, 0.85)';
-        ctx.lineWidth   = 1.5;
-        ctx.stroke();
+        // Diametro di base (solo in modalità semicerchio: nel cerchio intero è già chiuso)
+        if (!this.full360) {
+            ctx.beginPath();
+            ctx.moveTo(cx - R, cy);
+            ctx.lineTo(cx + R, cy);
+            ctx.strokeStyle = 'rgba(30, 58, 138, 0.85)';
+            ctx.lineWidth   = 1.5;
+            ctx.stroke();
+        }
 
         // Tacche e numeri
-        for (let deg = 0; deg <= 180; deg += 5) {
+        for (let deg = 0; deg <= loopEnd; deg += 5) {
             const rad     = (180 - deg) * Math.PI / 180;
             const isMajor = deg % 10 === 0;
             const len     = isMajor ? 15 : 8;
@@ -492,11 +519,12 @@ class ProtractorTool {
 
             if (isMajor) {
                 const textR = R - 22;
+                const label = this.flipped ? (maxDeg - deg) : deg;
                 ctx.font      = '9px Inter, sans-serif';
                 ctx.fillStyle = 'rgba(30, 58, 138, 0.90)';
                 ctx.textAlign = 'center';
                 ctx.fillText(
-                    String(deg),
+                    String(label),
                     cx + textR * Math.cos(rad),
                     cy - textR * Math.sin(rad) + 3
                 );
@@ -508,6 +536,17 @@ class ProtractorTool {
         ctx.arc(cx, cy, 4, 0, Math.PI * 2);
         ctx.fillStyle = 'rgba(59, 130, 246, 0.90)';
         ctx.fill();
+    }
+
+    // ------------------------------------------------------------------
+    // Cambio modalità 180°/360° — ridimensiona il canvas mantenendo fermo
+    // il centro visivo (cx/cy restano 150/150 in entrambe le modalità)
+    // ------------------------------------------------------------------
+
+    _setMode(full360) {
+        this.full360 = full360;
+        this._render();
+        this._applyTransform();
     }
 
     // ------------------------------------------------------------------
@@ -659,8 +698,8 @@ class ProtractorTool {
                 const delta = (ev.clientX - startX) / 100;
                 this.scale = Math.min(2.5, Math.max(0.5, startScale + delta));
                 const body = this.el.querySelector('.protractor-body');
-                body.style.transform = `scale(${this.scale})`;
-                body.style.transformOrigin = 'center bottom';
+                body.style.transform = `scale(${this.scale}) rotate(${this.angle}deg)`;
+                body.style.transformOrigin = '150px 150px';
             };
             const onEnd = () => {
                 resizeHandle.removeEventListener('pointermove', onMove);
@@ -669,6 +708,97 @@ class ProtractorTool {
             resizeHandle.addEventListener('pointermove', onMove);
             resizeHandle.addEventListener('pointerup', onEnd);
         });
+    }
+
+    // ------------------------------------------------------------------
+    // Pulsanti modalità: 180°/360° e inverti scala (accanto al drag handle)
+    // ------------------------------------------------------------------
+
+    _setupModeButtons() {
+        const full360Btn = this.el.querySelector('#protractor-full360');
+        if (full360Btn) {
+            full360Btn.addEventListener('pointerdown', (e) => e.stopPropagation());
+            full360Btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this._setMode(!this.full360);
+                full360Btn.innerHTML = this.full360 ? '180&#176;' : '360&#176;';
+                full360Btn.classList.toggle('active', this.full360);
+            });
+        }
+
+        const flipBtn = this.el.querySelector('#protractor-flip');
+        if (flipBtn) {
+            flipBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
+            flipBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.flipped = !this.flipped;
+                this._render();
+                flipBtn.classList.toggle('active', this.flipped);
+            });
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Snap al bordo del goniometro (analogo a RulerTool.snapToRuler, ma
+    // sull'arco circolare invece che su una retta)
+    // ------------------------------------------------------------------
+
+    /**
+     * Proietta il punto (x, y) — coordinate canvas — sul bordo circolare
+     * del goniometro, preservando l'angolo rispetto al centro e forzando
+     * la distanza al raggio R. In modalità semicerchio, i punti "fuori"
+     * dalla metà disegnata vengono agganciati all'estremo più vicino.
+     *
+     * @returns {{x:number, y:number, angle:number, cx:number, cy:number, r:number}}
+     *          angle/cx/cy/r sono in coordinate canvas, utili per disegnare
+     *          l'arco reale tra due punti successivi (vedi _drawProtractorArc).
+     */
+    snapToProtractor(x, y) {
+        const { cx, cy, R } = this._dims();
+
+        // Il transform-origin di .protractor-body è fissato a (150px,150px),
+        // che coincide sempre col centro del cerchio disegnato: questo punto
+        // resta invariato sullo schermo qualunque siano scale/angle correnti.
+        const pivotXScreen = this.x + cx;
+        const pivotYScreen = this.y + cy;
+
+        let cxCanvas, cyCanvas;
+        if (typeof panMgr !== 'undefined' && panMgr) {
+            const cc = panMgr.getCanvasCoords(pivotXScreen, pivotYScreen);
+            cxCanvas = cc.x;
+            cyCanvas = cc.y;
+        } else {
+            const area = document.getElementById('canvas-area');
+            const areaRect = area ? area.getBoundingClientRect() : { left: 0, top: 0 };
+            cxCanvas = pivotXScreen - areaRect.left;
+            cyCanvas = pivotYScreen - areaRect.top;
+        }
+
+        const scale   = (typeof panMgr !== 'undefined' && panMgr) ? panMgr.scale : 1;
+        const RCanvas = (R * this.scale) / scale;
+
+        const rot = this.angle * Math.PI / 180;
+        const dx  = x - cxCanvas;
+        const dy  = y - cyCanvas;
+
+        // Angolo del punto relativo all'orientamento corrente del goniometro
+        let relAngle = Math.atan2(dy, dx) - rot;
+        relAngle = Math.atan2(Math.sin(relAngle), Math.cos(relAngle)); // normalizza (-PI, PI]
+
+        if (!this.full360 && relAngle > 0) {
+            // Fuori dal semicerchio disegnato: aggancia all'estremo più vicino
+            relAngle = (relAngle < Math.PI / 2) ? 0 : -Math.PI;
+        }
+
+        const finalAngle = relAngle + rot;
+        return {
+            x: cxCanvas + RCanvas * Math.cos(finalAngle),
+            y: cyCanvas + RCanvas * Math.sin(finalAngle),
+            angle: finalAngle,
+            cx: cxCanvas,
+            cy: cyCanvas,
+            r:  RCanvas
+        };
     }
 }
 
@@ -950,7 +1080,9 @@ class GeometryManager {
 
 .protractor-body {
     display: inline-block;
-    transform-origin: center bottom;
+    /* Fisso: coincide sempre col centro del cerchio disegnato (cx/cy=150,150
+       in entrambe le modalità 180°/360°) — necessario per lo snap sull'arco */
+    transform-origin: 150px 150px;
 }
 
 #protractor-canvas {
@@ -1015,6 +1147,33 @@ class GeometryManager {
 }
 .protractor-drag-handle:hover { background: rgba(200,220,255,0.8); }
 .protractor-drag-handle:active { cursor: grabbing; }
+
+.protractor-mode-btn,
+.protractor-flip-btn {
+    position: absolute;
+    top: 50%;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: rgba(200, 220, 255, 0.55);
+    color: rgba(30, 58, 138, 0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    user-select: none;
+    touch-action: none;
+    z-index: 4;
+    pointer-events: auto;
+}
+.protractor-mode-btn { left: calc(50% - 46px); transform: translate(-50%, -50%); }
+.protractor-flip-btn { left: calc(50% + 46px); transform: translate(-50%, -50%); font-size: 15px; }
+.protractor-mode-btn:hover,
+.protractor-flip-btn:hover { background: rgba(200,220,255,0.85); }
+.protractor-mode-btn.active,
+.protractor-flip-btn.active { background: rgba(59, 130, 246, 0.65); color: #fff; }
 
 .ruler-angle-input,
 .geo-angle-input {
@@ -1178,6 +1337,19 @@ class GeometryManager {
                 mgr._drawSegment(x, y, x, y, x, y);
                 return;
             }
+            if (geo.protractor.isVisible() &&
+                ['pen', 'pencil', 'pastel', 'marker'].includes(CONFIG.currentTool)) {
+                const raw  = mgr.getCoords(e);
+                const snap = geo.protractor.snapToProtractor(raw.x, raw.y);
+                if (typeof toolbarMgr !== 'undefined') toolbarMgr.hide();
+                CONFIG.isDrawing = true;
+                mgr._saveUndo();
+                CONFIG.lastX = snap.x;
+                CONFIG.lastY = snap.y;
+                geo._protLastAngle = snap.angle;
+                mgr._drawSegment(snap.x, snap.y, snap.x, snap.y, snap.x, snap.y);
+                return;
+            }
             origStart(e);
         };
 
@@ -1198,6 +1370,17 @@ class GeometryManager {
                 CONFIG.lastY = y;
                 return;
             }
+            if (geo.protractor.isVisible() && CONFIG.isDrawing &&
+                ['pen', 'pencil', 'pastel', 'marker'].includes(CONFIG.currentTool)) {
+                const raw  = mgr.getCoords(e);
+                const snap = geo.protractor.snapToProtractor(raw.x, raw.y);
+                // Disegna un arco reale (non una corda dritta) tra l'angolo precedente e quello nuovo
+                geo._drawProtractorArc(mgr, geo._protLastAngle, snap.angle, snap.cx, snap.cy, snap.r);
+                CONFIG.lastX = snap.x;
+                CONFIG.lastY = snap.y;
+                geo._protLastAngle = snap.angle;
+                return;
+            }
             origMove(e);
         };
 
@@ -1212,8 +1395,40 @@ class GeometryManager {
                 CONFIG.isDrawing = false;
                 return;
             }
+            if (geo.protractor.isVisible() && CONFIG.isDrawing &&
+                ['pen', 'pencil', 'pastel', 'marker'].includes(CONFIG.currentTool)) {
+                CONFIG.isDrawing = false;
+                return;
+            }
             origEnd(e);
         };
+    }
+
+    // ------------------------------------------------------------------
+    // Disegna un arco reale tra due angoli (usato dallo snap sul goniometro)
+    // suddividendolo in piccoli segmenti per ottenere una curva perfetta.
+    // ------------------------------------------------------------------
+
+    _drawProtractorArc(mgr, fromAngle, toAngle, cx, cy, r) {
+        // Verso più breve tra i due angoli, normalizzato in (-PI, PI]
+        let delta = toAngle - fromAngle;
+        while (delta > Math.PI)  delta -= 2 * Math.PI;
+        while (delta < -Math.PI) delta += 2 * Math.PI;
+
+        const maxStepRad = 3 * Math.PI / 180; // un segmento ogni ~3°
+        const steps = Math.max(1, Math.ceil(Math.abs(delta) / maxStepRad));
+
+        let prevX = cx + r * Math.cos(fromAngle);
+        let prevY = cy + r * Math.sin(fromAngle);
+
+        for (let i = 1; i <= steps; i++) {
+            const a = fromAngle + delta * (i / steps);
+            const x = cx + r * Math.cos(a);
+            const y = cy + r * Math.sin(a);
+            mgr._drawSegment(prevX, prevY, prevX, prevY, x, y);
+            prevX = x;
+            prevY = y;
+        }
     }
 
     // ------------------------------------------------------------------

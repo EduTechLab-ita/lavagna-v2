@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-025'; // v2-025 — Salvataggio automatico prima di disconnect (trasferimento QR e manuale)
+const CACHE_NAME = 'eduboard-v2-026'; // v2-026 — Fix stampa multi-pagina + snap arco goniometro
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-025 — Le immagini e i PDF restano al loro posto anche dopo uno spostamento tra LIM o una disconnessione manuale.';
+const CHANGELOG  = 'EduBoard V2-026 — Corretta la stampa di più pagine (immagini/PDF e disegni ora appaiono su tutte le pagine, non solo sulla prima). Goniometro: il tratto ora si aggancia al bordo curvo come sul righello, con nuovi pulsanti 360°/180° e inversione scala.';
 
 const urlsToCache = [
   '.',
