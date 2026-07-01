@@ -539,7 +539,12 @@ button {
     overflow-y: hidden;
     scrollbar-width: none;    /* Firefox: nasconde scrollbar */
     -ms-overflow-style: none; /* IE/Edge */
-    justify-content: center;
+    /* "safe center": centra quando entra tutto, ma se il contenuto trabocca
+       si comporta come flex-start invece di tagliare il lato sinistro in modo
+       irraggiungibile (bug noto di justify-content:center + overflow: lo
+       scroll non può andare "negativo", quindi la parte a sinistra resta
+       tagliata per sempre con il solo "center"). */
+    justify-content: safe center;
     padding-bottom: 6px;
 }
 .main-row::-webkit-scrollbar { display: none; } /* Chrome/Safari: nasconde scrollbar */
