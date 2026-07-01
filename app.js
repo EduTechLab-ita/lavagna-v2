@@ -1512,13 +1512,18 @@ class ToolbarManager {
         // Misura la larghezza naturale "con etichette" (rimuovendo temporaneamente
         // il limite corrente) per decidere se serve la modalità compatta
         const prevMaxWidth = this.wrapper.style.maxWidth;
-        const wasCompact = this.wrapper.classList.contains('compact');
-        this.wrapper.classList.remove('compact');
         this.wrapper.style.maxWidth = 'none';
+        this.wrapper.classList.remove('compact');
         const naturalWidth = inner.scrollWidth;
+        const needsCompact  = naturalWidth > available;
+        this.wrapper.classList.toggle('compact', needsCompact);
+
+        // Se NEMMENO in modalità compatta entra tutto, la riga scorre in
+        // orizzontale (.main-row ha già overflow-x:auto) — segnaliamolo con una
+        // sfumatura ai bordi invece di lasciarla "tagliata" senza alcun indizio.
+        const measuredWidth = needsCompact ? inner.scrollWidth : naturalWidth;
+        this.wrapper.classList.toggle('overflowing', measuredWidth > available);
         this.wrapper.style.maxWidth = prevMaxWidth;
-        if (wasCompact) this.wrapper.classList.add('compact');
-        this.wrapper.classList.toggle('compact', naturalWidth > available);
 
         if (available <= 150) return; // schermo troppo piccolo anche in compatta: resta sul fallback CSS centrato
         this.wrapper.style.left = (leftEdge + available / 2) + 'px';

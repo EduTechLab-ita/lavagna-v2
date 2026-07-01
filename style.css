@@ -1437,6 +1437,14 @@ button {
     height: 46px;
 }
 
+/* Nemmeno in modalità compatta entra tutto: la riga scorre (.main-row ha già
+   overflow-x:auto) — sfumatura ai bordi per far capire che si può scorrere,
+   invece di sembrare semplicemente "tagliata". Applicata via JS (_updateBounds). */
+#toolbar-wrapper.overflowing .main-row {
+    -webkit-mask-image: linear-gradient(to right, transparent 0, black 24px, black calc(100% - 24px), transparent 100%);
+    mask-image: linear-gradient(to right, transparent 0, black 24px, black calc(100% - 24px), transparent 100%);
+}
+
 /* Tablet / mobile medio */
 @media (max-width: 600px) {
     /* Nascondi etichette testuali dei bottoni strumento */
@@ -2290,7 +2298,12 @@ body.fullscreen-mode #canvas-area {
     padding: 5px 12px;
     background: transparent;
     z-index: 190;
-    overflow-x: visible;
+    max-width: 45vw;
+    /* Con molte pagine i numeri non entrano tutti: prima restavano tagliati e
+       inaccessibili (overflow-x:visible), ora scorrono (regole scrollbar già presenti sotto) */
+    overflow-x: auto;
+    -webkit-mask-image: linear-gradient(to right, transparent 0, black 14px, black calc(100% - 14px), transparent 100%);
+    mask-image: linear-gradient(to right, transparent 0, black 14px, black calc(100% - 14px), transparent 100%);
     scrollbar-width: thin;
 }
 #page-bar::-webkit-scrollbar { height: 4px; }

@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-028'; // v2-028 — Goniometro: centro fermo durante il resize (cerchi concentrici)
+const CACHE_NAME = 'eduboard-v2-029'; // v2-029 — Fix barra pagine e toolbar tagliate su schermi stretti
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-028 — Goniometro: il centro "o" ora resta fermo quando ingrandisci o rimpicciolisci con la maniglia di resize, cosi puoi disegnare cerchi concentrici. Per spostarlo usa sempre il pulsante sposta.';
+const CHANGELOG  = 'EduBoard V2-029 — Con tante pagine aperte o su schermi piu stretti (16:9), la barra dei numeri pagina e la toolbar principale ora scorrono in orizzontale invece di restare tagliate, con una sfumatura ai bordi che indica che si puo scorrere.';
 
 const urlsToCache = [
   '.',
