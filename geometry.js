@@ -384,7 +384,6 @@ class ProtractorTool {
         this.el      = null;
         this.cvs     = null;
         this.visible = false;
-        this.scale   = 1.0;
 
         this.x     = 200;
         this.y     = 120;
@@ -396,22 +395,29 @@ class ProtractorTool {
         this.full360 = false;
         // Scala numeri invertita (lettura destra→sinistra)
         this.flipped = false;
+        // Raggio reale (ridimensionabile) — NON è più uno scale CSS visivo:
+        // il canvas viene ridisegnato più grande/piccolo, come per il righello.
+        // Questo evita che la maniglia di resize resti "staccata" dal disegno
+        // e mantiene lo snap sull'arco sempre centrato.
+        this.baseR = 140;
 
         this._drag = { active: false, startX: 0, startY: 0, origX: 0, origY: 0 };
         this._rot  = { active: false, startAngle: 0, startMouse: 0 };
     }
 
     // ------------------------------------------------------------------
-    // Dimensioni correnti (dipendono dalla modalità 180°/360°)
+    // Dimensioni correnti (dipendono da baseR e dalla modalità 180°/360°)
     // ------------------------------------------------------------------
-    // NOTA: cx/cy (centro del cerchio) restano identici nelle due modalità
-    // — il canvas cresce solo verso il basso per rivelare la metà inferiore.
-    // Questo mantiene il perno visivo (transform-origin) fermo allo swap.
+    // NOTA: cx/cy (centro del cerchio) coincidono sempre col centro reale
+    // del disegno: W = 2R+20, H = R+20 (semicerchio) o 2R+20 (360°).
 
     _dims() {
-        return this.full360
-            ? { W: 300, H: 300, cx: 150, cy: 150, R: 140 }
-            : { W: 300, H: 160, cx: 150, cy: 150, R: 140 };
+        const R  = this.baseR;
+        const cx = R + 10;
+        const cy = R + 10;
+        const W  = 2 * R + 20;
+        const H  = this.full360 ? (2 * R + 20) : (R + 20);
+        return { W, H, cx, cy, R };
     }
 
     // ------------------------------------------------------------------
@@ -576,8 +582,11 @@ class ProtractorTool {
         this.el.style.left = this.x + 'px';
         this.el.style.top  = this.y + 'px';
         const body = this.el.querySelector('.protractor-body');
-        body.style.transform = `scale(${this.scale}) rotate(${this.angle}deg)`;
-        body.style.transformOrigin = 'center bottom';
+        const { cx, cy } = this._dims();
+        body.style.transform = `rotate(${this.angle}deg)`;
+        // Dinamico: deve coincidere sempre col centro del cerchio disegnato,
+        // altrimenti lo snap sull'arco (snapToProtractor) si decentra alla rotazione
+        body.style.transformOrigin = `${cx}px ${cy}px`;
         const input = this.el ? this.el.querySelector('#protractor-angle-input') : null;
         if (input && document.activeElement !== input) {
             let display = ((this.angle % 360) + 360) % 360;
@@ -691,15 +700,17 @@ class ProtractorTool {
             e.stopPropagation();
             e.preventDefault();
             const startX = e.clientX;
-            const startScale = this.scale;
+            const startR  = this.baseR;
             resizeHandle.setPointerCapture(e.pointerId);
 
             const onMove = (ev) => {
-                const delta = (ev.clientX - startX) / 100;
-                this.scale = Math.min(2.5, Math.max(0.5, startScale + delta));
-                const body = this.el.querySelector('.protractor-body');
-                body.style.transform = `scale(${this.scale}) rotate(${this.angle}deg)`;
-                body.style.transformOrigin = '150px 150px';
+                // Ridisegna davvero il canvas più grande/piccolo (come il righello),
+                // invece di applicare uno scale CSS visivo: la maniglia resta sempre
+                // attaccata al bordo e lo snap sull'arco resta centrato.
+                const delta = ev.clientX - startX;
+                this.baseR = Math.min(350, Math.max(70, startR + delta));
+                this._render();
+                this._applyTransform();
             };
             const onEnd = () => {
                 resizeHandle.removeEventListener('pointermove', onMove);
@@ -775,7 +786,7 @@ class ProtractorTool {
         }
 
         const scale   = (typeof panMgr !== 'undefined' && panMgr) ? panMgr.scale : 1;
-        const RCanvas = (R * this.scale) / scale;
+        const RCanvas = R / scale;
 
         const rot = this.angle * Math.PI / 180;
         const dx  = x - cxCanvas;

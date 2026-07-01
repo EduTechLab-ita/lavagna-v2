@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-026'; // v2-026 — Fix stampa multi-pagina + snap arco goniometro
+const CACHE_NAME = 'eduboard-v2-027'; // v2-027 — Fix centratura goniometro (resize e rotazione)
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-026 — Corretta la stampa di più pagine (immagini/PDF e disegni ora appaiono su tutte le pagine, non solo sulla prima). Goniometro: il tratto ora si aggancia al bordo curvo come sul righello, con nuovi pulsanti 360°/180° e inversione scala.';
+const CHANGELOG  = 'EduBoard V2-027 — Goniometro: corretto lo scentramento dello snap quando si ingrandisce/rimpicciolisce (ora ridisegna davvero, come il righello, invece di uno zoom visivo) e quando si ruota. La maniglia di resize resta sempre attaccata al bordo.';
 
 const urlsToCache = [
   '.',
