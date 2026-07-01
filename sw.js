@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-029'; // v2-029 — Fix barra pagine e toolbar tagliate su schermi stretti
+const CACHE_NAME = 'eduboard-v2-030'; // v2-030 — Rollback sfumatura toolbar, tenuto solo il fix barra pagine
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-029 — Con tante pagine aperte o su schermi piu stretti (16:9), la barra dei numeri pagina e la toolbar principale ora scorrono in orizzontale invece di restare tagliate, con una sfumatura ai bordi che indica che si puo scorrere.';
+const CHANGELOG  = 'EduBoard V2-030 — Tolta la sfumatura ai bordi introdotta nella v2-029 (dava un effetto di taglio anche quando non serviva). La barra dei numeri pagina resta corretta: scorre invece di restare tagliata con tante pagine aperte.';
 
 const urlsToCache = [
   '.',
