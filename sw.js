@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-032'; // v2-032 — Scroll toolbar/barra pagine con rotellina mouse (senza Shift)
+const CACHE_NAME = 'eduboard-v2-033'; // v2-033 — Scrollbar visibile sulla toolbar (indizio di scorrimento)
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-032 — Su PC con mouse, ora basta la normale rotellina (senza tenere premuto Shift) per scorrere la toolbar o la barra delle pagine quando non entrano tutte. Sul touch della LIM lo swipe funzionava gia.';
+const CHANGELOG  = 'EduBoard V2-033 — La toolbar mostra ora una sottile barra di scorrimento quando i pulsanti non entrano tutti, cosi e ovvio che si puo scorrere (dito sulla LIM, rotellina o trascinamento su PC).';
 
 const urlsToCache = [
   '.',
