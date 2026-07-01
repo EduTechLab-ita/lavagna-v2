@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-031'; // v2-031 — Fix toolbar tagliata a sinistra su schermi stretti (justify-content: safe center)
+const CACHE_NAME = 'eduboard-v2-032'; // v2-032 — Scroll toolbar/barra pagine con rotellina mouse (senza Shift)
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-031 — Corretto il bug per cui, su schermi stretti (16:9), la toolbar principale restava tagliata a sinistra in modo irraggiungibile (bug noto di CSS centrato + scroll). Ora scorre correttamente su entrambi i lati.';
+const CHANGELOG  = 'EduBoard V2-032 — Su PC con mouse, ora basta la normale rotellina (senza tenere premuto Shift) per scorrere la toolbar o la barra delle pagine quando non entrano tutte. Sul touch della LIM lo swipe funzionava gia.';
 
 const urlsToCache = [
   '.',

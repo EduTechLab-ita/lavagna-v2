@@ -1484,6 +1484,7 @@ class ToolbarManager {
         this._setupBgPanel();
         this._setupColorPalettePopup(); // Feature 2
         this._setupEraserMode();        // Gomma tratti
+        this._setupWheelScroll();       // Rotellina mouse -> scroll orizzontale (senza Shift)
 
         // Mostra la riga opzioni subito (penna selezionata di default)
         this._updateOptionsRow();
@@ -1492,6 +1493,23 @@ class ToolbarManager {
         // Centra il menu nello spazio libero reale tra barra pagine (sx) e barra zoom/account (dx)
         window.addEventListener('resize', () => this._updateBounds());
         requestAnimationFrame(() => this._updateBounds());
+    }
+
+    // Con mouse/trackpad normale (senza tasto Shift) non si riesce a far scorrere
+    // una riga con overflow-x orizzontale: la rotellina scrolla solo in verticale.
+    // Qui convertiamo la rotellina verticale in scroll orizzontale quando la riga
+    // effettivamente trabocca, così i pulsanti nascosti restano raggiungibili
+    // anche da desktop (su LIM touch lo swipe funziona già di suo).
+    _setupWheelScroll() {
+        const rows = [document.querySelector('.main-row'), document.getElementById('page-bar')];
+        rows.forEach(row => {
+            if (!row) return;
+            row.addEventListener('wheel', (e) => {
+                if (row.scrollWidth <= row.clientWidth) return; // niente da scorrere
+                e.preventDefault();
+                row.scrollLeft += e.deltaY;
+            }, { passive: false });
+        });
     }
 
     // Misura lo spazio disponibile tra #page-bar e #bottom-right-bar e centra
