@@ -701,6 +701,14 @@ class ProtractorTool {
             e.preventDefault();
             const startX = e.clientX;
             const startR  = this.baseR;
+
+            // Cattura la posizione schermo del centro "o" PRIMA del resize:
+            // deve restare ancorata lì (cerchi concentrici), anche se la
+            // posizione locale del centro nel canvas cambia con R.
+            const dims0 = this._dims();
+            const pivotScreenX = this.x + dims0.cx;
+            const pivotScreenY = this.y + dims0.cy;
+
             resizeHandle.setPointerCapture(e.pointerId);
 
             const onMove = (ev) => {
@@ -709,6 +717,10 @@ class ProtractorTool {
                 // attaccata al bordo e lo snap sull'arco resta centrato.
                 const delta = ev.clientX - startX;
                 this.baseR = Math.min(350, Math.max(70, startR + delta));
+                const dims1 = this._dims();
+                // Riancora il centro "o" alla stessa posizione schermo di partenza
+                this.x = pivotScreenX - dims1.cx;
+                this.y = pivotScreenY - dims1.cy;
                 this._render();
                 this._applyTransform();
             };

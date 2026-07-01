@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-027'; // v2-027 — Fix centratura goniometro (resize e rotazione)
+const CACHE_NAME = 'eduboard-v2-028'; // v2-028 — Goniometro: centro fermo durante il resize (cerchi concentrici)
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-027 — Goniometro: corretto lo scentramento dello snap quando si ingrandisce/rimpicciolisce (ora ridisegna davvero, come il righello, invece di uno zoom visivo) e quando si ruota. La maniglia di resize resta sempre attaccata al bordo.';
+const CHANGELOG  = 'EduBoard V2-028 — Goniometro: il centro "o" ora resta fermo quando ingrandisci o rimpicciolisci con la maniglia di resize, cosi puoi disegnare cerchi concentrici. Per spostarlo usa sempre il pulsante sposta.';
 
 const urlsToCache = [
   '.',
