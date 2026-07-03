@@ -1291,8 +1291,16 @@ class CanvasManager {
         return objectLayer.objects.map(o => ({ ...o })); // shallow copy
     }
 
+    // Copia indipendente di _pageStrokes per gli snapshot undo/redo — i tratti vengono
+    // spostati/colorati mutando l'oggetto in place (vedi SelectManager), quindi lo snapshot
+    // DEVE essere un clone profondo, non solo una copia dell'array (altrimenti mutare il
+    // tratto "vivo" corromperebbe silenziosamente anche la cronologia undo già salvata).
+    _snapshotPageStrokes() {
+        return this._pageStrokes.map(s => s ? JSON.parse(JSON.stringify(s)) : s);
+    }
+
     _saveUndo(notifyDirty = false) {
-        this.undoStack.push({ canvas: this.canvas.toDataURL(), objects: this._snapshotObjects(), pageStrokes: [...this._pageStrokes] });
+        this.undoStack.push({ canvas: this.canvas.toDataURL(), objects: this._snapshotObjects(), pageStrokes: this._snapshotPageStrokes() });
         this._vectorStrokes.push(null); // placeholder, aggiornato in _onEnd
         if (this.undoStack.length > CONFIG.maxUndo) {
             this.undoStack.shift();
@@ -1317,18 +1325,20 @@ class CanvasManager {
             objectLayer.render();
         }
         if (strokes !== null && strokes !== undefined) this._pageStrokes = strokes;
+        // La selezione precisa (tap/lazo) può puntare a oggetti ormai sostituiti dal ripristino
+        if (typeof selectMgr !== 'undefined' && selectMgr) selectMgr._clearSelection();
     }
 
     undo() {
         if (this.undoStack.length === 0) return;
-        this.redoStack.push({ canvas: this.canvas.toDataURL(), objects: this._snapshotObjects(), pageStrokes: [...this._pageStrokes] });
+        this.redoStack.push({ canvas: this.canvas.toDataURL(), objects: this._snapshotObjects(), pageStrokes: this._snapshotPageStrokes() });
         this._vectorStrokes.pop();
         this._applyUndoEntry(this.undoStack.pop());
     }
 
     redo() {
         if (this.redoStack.length === 0) return;
-        this.undoStack.push({ canvas: this.canvas.toDataURL(), objects: this._snapshotObjects(), pageStrokes: [...this._pageStrokes] });
+        this.undoStack.push({ canvas: this.canvas.toDataURL(), objects: this._snapshotObjects(), pageStrokes: this._snapshotPageStrokes() });
         this._vectorStrokes.push(null);
         this._applyUndoEntry(this.redoStack.pop());
     }
@@ -3329,6 +3339,15 @@ class SelectManager {
         this._pixelResizeData = null; // dati resize in corso per selezione pixel
         this._pastedData      = null; // { snap: ImageData, data: ImageData, w, h } — snapshot pre-paste
         this._pressing        = false; // true solo quando pointer/mouse è premuto
+
+        // Selezione precisa (tap o lazo) di tratti/forme/oggetti — sostituisce il vecchio
+        // rettangolo di selezione. selectedItems: [{ type:'stroke'|'object', ref }]
+        // 'ref' è il riferimento diretto all'oggetto in _pageStrokes/objectLayer.objects,
+        // così spostarlo/colorarlo si riflette automaticamente senza dover risincronizzare indici.
+        this.selectedItems  = [];
+        this._lassoPath     = null;  // punti del lazo mentre viene tracciato
+        this._itemDragStart = null;  // { x, y, originals: [...] }
+
         this._setupContextPanel();
     }
 
@@ -3337,6 +3356,7 @@ class SelectManager {
         this.phase = 'idle';
         this.selection = null;
         this.selectedObject = null;
+        this.selectedItems = [];
         // Cursore sull'overlay
         const oc = document.getElementById('overlay-canvas');
         if (oc) oc.style.cursor = 'crosshair';
@@ -3603,7 +3623,9 @@ class SelectManager {
                 }
                 return;
             case 'delete':
-                if (obj) {
+                if (this.phase === 'items-selected' && this.selectedItems.length) {
+                    this._deleteSelectedItems();
+                } else if (obj) {
                     objectLayer.removeObject(obj.id);
                     this.selectedObject = null;
                     this._clearSelection();
@@ -3853,7 +3875,55 @@ class SelectManager {
                 });
                 break;
             }
+            case 'stroke-color': {
+                const s = (this.selectedItems.length === 1 && this.selectedItems[0].type === 'stroke') ? this.selectedItems[0].ref : null;
+                if (!s) break;
+                popup.innerHTML = `<label>Colore <input type="color" value="${s.color}"></label>`;
+                popup.style.display = 'block';
+                const inp = popup.querySelector('input');
+                inp.addEventListener('input', () => {
+                    if (typeof canvasMgr !== 'undefined') canvasMgr._saveUndo();
+                    s.color = inp.value;
+                    if (typeof canvasMgr !== 'undefined') canvasMgr._redrawAllStrokes();
+                    CONFIG.isDirty = true; window.autoSaveMgr?.onDirty();
+                });
+                break;
+            }
+            case 'stroke-fill': {
+                const s = (this.selectedItems.length === 1 && this.selectedItems[0].type === 'stroke') ? this.selectedItems[0].ref : null;
+                if (!s || s.tool !== 'shape') break;
+                popup.innerHTML = `<label><input type="checkbox" ${s.fill ? 'checked' : ''}> Riempi</label>`;
+                popup.style.display = 'block';
+                const inp = popup.querySelector('input');
+                inp.addEventListener('change', () => {
+                    if (typeof canvasMgr !== 'undefined') canvasMgr._saveUndo();
+                    s.fill = inp.checked;
+                    if (typeof canvasMgr !== 'undefined') canvasMgr._redrawAllStrokes();
+                    CONFIG.isDirty = true; window.autoSaveMgr?.onDirty();
+                });
+                break;
+            }
         }
+    }
+
+    // Elimina tutti gli elementi correntemente selezionati (tap singolo o lazo multiplo)
+    _deleteSelectedItems() {
+        if (!this.selectedItems.length) return;
+        if (typeof canvasMgr !== 'undefined') canvasMgr._saveUndo();
+        this.selectedItems.forEach(it => {
+            if (it.type === 'object') {
+                objectLayer.removeObject(it.ref.id);
+            } else if (typeof canvasMgr !== 'undefined') {
+                const idx = canvasMgr._pageStrokes.indexOf(it.ref);
+                if (idx >= 0) canvasMgr._pageStrokes.splice(idx, 1);
+            }
+        });
+        if (typeof canvasMgr !== 'undefined') canvasMgr._redrawAllStrokes();
+        this.selectedItems = [];
+        this._clearSelection();
+        this._hideContextPanel();
+        CONFIG.isDirty = true;
+        window.autoSaveMgr?.onDirty();
     }
 
     _showContextPanel(obj, isPixelSelection = false) {
@@ -3998,6 +4068,7 @@ class SelectManager {
         if (oc) oc.getContext('2d').clearRect(0, 0, oc.width, oc.height);
         this.selection = null;
         this.selectedObject = null;
+        this.selectedItems = [];
         this.phase     = 'idle';
         this._pastedData = null;
         this._hideContextPanel();
@@ -4008,6 +4079,194 @@ class SelectManager {
         const oc = document.getElementById('overlay-canvas');
         if (oc) oc.getContext('2d').clearRect(0, 0, oc.width, oc.height);
         this.selection = null;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Selezione precisa (tap/lazo) — tratti/forme (_pageStrokes) + oggetti
+    // ─────────────────────────────────────────────────────────────────────
+
+    // Trova l'elemento esatto sotto (x,y): priorità agli oggetti (sempre sopra
+    // visivamente), poi al tratto/forma più vicino tra quelli della pagina corrente.
+    _hitTestItem(x, y) {
+        if (typeof objectLayer !== 'undefined' && objectLayer) {
+            const obj = objectLayer.hitTest(x, y);
+            if (obj) return { type: 'object', ref: obj };
+        }
+        if (typeof canvasMgr !== 'undefined') {
+            const idx = canvasMgr.findNearestStroke(x, y, 30);
+            if (idx >= 0) return { type: 'stroke', ref: canvasMgr._pageStrokes[idx] };
+        }
+        return null;
+    }
+
+    // Bounding box di un elemento selezionato (tratto/forma/oggetto)
+    _itemBBox(item) {
+        if (item.type === 'object') {
+            const o = item.ref;
+            return { x: o.x, y: o.y, w: o.w, h: o.h };
+        }
+        const s = item.ref;
+        if (s.tool === 'shape') {
+            const margin = (s.size || 0) / 2;
+            const minX = Math.min(s.x0, s.x1) - margin, maxX = Math.max(s.x0, s.x1) + margin;
+            const minY = Math.min(s.y0, s.y1) - margin, maxY = Math.max(s.y0, s.y1) + margin;
+            return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+        }
+        if (!s.points || !s.points.length) return null;
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        for (const p of s.points) {
+            minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
+            minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y);
+        }
+        const margin = (s.size || 0) / 2 + 4;
+        return { x: minX - margin, y: minY - margin, w: (maxX - minX) + margin * 2, h: (maxY - minY) + margin * 2 };
+    }
+
+    _pointInSelectedItems(x, y) {
+        return this.selectedItems.some(it => {
+            const b = this._itemBBox(it);
+            if (!b) return false;
+            return x >= b.x - 10 && x <= b.x + b.w + 10 && y >= b.y - 10 && y <= b.y + b.h + 10;
+        });
+    }
+
+    // Ray casting point-in-polygon (per il lazo a mano libera)
+    _pointInPolygon(x, y, path) {
+        let inside = false;
+        for (let i = 0, j = path.length - 1; i < path.length; j = i++) {
+            const xi = path[i].x, yi = path[i].y;
+            const xj = path[j].x, yj = path[j].y;
+            const intersect = ((yi > y) !== (yj > y)) &&
+                (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+            if (intersect) inside = !inside;
+        }
+        return inside;
+    }
+
+    // Trova tutti i tratti/forme/oggetti il cui centro cade dentro il lazo tracciato
+    _findItemsInLasso(path) {
+        if (!path || path.length < 3) return [];
+        const found = [];
+        if (typeof canvasMgr !== 'undefined') {
+            canvasMgr._pageStrokes.forEach(s => {
+                if (!s) return;
+                const item = { type: 'stroke', ref: s };
+                const b = this._itemBBox(item);
+                if (!b) return;
+                const cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+                if (this._pointInPolygon(cx, cy, path)) found.push(item);
+            });
+        }
+        if (typeof objectLayer !== 'undefined' && objectLayer) {
+            objectLayer.objects.forEach(o => {
+                const cx = o.x + o.w / 2, cy = o.y + o.h / 2;
+                if (this._pointInPolygon(cx, cy, path)) found.push({ type: 'object', ref: o });
+            });
+        }
+        return found;
+    }
+
+    // Disegna il tracciato del lazo mentre viene trascinato (overlay-canvas)
+    _drawLassoPath() {
+        const oc = document.getElementById('overlay-canvas');
+        if (!oc || !this._lassoPath || this._lassoPath.length < 2) return;
+        const ctx = oc.getContext('2d');
+        ctx.clearRect(0, 0, oc.width, oc.height);
+        ctx.save();
+        ctx.strokeStyle = '#3b82f6';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6, 4]);
+        ctx.beginPath();
+        ctx.moveTo(this._lassoPath[0].x, this._lassoPath[0].y);
+        for (let i = 1; i < this._lassoPath.length; i++) ctx.lineTo(this._lassoPath[i].x, this._lassoPath[i].y);
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    // Evidenzia gli elementi selezionati (riquadro tratteggiato per ciascuno)
+    _highlightSelectedItems() {
+        const oc = document.getElementById('overlay-canvas');
+        if (!oc) return;
+        const ctx = oc.getContext('2d');
+        ctx.clearRect(0, 0, oc.width, oc.height);
+        ctx.save();
+        ctx.strokeStyle = '#3b82f6';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6, 4]);
+        this.selectedItems.forEach(it => {
+            const b = this._itemBBox(it);
+            if (b) ctx.strokeRect(b.x, b.y, b.w, b.h);
+        });
+        ctx.restore();
+    }
+
+    // Sposta live gli elementi selezionati durante il drag (ridisegna tutto)
+    _previewDragItems(dx, dy) {
+        if (!this._itemDragStart) return;
+        this.selectedItems.forEach((it, i) => {
+            const orig = this._itemDragStart.originals[i];
+            if (it.type === 'stroke') {
+                const s = it.ref;
+                if (s.tool === 'shape') {
+                    s.x0 = orig.x0 + dx; s.y0 = orig.y0 + dy;
+                    s.x1 = orig.x1 + dx; s.y1 = orig.y1 + dy;
+                } else {
+                    s.points = orig.points.map(p => ({ x: p.x + dx, y: p.y + dy }));
+                }
+            } else if (it.type === 'object') {
+                it.ref.x = orig.x + dx;
+                it.ref.y = orig.y + dy;
+            }
+        });
+        if (typeof canvasMgr !== 'undefined') canvasMgr._redrawAllStrokes();
+        if (typeof objectLayer !== 'undefined') objectLayer.render();
+        this._highlightSelectedItems();
+    }
+
+    // Pannello contestuale per la selezione precisa: solo Elimina (tutti) + Colore/Riempimento
+    // (solo per un singolo tratto/forma — cambiare colore a più elementi misti non è ben definito)
+    _showItemsContextPanel() {
+        const panel = document.getElementById('object-context-panel');
+        if (!panel) return;
+
+        panel.querySelectorAll('.ctx-icon-btn[data-action]').forEach(el => { el.style.display = 'none'; });
+        panel.querySelectorAll('.ctx-sep').forEach(el => { el.style.display = 'none'; });
+
+        const single = this.selectedItems.length === 1 ? this.selectedItems[0] : null;
+        const singleStroke = (single && single.type === 'stroke') ? single.ref : null;
+
+        if (singleStroke) {
+            const colorBtn = panel.querySelector('[data-action="stroke-color"]');
+            if (colorBtn) colorBtn.style.display = '';
+            if (singleStroke.tool === 'shape') {
+                const fillBtn = panel.querySelector('[data-action="stroke-fill"]');
+                if (fillBtn) fillBtn.style.display = '';
+            }
+        }
+        const delBtn = panel.querySelector('[data-action="delete"]');
+        if (delBtn) delBtn.style.display = '';
+
+        const bbox = this.selectedItems.reduce((acc, it) => {
+            const b = this._itemBBox(it);
+            if (!b) return acc;
+            if (!acc) return { ...b };
+            const minX = Math.min(acc.x, b.x), minY = Math.min(acc.y, b.y);
+            const maxX = Math.max(acc.x + acc.w, b.x + b.w), maxY = Math.max(acc.y + acc.h, b.y + b.h);
+            return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+        }, null);
+        if (!bbox) { this._hideContextPanel(); return; }
+
+        const area = document.getElementById('canvas-area');
+        const rect = area.getBoundingClientRect();
+        const scale = (typeof panMgr !== 'undefined' && panMgr) ? panMgr.scale : 1;
+        panel.style.left = Math.min(rect.left + (bbox.x + bbox.w) * scale + 8, window.innerWidth - 260) + 'px';
+        panel.style.top  = Math.max(Math.min(rect.top + bbox.y * scale, window.innerHeight - 60), 60) + 'px';
+        panel.style.display = 'flex';
+        panel.classList.remove('ctx-panel--open');
+        const gearBtn = document.getElementById('ctx-gear-btn');
+        if (gearBtn) gearBtn.classList.remove('is-open');
+        const popup = document.getElementById('ctx-popup');
+        if (popup) { popup.style.display = 'none'; popup.dataset.action = ''; }
     }
 
     onPointerDown(x, y) {
@@ -4108,6 +4367,25 @@ class SelectManager {
             this.phase = 'idle';
         }
 
+        // 1.6 Selezione precisa (tap/lazo) già attiva: click su un elemento selezionato → drag gruppo
+        if (this.phase === 'items-selected' && this.selectedItems.length && this._pointInSelectedItems(x, y)) {
+            if (typeof canvasMgr !== 'undefined') canvasMgr._saveUndo();
+            this.phase = 'items-dragging';
+            this._itemDragStart = {
+                x, y,
+                originals: this.selectedItems.map(it => {
+                    if (it.type === 'stroke') {
+                        const s = it.ref;
+                        return s.tool === 'shape'
+                            ? { x0: s.x0, y0: s.y0, x1: s.x1, y1: s.y1 }
+                            : { points: s.points.map(p => ({ ...p })) };
+                    }
+                    return { x: it.ref.x, y: it.ref.y };
+                })
+            };
+            return true;
+        }
+
         // 2. Hit test su ObjectLayer
         if (typeof objectLayer !== 'undefined' && objectLayer) {
             const hit = objectLayer.hitTest(x, y);
@@ -4135,12 +4413,20 @@ class SelectManager {
             this._clearSelection();
             this._hideContextPanel();
         }
+        if (this.phase === 'items-selected' || this.phase === 'items-dragging') {
+            this.selectedItems = [];
+            this._clearSelection();
+            this._hideContextPanel();
+        }
 
-        // Nuova selezione rettangolare
+        // Tap o lazo: non decidiamo subito, aspettiamo il movimento (vedi onPointerMove/onPointerUp).
+        // Un tap secco selezionerà con precisione un solo tratto/forma/oggetto; un trascinamento
+        // a mano libera selezionerà tutto ciò che viene racchiuso (sostituisce il vecchio rettangolo).
         this._clearPixelSelection(); // solo pulizia visuale, NON resetta phase
-        this.phase  = 'selecting';
-        this.startX = x;
-        this.startY = y;
+        this.phase    = 'items-selecting';
+        this.startX   = x;
+        this.startY   = y;
+        this._lassoPath = [{ x, y }];
         return true;
     }
 
@@ -4262,6 +4548,28 @@ class SelectManager {
             return true;
         }
 
+        // Tap-o-lazo in corso: aspetta di superare la soglia di movimento per capire
+        // se è un tap secco (selezione precisa) o un trascinamento (lazo multi-selezione)
+        if (this.phase === 'items-selecting') {
+            if (!this._pressing) return false;
+            this._lassoPath.push({ x, y });
+            const dx = x - this.startX, dy = y - this.startY;
+            if (Math.hypot(dx, dy) > 8) this.phase = 'items-lasso';
+            return true;
+        }
+        if (this.phase === 'items-lasso') {
+            if (!this._pressing) return false;
+            this._lassoPath.push({ x, y });
+            this._drawLassoPath();
+            return true;
+        }
+        if (this.phase === 'items-dragging' && this._itemDragStart) {
+            const dx = x - this._itemDragStart.x;
+            const dy = y - this._itemDragStart.y;
+            this._previewDragItems(dx, dy);
+            return true;
+        }
+
         if (this.phase === 'selecting') {
             // Disegna il rettangolo SOLO se il tasto/stilo è ancora premuto
             if (!this._pressing) return false;
@@ -4362,6 +4670,49 @@ class SelectManager {
             this._drawSelectionRect(this.selectedObject.x, this.selectedObject.y,
                 this.selectedObject.w, this.selectedObject.h, true);
             this._showContextPanel(this.selectedObject);
+            return true;
+        }
+
+        // Tap secco (nessun movimento oltre soglia): selezione precisa di un solo elemento
+        if (this.phase === 'items-selecting') {
+            this.phase = 'idle';
+            this._lassoPath = null;
+            const item = this._hitTestItem(this.startX, this.startY);
+            if (item) {
+                this.selectedItems = [item];
+                this.phase = 'items-selected';
+                this._highlightSelectedItems();
+                this._showItemsContextPanel();
+            } else {
+                this._clearSelection();
+            }
+            return true;
+        }
+
+        // Lazo tracciato: seleziona tutto ciò che è racchiuso (tratti/forme/oggetti)
+        if (this.phase === 'items-lasso') {
+            this.phase = 'idle';
+            const enclosed = this._findItemsInLasso(this._lassoPath);
+            this._lassoPath = null;
+            if (enclosed.length) {
+                this.selectedItems = enclosed;
+                this.phase = 'items-selected';
+                this._highlightSelectedItems();
+                this._showItemsContextPanel();
+            } else {
+                this._clearSelection();
+            }
+            return true;
+        }
+
+        // Fine drag selezione precisa (singola o multipla)
+        if (this.phase === 'items-dragging') {
+            this.phase = 'items-selected';
+            this._itemDragStart = null;
+            CONFIG.isDirty = true;
+            window.autoSaveMgr?.onDirty();
+            this._highlightSelectedItems();
+            this._showItemsContextPanel();
             return true;
         }
 
@@ -4505,6 +4856,11 @@ class SelectManager {
             this._clearSelection();
         }
         if (e.key === 'Delete' || e.key === 'Backspace') {
+            // Elimina selezione precisa (tap/lazo su tratti/forme/oggetti)
+            if (this.phase === 'items-selected' && this.selectedItems.length) {
+                this._deleteSelectedItems();
+                return;
+            }
             // Elimina oggetto ObjectLayer selezionato
             if ((this.phase === 'object-selected') && this.selectedObject) {
                 if (typeof canvasMgr !== 'undefined') canvasMgr._saveUndo();

@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-037'; // v2-037 — Fix cancellazione uniforme, non tocca i tratti sovrapposti
+const CACHE_NAME = 'eduboard-v2-038'; // v2-038 — Selezione precisa: tap singolo o lazo a mano libera
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-037 — Fix gomma-tratto: cancellazione uniforme (non piu\' a tratti) e non cancella piu\' i tratti sovrapposti a quello selezionato.';
+const CHANGELOG  = 'EduBoard V2-038 — Nuovo strumento Seleziona: un tocco secco seleziona esattamente un tratto/forma/immagine, un trascinamento a mano libera (lazo) seleziona tutto cio\' che racchiudi. Sposta ed elimina come prima; colore/riempimento nel menu per un singolo tratto.';
 
 const urlsToCache = [
   '.',
