@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-035'; // v2-035 — Gomma-tratto universale (oggetti, forme, immagini, PDF)
+const CACHE_NAME = 'eduboard-v2-036'; // v2-036 — Gomma-tratto funziona anche su pagine salvate/riaperte
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-035 — La gomma-tratto ora cancella in un tocco solo qualsiasi cosa: forme/righe, immagini e PDF, non solo i tratti a mano libera.';
+const CHANGELOG  = 'EduBoard V2-036 — La gomma-tratto ora funziona anche su tratti/forme di pagine gia\' salvate e riaperte, non solo su quanto disegnato nella sessione corrente.';
 
 const urlsToCache = [
   '.',

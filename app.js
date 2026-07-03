@@ -949,8 +949,13 @@ class CanvasManager {
         this.undoStack = [];
         this.redoStack = [];
 
-        // Tracking vettoriale per gomma-tratto: parallelo a undoStack
+        // Tracking vettoriale per gomma-tratto: parallelo a undoStack (solo undo/redo classico)
         this._vectorStrokes = []; // null | {tool, color, size, points[]}
+
+        // Tratti/forme della PAGINA CORRENTE (persistiti nel salvataggio, non solo in sessione).
+        // Usati da gomma-a-tratto e dallo strumento Seleziona per riconoscere un singolo
+        // tratto/forma anche su una pagina appena riaperta da Drive.
+        this._pageStrokes = []; // {tool, color, size, points[]} oppure {tool:'shape', shapeType, x0,y0,x1,y1, size, color, fill}
         this._currentPoints  = []; // punti del tratto in corso
 
         this._setupEvents();
@@ -1132,7 +1137,7 @@ class CanvasManager {
             const { x, y } = this.getCoords(e);
             const target = this._findEraseTarget(x, y);
             if (this._erasingStrokes) {
-                if (target && !this._eraseInProgress) this._eraseTarget(target);
+                if (target) this._eraseTarget(target);
             } else {
                 this._highlightEraseTarget(target);
             }
@@ -1230,19 +1235,19 @@ class CanvasManager {
                 CONFIG.shapeFill
             );
             this.overlayCtx.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height);
-            // Traccia la forma per la gomma-tratto (cancellazione in un tocco solo, come i tratti a mano libera)
+            // Traccia la forma per la gomma-tratto/selezione (cancellazione/selezione in un tocco solo)
             const lastIdx = this._vectorStrokes.length - 1;
-            if (lastIdx >= 0) {
-                this._vectorStrokes[lastIdx] = {
-                    tool: 'shape',
-                    shapeType: CONFIG.currentShape,
-                    color: CONFIG.currentColor,
-                    size: CONFIG.currentSize,
-                    fill: CONFIG.shapeFill,
-                    x0: CONFIG.shapeStartX, y0: CONFIG.shapeStartY,
-                    x1: x, y1: y
-                };
-            }
+            const shapeEntry = {
+                tool: 'shape',
+                shapeType: CONFIG.currentShape,
+                color: CONFIG.currentColor,
+                size: CONFIG.currentSize,
+                fill: CONFIG.shapeFill,
+                x0: CONFIG.shapeStartX, y0: CONFIG.shapeStartY,
+                x1: x, y1: y
+            };
+            if (lastIdx >= 0) this._vectorStrokes[lastIdx] = shapeEntry;
+            this._pageStrokes.push({ ...shapeEntry });
             return;
         }
 
@@ -1252,12 +1257,14 @@ class CanvasManager {
             // Finalizza il vector stroke nell'ultimo slot di _vectorStrokes
             const lastIdx = this._vectorStrokes.length - 1;
             if (lastIdx >= 0 && this._currentPoints.length > 0) {
-                this._vectorStrokes[lastIdx] = {
+                const strokeEntry = {
                     tool:   CONFIG.currentTool,
                     color:  CONFIG.currentColor,
                     size:   CONFIG.currentSize,
                     points: [...this._currentPoints],
                 };
+                this._vectorStrokes[lastIdx] = strokeEntry;
+                if (CONFIG.currentTool !== 'eraser') this._pageStrokes.push({ ...strokeEntry });
             }
             this._currentPoints = [];
             CONFIG.isDirty = true;
@@ -1285,7 +1292,7 @@ class CanvasManager {
     }
 
     _saveUndo(notifyDirty = false) {
-        this.undoStack.push({ canvas: this.canvas.toDataURL(), objects: this._snapshotObjects() });
+        this.undoStack.push({ canvas: this.canvas.toDataURL(), objects: this._snapshotObjects(), pageStrokes: [...this._pageStrokes] });
         this._vectorStrokes.push(null); // placeholder, aggiornato in _onEnd
         if (this.undoStack.length > CONFIG.maxUndo) {
             this.undoStack.shift();
@@ -1300,26 +1307,28 @@ class CanvasManager {
     }
 
     _applyUndoEntry(entry) {
-        // Retrocompatibilità: entry può essere stringa (vecchio formato) o {canvas, objects}
+        // Retrocompatibilità: entry può essere stringa (vecchio formato) o {canvas, objects, pageStrokes}
         const canvasUrl = (typeof entry === 'string') ? entry : entry.canvas;
         const objs      = (typeof entry === 'string') ? null  : entry.objects;
+        const strokes   = (typeof entry === 'string') ? null  : entry.pageStrokes;
         this._loadURL(canvasUrl);
         if (objs !== null && objs !== undefined && typeof objectLayer !== 'undefined' && objectLayer) {
             objectLayer.objects = objs;
             objectLayer.render();
         }
+        if (strokes !== null && strokes !== undefined) this._pageStrokes = strokes;
     }
 
     undo() {
         if (this.undoStack.length === 0) return;
-        this.redoStack.push({ canvas: this.canvas.toDataURL(), objects: this._snapshotObjects() });
+        this.redoStack.push({ canvas: this.canvas.toDataURL(), objects: this._snapshotObjects(), pageStrokes: [...this._pageStrokes] });
         this._vectorStrokes.pop();
         this._applyUndoEntry(this.undoStack.pop());
     }
 
     redo() {
         if (this.redoStack.length === 0) return;
-        this.undoStack.push({ canvas: this.canvas.toDataURL(), objects: this._snapshotObjects() });
+        this.undoStack.push({ canvas: this.canvas.toDataURL(), objects: this._snapshotObjects(), pageStrokes: [...this._pageStrokes] });
         this._vectorStrokes.push(null);
         this._applyUndoEntry(this.redoStack.pop());
     }
@@ -1345,52 +1354,51 @@ class CanvasManager {
         });
     }
 
-    // Cancella un tratto specifico per indice (modalità gomma-tratto)
-    async eraseStroke(strokeIndex) {
-        if (strokeIndex < 0 || strokeIndex >= this._vectorStrokes.length) return;
-        if (this._eraseInProgress) return; // evita cancellazioni concorrenti
-        this._eraseInProgress = true;
+    // Cancella un tratto/forma della pagina corrente per indice (modalità gomma-tratto).
+    // Funziona identicamente su contenuto disegnato ora o ripristinato da un salvataggio,
+    // perché non dipende dallo storico undo (assente per le pagine appena riaperte):
+    // "buca" direttamente i pixel del tratto/forma stessa.
+    eraseStrokeDirect(strokeIndex) {
+        if (strokeIndex < 0 || strokeIndex >= this._pageStrokes.length) return;
+        const stroke = this._pageStrokes[strokeIndex];
+        if (!stroke) return;
 
-        try {
-            // Nascondi hover highlight
-            this.overlayCtx.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height);
+        this._saveUndo();
+        this.overlayCtx.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height);
+        this._punchOutStroke(stroke);
+        this._pageStrokes.splice(strokeIndex, 1);
 
-            // Ripristina lo snapshot prima del tratto — undoStack può avere formato stringa o {canvas,objects}
-            const entry = this.undoStack[strokeIndex];
-            const canvasUrl = (typeof entry === 'string') ? entry : entry?.canvas;
-            const objs      = (typeof entry === 'string') ? null  : entry?.objects;
-            if (!canvasUrl) { this._eraseInProgress = false; return; }
-            await this._loadURLAsync(canvasUrl);
-            if (objs !== null && objs !== undefined && typeof objectLayer !== 'undefined' && objectLayer) {
-                objectLayer.objects = objs;
-                objectLayer.render();
-            }
+        CONFIG.isDirty = true;
+        window.autoSaveMgr?.onDirty();
+    }
 
-            // Ridisegna tutti i tratti successivi tramite dati vettoriali
-            for (let i = strokeIndex + 1; i < this._vectorStrokes.length; i++) {
-                const stroke = this._vectorStrokes[i];
-                if (stroke) this._replayStroke(stroke);
-            }
-
-            // Rimuovi il tratto cancellato dagli stack
-            this.undoStack.splice(strokeIndex, 1);
-            this._vectorStrokes.splice(strokeIndex, 1);
-
-            CONFIG.isDirty = true;
-            window.autoSaveMgr?.onDirty();
-        } finally {
-            this._eraseInProgress = false;
+    // Cancella i pixel di un tratto/forma ridisegnandone la sagoma in destination-out
+    _punchOutStroke(stroke) {
+        if (stroke.tool === 'shape') {
+            const margin = (stroke.size || 0) / 2 + 4;
+            const minX = Math.min(stroke.x0, stroke.x1) - margin;
+            const maxX = Math.max(stroke.x0, stroke.x1) + margin;
+            const minY = Math.min(stroke.y0, stroke.y1) - margin;
+            const maxY = Math.max(stroke.y0, stroke.y1) + margin;
+            this.ctx.clearRect(minX, minY, maxX - minX, maxY - minY);
+            return;
+        }
+        if (!stroke.points || !stroke.points.length) return;
+        const radius = (stroke.tool === 'marker' ? stroke.size * 1.5 : stroke.size) + 4;
+        for (const pt of stroke.points) {
+            this.brush.eraser(this.ctx, pt.x, pt.y, radius);
         }
     }
 
-    // Trova il tratto/forma più vicino al punto (x,y) — ritorna l'indice in _vectorStrokes.
+    // Trova il tratto/forma più vicino al punto (x,y) tra quelli della PAGINA CORRENTE
+    // (_pageStrokes, persistiti nel salvataggio — funziona anche su pagine appena riaperte).
     // Itera dall'ultimo al primo (topmost first): se più elementi si sovrappongono,
     // vince quello disegnato più di recente (visivamente sopra).
     findNearestStroke(x, y, maxDist = 40) {
         let bestIdx = -1, bestDist = maxDist;
-        for (let i = this._vectorStrokes.length - 1; i >= 0; i--) {
-            const stroke = this._vectorStrokes[i];
-            if (!stroke || stroke.tool === 'eraser') continue;
+        for (let i = this._pageStrokes.length - 1; i >= 0; i--) {
+            const stroke = this._pageStrokes[i];
+            if (!stroke) continue;
             if (stroke.tool === 'shape') {
                 const margin = (stroke.size || 0) / 2 + 15;
                 const minX = Math.min(stroke.x0, stroke.x1) - margin;
@@ -1435,7 +1443,7 @@ class CanvasManager {
             objectLayer.removeObject(target.obj.id);
             this.overlayCtx.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height);
         } else if (target.type === 'stroke') {
-            this.eraseStroke(target.index);
+            this.eraseStrokeDirect(target.index);
         }
     }
 
@@ -1470,43 +1478,11 @@ class CanvasManager {
         }
     }
 
-    // Ridisegna un tratto/forma da dati vettoriali (usato dopo eraseStroke)
-    _replayStroke(stroke) {
-        if (stroke.tool === 'shape') {
-            this.brush.shape(this.ctx, stroke.shapeType, stroke.x0, stroke.y0, stroke.x1, stroke.y1, stroke.size, stroke.color, stroke.fill);
-            return;
-        }
-        const { tool, color, size, points } = stroke;
-        if (!points || points.length === 0) return;
-
-        if (tool === 'eraser') {
-            for (const { x, y } of points) {
-                this.brush.eraser(this.ctx, x, y, size * 2);
-            }
-            return;
-        }
-        // Dot iniziale
-        this._drawSegmentWith(tool, color, size, points[0].x, points[0].y, points[0].x, points[0].y);
-        for (let i = 1; i < points.length; i++) {
-            this._drawSegmentWith(tool, color, size, points[i-1].x, points[i-1].y, points[i].x, points[i].y);
-        }
-    }
-
-    // Come _drawSegment ma con parametri tool/color/size espliciti (per replay)
-    _drawSegmentWith(tool, color, size, x0, y0, x1, y1) {
-        switch (tool) {
-            case 'pen':    this.brush.pen(this.ctx, x0, y0, x1, y1, size, color);    break;
-            case 'pencil': this.brush.pencil(this.ctx, x0, y0, x1, y1, size, color); break;
-            case 'pastel': this.brush.pastel(this.ctx, x0, y0, x1, y1, size, color); break;
-            case 'marker': this.brush.marker(this.ctx, x0, y0, x1, y1, size, color); break;
-        }
-    }
-
     // Evidenzia il tratto/forma sotto il cursore (overlay canvas rosso semitrasparente)
     _highlightStroke(strokeIdx) {
         this.overlayCtx.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height);
         if (strokeIdx < 0) return;
-        const stroke = this._vectorStrokes[strokeIdx];
+        const stroke = this._pageStrokes[strokeIdx];
         if (!stroke) return;
 
         if (stroke.tool === 'shape') {
@@ -4989,6 +4965,10 @@ class PageManager {
             captureRect,
             objectFormat: 'page-fraction',  // coordinate oggetti come frazione del foglio A4 (risoluzione-indipendente)
             drawImageData,
+            // Tratti/forme della pagina come oggetti a sé stanti (non solo pixel piatti) —
+            // permettono a gomma-a-tratto e selezione precisa di riconoscerli anche dopo
+            // che la pagina è stata salvata su Drive e riaperta in un'altra sessione.
+            strokes: JSON.parse(JSON.stringify(this.canvasManager._pageStrokes || [])),
             objects: JSON.parse(JSON.stringify(this.objectLayerRef.objects.map(o => {
                 // Serializza l'immagine come dataUrl per il salvataggio in memoria.
                 // Coordinate e dimensioni salvate come frazione del foglio A4 (0.0–1.0)
@@ -5105,6 +5085,33 @@ class PageManager {
             img.onerror = resolve;
             img.src = o.dataUrl;
         }));
+
+        // Ripristina tratti/forme come oggetti a sé stanti (gomma-a-tratto/selezione precisa
+        // funzionano anche su pagine appena riaperte, non solo su quanto disegnato in sessione).
+        // Riscalati/riposizionati con lo stesso captureRect usato per l'immagine intera.
+        if (this.canvasManager) {
+            const cr = pageData.captureRect;
+            if (pageData.strokes && cr) {
+                const scale = cr.pw > 0 ? (r2.pw / cr.pw) : 1;
+                const offX  = r2.px - cr.px * scale;
+                const offY  = r2.py - cr.py * scale;
+                this.canvasManager._pageStrokes = pageData.strokes.map(s => {
+                    if (!s) return s;
+                    if (s.tool === 'shape') {
+                        return { ...s,
+                            x0: s.x0 * scale + offX, y0: s.y0 * scale + offY,
+                            x1: s.x1 * scale + offX, y1: s.y1 * scale + offY,
+                            size: s.size * scale };
+                    }
+                    return { ...s,
+                        size: s.size * scale,
+                        points: (s.points || []).map(p => ({ x: p.x * scale + offX, y: p.y * scale + offY })) };
+                });
+            } else {
+                this.canvasManager._pageStrokes = [];
+            }
+        }
+
         Promise.all([...allRestorePromises, ...loadPromises]).then(() => {
             this.objectLayerRef.render();
             this._restoring = false;
@@ -5158,6 +5165,7 @@ class PageManager {
         const currentBg = this.pages[this.currentIndex].background;
         this.pages.push({
             drawImageData: null,
+            strokes: [],
             objects: [],
             background: {
                 type: currentBg.type || 'white',
