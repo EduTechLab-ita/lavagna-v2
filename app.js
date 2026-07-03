@@ -1072,10 +1072,11 @@ class CanvasManager {
         const { x, y } = this.getCoords(e);
 
         // Modalità gomma-tratto: premi e scorri per cancellare (stile OneNote)
+        // Cancella in un tocco solo QUALSIASI oggetto: tratti, forme, immagini, PDF
         if (CONFIG.currentTool === 'eraser' && CONFIG.eraserMode === 'stroke') {
             this._erasingStrokes = true;
-            const idx = this.findNearestStroke(x, y);
-            if (idx >= 0) this.eraseStroke(idx);
+            const target = this._findEraseTarget(x, y);
+            if (target) this._eraseTarget(target);
             return;
         }
 
@@ -1119,6 +1120,7 @@ class CanvasManager {
         // Disegna il punto iniziale (dot)
         if (CONFIG.currentTool === 'eraser') {
             this.brush.eraser(this.ctx, x, y, CONFIG.currentSize * 2);
+            this._eraseObjectsNear(x, y);
         } else {
             this._drawSegment(x, y, x, y, x, y);
         }
@@ -1128,11 +1130,11 @@ class CanvasManager {
         // Gomma-tratto: se sto premendo → cancella subito; altrimenti → evidenzia hover
         if (CONFIG.currentTool === 'eraser' && CONFIG.eraserMode === 'stroke') {
             const { x, y } = this.getCoords(e);
-            const idx = this.findNearestStroke(x, y);
+            const target = this._findEraseTarget(x, y);
             if (this._erasingStrokes) {
-                if (idx >= 0 && !this._eraseInProgress) this.eraseStroke(idx);
+                if (target && !this._eraseInProgress) this._eraseTarget(target);
             } else {
-                this._highlightStroke(idx);
+                this._highlightEraseTarget(target);
             }
             return;
         }
@@ -1174,6 +1176,7 @@ class CanvasManager {
 
         if (CONFIG.currentTool === 'eraser') {
             this.brush.eraser(this.ctx, x, y, CONFIG.currentSize * 2);
+            this._eraseObjectsNear(x, y);
         } else {
             // Bézier smoothing: usa il midpoint come endpoint e il punto corrente come controllo
             // Questo elimina gli spigoli vivi tra segmenti su PC lenti (pochi eventi pointer)
@@ -1227,6 +1230,19 @@ class CanvasManager {
                 CONFIG.shapeFill
             );
             this.overlayCtx.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height);
+            // Traccia la forma per la gomma-tratto (cancellazione in un tocco solo, come i tratti a mano libera)
+            const lastIdx = this._vectorStrokes.length - 1;
+            if (lastIdx >= 0) {
+                this._vectorStrokes[lastIdx] = {
+                    tool: 'shape',
+                    shapeType: CONFIG.currentShape,
+                    color: CONFIG.currentColor,
+                    size: CONFIG.currentSize,
+                    fill: CONFIG.shapeFill,
+                    x0: CONFIG.shapeStartX, y0: CONFIG.shapeStartY,
+                    x1: x, y1: y
+                };
+            }
             return;
         }
 
@@ -1367,12 +1383,28 @@ class CanvasManager {
         }
     }
 
-    // Trova il tratto più vicino al punto (x,y) — ritorna l'indice in _vectorStrokes
+    // Trova il tratto/forma più vicino al punto (x,y) — ritorna l'indice in _vectorStrokes.
+    // Itera dall'ultimo al primo (topmost first): se più elementi si sovrappongono,
+    // vince quello disegnato più di recente (visivamente sopra).
     findNearestStroke(x, y, maxDist = 40) {
         let bestIdx = -1, bestDist = maxDist;
-        for (let i = 0; i < this._vectorStrokes.length; i++) {
+        for (let i = this._vectorStrokes.length - 1; i >= 0; i--) {
             const stroke = this._vectorStrokes[i];
-            if (!stroke || !stroke.points || stroke.tool === 'eraser') continue;
+            if (!stroke || stroke.tool === 'eraser') continue;
+            if (stroke.tool === 'shape') {
+                const margin = (stroke.size || 0) / 2 + 15;
+                const minX = Math.min(stroke.x0, stroke.x1) - margin;
+                const maxX = Math.max(stroke.x0, stroke.x1) + margin;
+                const minY = Math.min(stroke.y0, stroke.y1) - margin;
+                const maxY = Math.max(stroke.y0, stroke.y1) + margin;
+                // Distanza dal rettangolo (0 se il punto è dentro)
+                const clampedX = Math.max(minX, Math.min(x, maxX));
+                const clampedY = Math.max(minY, Math.min(y, maxY));
+                const d = Math.hypot(x - clampedX, y - clampedY);
+                if (d < bestDist) { bestDist = d; bestIdx = i; }
+                continue;
+            }
+            if (!stroke.points) continue;
             for (const pt of stroke.points) {
                 const d = Math.hypot(pt.x - x, pt.y - y);
                 if (d < bestDist) {
@@ -1384,8 +1416,66 @@ class CanvasManager {
         return bestIdx;
     }
 
-    // Ridisegna un tratto da dati vettoriali (usato dopo eraseStroke)
+    // Trova il "bersaglio" da cancellare in un tocco solo: oggetti (immagini/PDF) hanno
+    // priorità perché visivamente sopra il disegno; altrimenti cerca tratti/forme.
+    _findEraseTarget(x, y) {
+        if (typeof objectLayer !== 'undefined' && objectLayer) {
+            const obj = objectLayer.hitTest(x, y);
+            if (obj) return { type: 'object', obj };
+        }
+        const idx = this.findNearestStroke(x, y);
+        if (idx >= 0) return { type: 'stroke', index: idx };
+        return null;
+    }
+
+    // Cancella il bersaglio individuato da _findEraseTarget (oggetto intero o tratto/forma intera)
+    _eraseTarget(target) {
+        if (target.type === 'object') {
+            this._saveUndo();
+            objectLayer.removeObject(target.obj.id);
+            this.overlayCtx.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height);
+        } else if (target.type === 'stroke') {
+            this.eraseStroke(target.index);
+        }
+    }
+
+    // Evidenzia il bersaglio sotto il cursore prima di cancellarlo (hover, modalità gomma-tratto)
+    _highlightEraseTarget(target) {
+        if (!target) {
+            this.overlayCtx.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height);
+            return;
+        }
+        if (target.type === 'object') {
+            this.overlayCtx.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height);
+            const o = target.obj;
+            this.overlayCtx.save();
+            this.overlayCtx.strokeStyle = 'rgba(239,68,68,0.75)';
+            this.overlayCtx.lineWidth = 3;
+            this.overlayCtx.setLineDash([6, 4]);
+            this.overlayCtx.strokeRect(o.x - 4, o.y - 4, o.w + 8, o.h + 8);
+            this.overlayCtx.restore();
+        } else {
+            this._highlightStroke(target.index);
+        }
+    }
+
+    // Modalità Area: se la gomma tocca un'immagine/PDF, cancella l'intero oggetto —
+    // non ha senso "bucare" parzialmente un'immagine come un tratto a mano libera.
+    _eraseObjectsNear(x, y) {
+        if (typeof objectLayer === 'undefined' || !objectLayer) return;
+        const obj = objectLayer.hitTest(x, y);
+        if (obj) {
+            this._saveUndo();
+            objectLayer.removeObject(obj.id);
+        }
+    }
+
+    // Ridisegna un tratto/forma da dati vettoriali (usato dopo eraseStroke)
     _replayStroke(stroke) {
+        if (stroke.tool === 'shape') {
+            this.brush.shape(this.ctx, stroke.shapeType, stroke.x0, stroke.y0, stroke.x1, stroke.y1, stroke.size, stroke.color, stroke.fill);
+            return;
+        }
         const { tool, color, size, points } = stroke;
         if (!points || points.length === 0) return;
 
@@ -1412,13 +1502,29 @@ class CanvasManager {
         }
     }
 
-    // Evidenzia il tratto sotto il cursore (overlay canvas rosso semitrasparente)
+    // Evidenzia il tratto/forma sotto il cursore (overlay canvas rosso semitrasparente)
     _highlightStroke(strokeIdx) {
         this.overlayCtx.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height);
         if (strokeIdx < 0) return;
         const stroke = this._vectorStrokes[strokeIdx];
-        if (!stroke || !stroke.points || stroke.points.length === 0) return;
+        if (!stroke) return;
 
+        if (stroke.tool === 'shape') {
+            const margin = (stroke.size || 0) / 2 + 10;
+            const minX = Math.min(stroke.x0, stroke.x1) - margin;
+            const maxX = Math.max(stroke.x0, stroke.x1) + margin;
+            const minY = Math.min(stroke.y0, stroke.y1) - margin;
+            const maxY = Math.max(stroke.y0, stroke.y1) + margin;
+            this.overlayCtx.save();
+            this.overlayCtx.strokeStyle = 'rgba(239,68,68,0.75)';
+            this.overlayCtx.lineWidth = 3;
+            this.overlayCtx.setLineDash([6, 4]);
+            this.overlayCtx.strokeRect(minX, minY, maxX - minX, maxY - minY);
+            this.overlayCtx.restore();
+            return;
+        }
+
+        if (!stroke.points || stroke.points.length === 0) return;
         this.overlayCtx.save();
         this.overlayCtx.strokeStyle = 'rgba(239,68,68,0.65)';
         this.overlayCtx.lineWidth = stroke.size + 10;

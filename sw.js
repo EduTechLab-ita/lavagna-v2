@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-034'; // v2-034 — Salvataggio contenuto fuori area di stampa
+const CACHE_NAME = 'eduboard-v2-035'; // v2-035 — Gomma-tratto universale (oggetti, forme, immagini, PDF)
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-034 — Ora si salva anche il contenuto disegnato fuori dal foglio di stampa (prima andava perso): la stampa continua a esportare solo l\'area del foglio.';
+const CHANGELOG  = 'EduBoard V2-035 — La gomma-tratto ora cancella in un tocco solo qualsiasi cosa: forme/righe, immagini e PDF, non solo i tratti a mano libera.';
 
 const urlsToCache = [
   '.',
