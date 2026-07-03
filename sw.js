@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-036'; // v2-036 — Gomma-tratto funziona anche su pagine salvate/riaperte
+const CACHE_NAME = 'eduboard-v2-037'; // v2-037 — Fix cancellazione uniforme, non tocca i tratti sovrapposti
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-036 — La gomma-tratto ora funziona anche su tratti/forme di pagine gia\' salvate e riaperte, non solo su quanto disegnato nella sessione corrente.';
+const CHANGELOG  = 'EduBoard V2-037 — Fix gomma-tratto: cancellazione uniforme (non piu\' a tratti) e non cancella piu\' i tratti sovrapposti a quello selezionato.';
 
 const urlsToCache = [
   '.',

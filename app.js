@@ -1356,8 +1356,10 @@ class CanvasManager {
 
     // Cancella un tratto/forma della pagina corrente per indice (modalità gomma-tratto).
     // Funziona identicamente su contenuto disegnato ora o ripristinato da un salvataggio,
-    // perché non dipende dallo storico undo (assente per le pagine appena riaperte):
-    // "buca" direttamente i pixel del tratto/forma stessa.
+    // perché non dipende dallo storico undo (assente per le pagine appena riaperte).
+    // Ridisegna l'intera pagina da zero rifacendo ogni tratto/forma rimasto nell'ordine
+    // originale (invece di "bucare" i pixel): evita sia cancellazioni a tratti/non uniformi
+    // sia la cancellazione accidentale di tratti sovrapposti a quello rimosso.
     eraseStrokeDirect(strokeIndex) {
         if (strokeIndex < 0 || strokeIndex >= this._pageStrokes.length) return;
         const stroke = this._pageStrokes[strokeIndex];
@@ -1365,28 +1367,50 @@ class CanvasManager {
 
         this._saveUndo();
         this.overlayCtx.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height);
-        this._punchOutStroke(stroke);
         this._pageStrokes.splice(strokeIndex, 1);
+        this._redrawAllStrokes();
 
         CONFIG.isDirty = true;
         window.autoSaveMgr?.onDirty();
     }
 
-    // Cancella i pixel di un tratto/forma ridisegnandone la sagoma in destination-out
-    _punchOutStroke(stroke) {
+    // Ripulisce il draw-canvas e riplotta ogni tratto/forma rimasto in _pageStrokes,
+    // nell'ordine originale — i tratti sovrapposti restano intatti perché vengono
+    // ridisegnati esattamente come la prima volta, solo senza quello cancellato.
+    _redrawAllStrokes() {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        for (const stroke of this._pageStrokes) {
+            if (stroke) this._replayStroke(stroke);
+        }
+    }
+
+    // Ridisegna un singolo tratto/forma da dati vettoriali (usato da _redrawAllStrokes)
+    _replayStroke(stroke) {
         if (stroke.tool === 'shape') {
-            const margin = (stroke.size || 0) / 2 + 4;
-            const minX = Math.min(stroke.x0, stroke.x1) - margin;
-            const maxX = Math.max(stroke.x0, stroke.x1) + margin;
-            const minY = Math.min(stroke.y0, stroke.y1) - margin;
-            const maxY = Math.max(stroke.y0, stroke.y1) + margin;
-            this.ctx.clearRect(minX, minY, maxX - minX, maxY - minY);
+            this.brush.shape(this.ctx, stroke.shapeType, stroke.x0, stroke.y0, stroke.x1, stroke.y1, stroke.size, stroke.color, stroke.fill);
             return;
         }
-        if (!stroke.points || !stroke.points.length) return;
-        const radius = (stroke.tool === 'marker' ? stroke.size * 1.5 : stroke.size) + 4;
-        for (const pt of stroke.points) {
-            this.brush.eraser(this.ctx, pt.x, pt.y, radius);
+        const { tool, color, size, points } = stroke;
+        if (!points || points.length === 0) return;
+        // Dot iniziale + segmenti successivi (stessa logica di _drawSegment, con midpoint
+        // Bézier per la stessa morbidezza del tratto originale)
+        let smoothX = points[0].x, smoothY = points[0].y;
+        this._drawSegmentWith(tool, color, size, smoothX, smoothY, smoothX, smoothY, points[0].x, points[0].y);
+        for (let i = 1; i < points.length; i++) {
+            const midX = (points[i-1].x + points[i].x) / 2;
+            const midY = (points[i-1].y + points[i].y) / 2;
+            this._drawSegmentWith(tool, color, size, smoothX, smoothY, points[i-1].x, points[i-1].y, midX, midY);
+            smoothX = midX; smoothY = midY;
+        }
+    }
+
+    // Come _drawSegment ma con parametri tool/color/size espliciti (per il replay)
+    _drawSegmentWith(tool, color, size, x0, y0, cpX, cpY, x1, y1) {
+        switch (tool) {
+            case 'pen':    this.brush.pen(this.ctx, x0, y0, cpX, cpY, x1, y1, size, color);    break;
+            case 'pencil': this.brush.pencil(this.ctx, x0, y0, cpX, cpY, x1, y1, size, color); break;
+            case 'pastel': this.brush.pastel(this.ctx, x0, y0, cpX, cpY, x1, y1, size, color); break;
+            case 'marker': this.brush.marker(this.ctx, x0, y0, cpX, cpY, x1, y1, size, color); break;
         }
     }
 
