@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-033'; // v2-033 — Scrollbar visibile sulla toolbar (indizio di scorrimento)
+const CACHE_NAME = 'eduboard-v2-034'; // v2-034 — Salvataggio contenuto fuori area di stampa
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-033 — La toolbar mostra ora una sottile barra di scorrimento quando i pulsanti non entrano tutti, cosi e ovvio che si puo scorrere (dito sulla LIM, rotellina o trascinamento su PC).';
+const CHANGELOG  = 'EduBoard V2-034 — Ora si salva anche il contenuto disegnato fuori dal foglio di stampa (prima andava perso): la stampa continua a esportare solo l\'area del foglio.';
 
 const urlsToCache = [
   '.',

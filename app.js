@@ -4860,17 +4860,17 @@ class PageManager {
         const drawCanvas = document.getElementById('draw-canvas');
         const W = drawCanvas?.width || 0;
         const H = drawCanvas?.height || 0;
-        // Salva SOLO il ritaglio del foglio A4 (non l'intero canvas).
-        // Al ripristino viene disegnato alla posizione corrente del foglio →
-        // nessuno spostamento indipendentemente dalle dimensioni del canvas.
+        // Salva l'INTERO canvas (non solo il ritaglio del foglio A4) — altrimenti il
+        // contenuto disegnato fuori dall'area di stampa (sfondo infinito) andava perso.
+        // captureRect ancora la posizione del foglio al momento del salvataggio: serve
+        // al ripristino (riposiziona/scala tutto il contenuto) e alla stampa (ritaglia
+        // solo l'area del foglio, che deve continuare a esportare solo quella).
         let drawImageData = null;
+        let captureRect = null;
         if (drawCanvas && W > 0 && typeof bgMgr !== 'undefined') {
             const r = bgMgr._getPageRect(W, H);
-            const off = document.createElement('canvas');
-            off.width  = r.pw;
-            off.height = r.ph;
-            off.getContext('2d').drawImage(drawCanvas, -r.px, -r.py);
-            drawImageData = off.toDataURL('image/png');
+            drawImageData = drawCanvas.toDataURL('image/png');
+            captureRect = { px: r.px, py: r.py, pw: r.pw, ph: r.ph, canvasW: W, canvasH: H };
         }
         // Calcola offset foglio per salvare coordinate oggetti come frazione del foglio A4.
         // Questo rende le coordinate indipendenti dalla risoluzione canvas (schermo diverso = stessa posizione).
@@ -4879,7 +4879,8 @@ class PageManager {
             canvasWidth: W,
             pagePx: null,   // non più necessario (mantenuto per retrocompatibilità)
             pagePy: null,
-            drawFormat: 'page',      // drawImageData è il ritaglio del foglio A4
+            drawFormat: 'full-canvas-anchored',  // drawImageData è l'intero canvas; captureRect ancora la posizione del foglio
+            captureRect,
             objectFormat: 'page-fraction',  // coordinate oggetti come frazione del foglio A4 (risoluzione-indipendente)
             drawImageData,
             objects: JSON.parse(JSON.stringify(this.objectLayerRef.objects.map(o => {
@@ -4931,8 +4932,23 @@ class PageManager {
 
         if (pageData.drawImageData) {
             const img = new Image();
-            if (pageData.drawFormat === 'page' && typeof bgMgr !== 'undefined') {
-                // Formato corrente: drawImageData è il ritaglio del foglio A4.
+            if (pageData.drawFormat === 'full-canvas-anchored' && pageData.captureRect && typeof bgMgr !== 'undefined') {
+                // Formato corrente: drawImageData è l'INTERO canvas al momento del salvataggio.
+                // Riscala/riposiziona tutta l'immagine così che il foglio catturato (captureRect)
+                // combaci esattamente col foglio corrente → preserva anche il contenuto fuori dal foglio.
+                const cr = pageData.captureRect;
+                const r2 = bgMgr._getPageRect(drawCanvas.width, drawCanvas.height);
+                const scale = cr.pw > 0 ? (r2.pw / cr.pw) : 1;
+                const destX = r2.px - cr.px * scale;
+                const destY = r2.py - cr.py * scale;
+                const destW = cr.canvasW * scale;
+                const destH = cr.canvasH * scale;
+                allRestorePromises.push(new Promise(res => {
+                    img.onload = () => { ctx.drawImage(img, destX, destY, destW, destH); res(); };
+                    img.onerror = res;
+                }));
+            } else if (pageData.drawFormat === 'page' && typeof bgMgr !== 'undefined') {
+                // Formato legacy: drawImageData è già il ritaglio del foglio A4.
                 // Disegna SCALANDO alla dimensione corrente del foglio → funziona su qualsiasi schermo.
                 const r = bgMgr._getPageRect(drawCanvas.width, drawCanvas.height);
                 allRestorePromises.push(new Promise(res => {
@@ -4940,7 +4956,7 @@ class PageManager {
                     img.onerror = res;
                 }));
             } else {
-                // Vecchio formato: drawImageData è l'intero canvas.
+                // Formato legacy più vecchio: drawImageData è l'intero canvas, senza anchor.
                 let offsetX = 0, offsetY = 0;
                 if (pageData.pagePx != null && typeof bgMgr !== 'undefined') {
                     const curr = bgMgr._getPageRect(drawCanvas.width, drawCanvas.height);
@@ -6024,13 +6040,23 @@ function _buildPageDataURL(pageIndex) {
         const loaders = [];
 
         if (pageData.drawImageData) {
-            // NOTA: drawImageData è GIÀ il ritaglio del foglio A4 (vedi _captureCurrentPage,
-            // dimensioni r.pw × r.ph) — va scalato per intero nell'area di destinazione,
-            // NON ri-ritagliato con cropX/cropY (altrimenti si legge fuori dai bordi
-            // dell'immagine e la pagina risulta vuota).
             loaders.push(new Promise(resolve => {
                 const img = new Image();
-                img.onload = () => { ctx.drawImage(img, 0, 0, cropW, cropH); resolve(); };
+                img.onload = () => {
+                    if (pageData.drawFormat === 'full-canvas-anchored' && pageData.captureRect) {
+                        // drawImageData è l'INTERO canvas: ritaglia SOLO l'area del foglio
+                        // catturata (captureRect) — la stampa esporta sempre e solo quella,
+                        // anche se sul canvas c'è altro contenuto fuori dall'area di stampa.
+                        const cr = pageData.captureRect;
+                        ctx.drawImage(img, cr.px, cr.py, cr.pw, cr.ph, 0, 0, cropW, cropH);
+                    } else {
+                        // Formato legacy: drawImageData è già il ritaglio del foglio A4 —
+                        // va scalato per intero nell'area di destinazione, NON ri-ritagliato
+                        // (altrimenti si legge fuori dai bordi dell'immagine e la pagina risulta vuota).
+                        ctx.drawImage(img, 0, 0, cropW, cropH);
+                    }
+                    resolve();
+                };
                 img.onerror = resolve;
                 img.src = pageData.drawImageData;
             }));
