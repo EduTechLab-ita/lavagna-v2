@@ -3347,6 +3347,7 @@ class SelectManager {
         this.selectedItems  = [];
         this._lassoPath     = null;  // punti del lazo mentre viene tracciato
         this._itemDragStart = null;  // { x, y, originals: [...] }
+        this._itemResizeHandle = null; // { corner, startX, startY, bbox, originals: [...] }
 
         this._setupContextPanel();
     }
@@ -3488,6 +3489,8 @@ class SelectManager {
                     this.ctx.drawImage(tmp, 0, 0);
                     this.ctx.restore();
                     CONFIG.isDirty = true; window.autoSaveMgr?.onDirty();
+                } else if (this.selectedItems.length) {
+                    this._transformSelectedItems('flip-h');
                 }
                 return;
             case 'flip-v':
@@ -3509,6 +3512,8 @@ class SelectManager {
                     this.ctx.drawImage(tmp, 0, 0);
                     this.ctx.restore();
                     CONFIG.isDirty = true; window.autoSaveMgr?.onDirty();
+                } else if (this.selectedItems.length) {
+                    this._transformSelectedItems('flip-v');
                 }
                 return;
             case 'rot-cw':
@@ -3528,6 +3533,8 @@ class SelectManager {
                     this.ctx.clearRect(sx, sy, sw, sh);
                     this.ctx.drawImage(tmp, sx + (sw - sh) / 2, sy + (sh - sw) / 2);
                     CONFIG.isDirty = true; window.autoSaveMgr?.onDirty();
+                } else if (this.selectedItems.length) {
+                    this._transformSelectedItems('rot-cw');
                 }
                 return;
             case 'rot-ccw':
@@ -3547,6 +3554,8 @@ class SelectManager {
                     this.ctx.clearRect(sx, sy, sw, sh);
                     this.ctx.drawImage(tmp, sx + (sw - sh) / 2, sy + (sh - sw) / 2);
                     CONFIG.isDirty = true; window.autoSaveMgr?.onDirty();
+                } else if (this.selectedItems.length) {
+                    this._transformSelectedItems('rot-ccw');
                 }
                 return;
             case 'rot-180':
@@ -3566,6 +3575,8 @@ class SelectManager {
                     this.ctx.clearRect(sx, sy, sw, sh);
                     this.ctx.drawImage(tmp, sx, sy);
                     CONFIG.isDirty = true; window.autoSaveMgr?.onDirty();
+                } else if (this.selectedItems.length) {
+                    this._transformSelectedItems('rot-180');
                 }
                 return;
             case 'restore':
@@ -4122,6 +4133,73 @@ class SelectManager {
         return { x: minX - margin, y: minY - margin, w: (maxX - minX) + margin * 2, h: (maxY - minY) + margin * 2 };
     }
 
+    // Bounding box complessivo di tutti gli elementi selezionati (per pannello, resize, flip/ruota)
+    _selectedItemsBBox() {
+        return this.selectedItems.reduce((acc, it) => {
+            const b = this._itemBBox(it);
+            if (!b) return acc;
+            if (!acc) return { ...b };
+            const minX = Math.min(acc.x, b.x), minY = Math.min(acc.y, b.y);
+            const maxX = Math.max(acc.x + acc.w, b.x + b.w), maxY = Math.max(acc.y + acc.h, b.y + b.h);
+            return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+        }, null);
+    }
+
+    // Trasforma un punto (x,y) per flip/rotazione attorno al centro (cx,cy) del gruppo selezionato
+    _rotFlipPoint(x, y, cx, cy, mode) {
+        const dx = x - cx, dy = y - cy;
+        switch (mode) {
+            case 'flip-h': return { x: cx - dx, y };
+            case 'flip-v': return { x, y: cy - dy };
+            case 'rot-cw':  return { x: cx - dy, y: cy + dx };
+            case 'rot-ccw': return { x: cx + dy, y: cy - dx };
+            case 'rot-180': return { x: cx - dx, y: cy - dy };
+            default: return { x, y };
+        }
+    }
+
+    // Applica flip/rotazione a tutti gli elementi selezionati (tratti/forme/oggetti), attorno al centro del gruppo
+    _transformSelectedItems(mode) {
+        if (!this.selectedItems.length) return;
+        const bbox = this._selectedItemsBBox();
+        if (!bbox) return;
+        if (typeof canvasMgr !== 'undefined') canvasMgr._saveUndo();
+        const cx = bbox.x + bbox.w / 2, cy = bbox.y + bbox.h / 2;
+        const swapWH = (mode === 'rot-cw' || mode === 'rot-ccw');
+
+        this.selectedItems.forEach(it => {
+            if (it.type === 'stroke') {
+                const s = it.ref;
+                if (s.tool === 'shape') {
+                    const p0 = this._rotFlipPoint(s.x0, s.y0, cx, cy, mode);
+                    const p1 = this._rotFlipPoint(s.x1, s.y1, cx, cy, mode);
+                    s.x0 = p0.x; s.y0 = p0.y; s.x1 = p1.x; s.y1 = p1.y;
+                } else {
+                    s.points = s.points.map(p => this._rotFlipPoint(p.x, p.y, cx, cy, mode));
+                }
+            } else if (it.type === 'object') {
+                const o = it.ref;
+                const ocx = o.x + o.w / 2, ocy = o.y + o.h / 2;
+                const nc = this._rotFlipPoint(ocx, ocy, cx, cy, mode);
+                if (mode === 'flip-h') o.flipH = !o.flipH;
+                else if (mode === 'flip-v') o.flipV = !o.flipV;
+                else if (mode === 'rot-cw') o.rotation = ((o.rotation || 0) + 90) % 360;
+                else if (mode === 'rot-ccw') o.rotation = ((o.rotation || 0) - 90 + 360) % 360;
+                else if (mode === 'rot-180') o.rotation = ((o.rotation || 0) + 180) % 360;
+                if (swapWH) { const t = o.w; o.w = o.h; o.h = t; }
+                o.x = nc.x - o.w / 2;
+                o.y = nc.y - o.h / 2;
+            }
+        });
+
+        if (typeof canvasMgr !== 'undefined') canvasMgr._redrawAllStrokes();
+        if (typeof objectLayer !== 'undefined') objectLayer.render();
+        this._highlightSelectedItems();
+        this._showItemsContextPanel();
+        CONFIG.isDirty = true;
+        window.autoSaveMgr?.onDirty();
+    }
+
     _pointInSelectedItems(x, y) {
         return this.selectedItems.some(it => {
             const b = this._itemBBox(it);
@@ -4198,6 +4276,23 @@ class SelectManager {
             if (b) ctx.strokeRect(b.x, b.y, b.w, b.h);
         });
         ctx.restore();
+
+        // Maniglie di resize sul bbox complessivo del gruppo selezionato
+        const bbox = this._selectedItemsBBox();
+        if (bbox) {
+            ctx.save();
+            ctx.setLineDash([]);
+            ctx.fillStyle = 'white';
+            ctx.strokeStyle = '#3b82f6';
+            ctx.lineWidth = 2.5;
+            [[bbox.x, bbox.y], [bbox.x + bbox.w, bbox.y], [bbox.x, bbox.y + bbox.h], [bbox.x + bbox.w, bbox.y + bbox.h]].forEach(([hx, hy]) => {
+                ctx.beginPath();
+                ctx.arc(hx, hy, 11, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+            });
+            ctx.restore();
+        }
     }
 
     // Sposta live gli elementi selezionati durante il drag (ridisegna tutto)
@@ -4232,6 +4327,14 @@ class SelectManager {
         panel.querySelectorAll('.ctx-icon-btn[data-action]').forEach(el => { el.style.display = 'none'; });
         panel.querySelectorAll('.ctx-sep').forEach(el => { el.style.display = 'none'; });
 
+        // Trasformazioni (flip/ruota): disponibili per qualunque selezione precisa (tratti/forme/oggetti, singola o multipla)
+        ['flip-h', 'flip-v', 'rot-ccw', 'rot-cw', 'rot-180'].forEach(act => {
+            const btn = panel.querySelector(`[data-action="${act}"]`);
+            if (btn) btn.style.display = '';
+        });
+        const transSep = panel.querySelectorAll('.ctx-sep.ctx-obj-only')[1];
+        if (transSep) transSep.style.display = '';
+
         const single = this.selectedItems.length === 1 ? this.selectedItems[0] : null;
         const singleStroke = (single && single.type === 'stroke') ? single.ref : null;
 
@@ -4246,14 +4349,7 @@ class SelectManager {
         const delBtn = panel.querySelector('[data-action="delete"]');
         if (delBtn) delBtn.style.display = '';
 
-        const bbox = this.selectedItems.reduce((acc, it) => {
-            const b = this._itemBBox(it);
-            if (!b) return acc;
-            if (!acc) return { ...b };
-            const minX = Math.min(acc.x, b.x), minY = Math.min(acc.y, b.y);
-            const maxX = Math.max(acc.x + acc.w, b.x + b.w), maxY = Math.max(acc.y + acc.h, b.y + b.h);
-            return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
-        }, null);
+        const bbox = this._selectedItemsBBox();
         if (!bbox) { this._hideContextPanel(); return; }
 
         const area = document.getElementById('canvas-area');
@@ -4365,6 +4461,41 @@ class SelectManager {
             // 1c. Click fuori dalla selezione pixel → deseleziona pixel
             this._clearPixelSelection();
             this.phase = 'idle';
+        }
+
+        // 1.5 Selezione precisa (tap/lazo) già attiva: controlla handle di resize sul bbox del gruppo
+        if (this.phase === 'items-selected' && this.selectedItems.length) {
+            const bbox = this._selectedItemsBBox();
+            if (bbox) {
+                const handles = [
+                    { corner: 'tl', hx: bbox.x,          hy: bbox.y },
+                    { corner: 'tr', hx: bbox.x + bbox.w, hy: bbox.y },
+                    { corner: 'bl', hx: bbox.x,          hy: bbox.y + bbox.h },
+                    { corner: 'br', hx: bbox.x + bbox.w, hy: bbox.y + bbox.h },
+                ];
+                const HIT_RADIUS = 22; // grande abbastanza per il tocco con dito su LIM
+                for (const h of handles) {
+                    if (Math.abs(x - h.hx) < HIT_RADIUS && Math.abs(y - h.hy) < HIT_RADIUS) {
+                        if (typeof canvasMgr !== 'undefined') canvasMgr._saveUndo();
+                        this.phase = 'items-resizing';
+                        this._itemResizeHandle = {
+                            corner: h.corner,
+                            startX: x, startY: y,
+                            bbox: { ...bbox },
+                            originals: this.selectedItems.map(it => {
+                                if (it.type === 'stroke') {
+                                    const s = it.ref;
+                                    return s.tool === 'shape'
+                                        ? { x0: s.x0, y0: s.y0, x1: s.x1, y1: s.y1, size: s.size }
+                                        : { points: s.points.map(p => ({ ...p })), size: s.size };
+                                }
+                                return { x: it.ref.x, y: it.ref.y, w: it.ref.w, h: it.ref.h };
+                            }),
+                        };
+                        return true;
+                    }
+                }
+            }
         }
 
         // 1.6 Selezione precisa (tap/lazo) già attiva: click su un elemento selezionato → drag gruppo
@@ -4484,6 +4615,57 @@ class SelectManager {
             obj.h = newW * ratio;
             objectLayer.render();
             this._drawSelectionRect(obj.x, obj.y, obj.w, obj.h, true);
+            return true;
+        }
+
+        // Resize gruppo selezione precisa (tap/lazo) — scala proporzionale attorno all'angolo opposto
+        if (this.phase === 'items-resizing' && this._itemResizeHandle) {
+            const rh = this._itemResizeHandle;
+            let newW = rh.bbox.w, anchorX, anchorY;
+
+            if (rh.corner === 'br') {
+                newW = Math.max(20, rh.bbox.w + (x - rh.startX));
+                anchorX = rh.bbox.x; anchorY = rh.bbox.y;
+            } else if (rh.corner === 'bl') {
+                newW = Math.max(20, rh.bbox.w - (x - rh.startX));
+                anchorX = rh.bbox.x + rh.bbox.w; anchorY = rh.bbox.y;
+            } else if (rh.corner === 'tr') {
+                newW = Math.max(20, rh.bbox.w + (x - rh.startX));
+                anchorX = rh.bbox.x; anchorY = rh.bbox.y + rh.bbox.h;
+            } else { // tl
+                newW = Math.max(20, rh.bbox.w - (x - rh.startX));
+                anchorX = rh.bbox.x + rh.bbox.w; anchorY = rh.bbox.y + rh.bbox.h;
+            }
+            const scale = newW / rh.bbox.w;
+
+            this.selectedItems.forEach((it, i) => {
+                const orig = rh.originals[i];
+                if (it.type === 'stroke') {
+                    const s = it.ref;
+                    if (s.tool === 'shape') {
+                        s.x0 = anchorX + (orig.x0 - anchorX) * scale;
+                        s.y0 = anchorY + (orig.y0 - anchorY) * scale;
+                        s.x1 = anchorX + (orig.x1 - anchorX) * scale;
+                        s.y1 = anchorY + (orig.y1 - anchorY) * scale;
+                    } else {
+                        s.points = orig.points.map(p => ({
+                            x: anchorX + (p.x - anchorX) * scale,
+                            y: anchorY + (p.y - anchorY) * scale,
+                        }));
+                    }
+                    s.size = Math.max(1, orig.size * scale);
+                } else if (it.type === 'object') {
+                    const o = it.ref;
+                    o.x = anchorX + (orig.x - anchorX) * scale;
+                    o.y = anchorY + (orig.y - anchorY) * scale;
+                    o.w = orig.w * scale;
+                    o.h = orig.h * scale;
+                }
+            });
+
+            if (typeof canvasMgr !== 'undefined') canvasMgr._redrawAllStrokes();
+            if (typeof objectLayer !== 'undefined') objectLayer.render();
+            this._highlightSelectedItems();
             return true;
         }
 
@@ -4702,6 +4884,19 @@ class SelectManager {
             } else {
                 this._clearSelection();
             }
+            return true;
+        }
+
+        // Fine resize gruppo selezione precisa
+        if (this.phase === 'items-resizing') {
+            this.phase = 'items-selected';
+            this._itemResizeHandle = null;
+            CONFIG.isDirty = true;
+            window.autoSaveMgr?.onDirty();
+            this._highlightSelectedItems();
+            this._showItemsContextPanel();
+            const oc = document.getElementById('overlay-canvas');
+            if (oc) oc.style.cursor = 'crosshair';
             return true;
         }
 

@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-038'; // v2-038 — Selezione precisa: tap singolo o lazo a mano libera
+const CACHE_NAME = 'eduboard-v2-039'; // v2-039 — Flip/ruota/ridimensiona per tratti/forme selezionati col lazo
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-038 — Nuovo strumento Seleziona: un tocco secco seleziona esattamente un tratto/forma/immagine, un trascinamento a mano libera (lazo) seleziona tutto cio\' che racchiudi. Sposta ed elimina come prima; colore/riempimento nel menu per un singolo tratto.';
+const CHANGELOG  = 'EduBoard V2-039 — La selezione precisa (tap/lazo) ora si puo\' anche capovolgere, ruotare (90 gradi o 180) e ridimensionare trascinando gli angoli, sia per un singolo tratto/forma sia per piu\' elementi insieme.';
 
 const urlsToCache = [
   '.',
