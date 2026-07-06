@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-040'; // v2-040 — Evidenziatore a punta a scalpello, colore uniforme senza scurimento su auto-sovrapposizione
+const CACHE_NAME = 'eduboard-v2-041'; // v2-041 — Unisci/dividi, colore e riempimento multi-selezione, icone menu selezione ridisegnate
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-040 — L\'evidenziatore ora ha una punta a scalpello (largo in orizzontale, sottile in verticale) e un colore uniforme che copre la scrittura sotto invece di scurirsi dove il tratto si sovrappone a se stesso.';
+const CHANGELOG  = 'EduBoard V2-041 — Nel menu della selezione: nuovi pulsanti Unisci/Dividi per legare più elementi e spostarli insieme, cambio colore e riempimento ora funzionano anche su più elementi selezionati insieme, riempimento disponibile anche per i tratti a mano libera (non solo per le forme), bordo e riempimento delle forme ora hanno colori indipendenti, selettore colore con tavolozza pronta + colore libero, e icone del menu ridisegnate per essere più chiare.';
 
 const urlsToCache = [
   '.',

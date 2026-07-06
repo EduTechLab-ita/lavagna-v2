@@ -2228,6 +2228,35 @@ body.fullscreen-mode #canvas-area {
     font-size: 0.82rem;
     color: #1e293b;
 }
+/* Selettore colore a due passi: prima i quadretti pronti, poi l'eventuale colore libero */
+.ctx-color-swatches {
+    display: grid;
+    grid-template-columns: repeat(6, 22px);
+    gap: 5px;
+    margin-top: 6px;
+}
+.ctx-swatch-btn {
+    width: 22px; height: 22px;
+    border-radius: 6px;
+    border: 1px solid rgba(15,23,42,0.15);
+    cursor: pointer;
+    padding: 0;
+    transition: transform 0.1s;
+}
+.ctx-swatch-btn:hover { transform: scale(1.12); }
+.ctx-swatch-btn.active { box-shadow: 0 0 0 2px #fff, 0 0 0 3.5px #3b82f6; }
+.ctx-swatch-custom {
+    background: conic-gradient(red, yellow, lime, cyan, blue, magenta, red);
+    color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    text-shadow: 0 0 2px rgba(0,0,0,0.6);
+}
+.ctx-fill-toggle {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 0.82rem;
+    color: #475569;
+    cursor: pointer;
+}
 
 /* Mantieni retrocompatibilità per ctx-btn usati altrove */
 .ctx-btn {

@@ -591,11 +591,11 @@ class BrushEngine {
         ctx.closePath();
     }
 
-    // Forme geometriche — disegna su ctx passato, con colore e spessore dati
-    shape(ctx, type, x0, y0, x1, y1, size, color, fill) {
+    // Forme geometriche — disegna su ctx passato, con colore bordo/riempimento indipendenti
+    shape(ctx, type, x0, y0, x1, y1, size, color, fill, fillColor) {
         ctx.save();
         ctx.strokeStyle = color;
-        ctx.fillStyle = color;
+        ctx.fillStyle = fillColor || color;
         ctx.lineWidth = size;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
@@ -1268,6 +1268,7 @@ class CanvasManager {
                 tool: 'shape',
                 shapeType: CONFIG.currentShape,
                 color: CONFIG.currentColor,
+                fillColor: CONFIG.currentColor, // bordo e riempimento indipendenti da qui in poi (menu contestuale)
                 size: CONFIG.currentSize,
                 fill: CONFIG.shapeFill,
                 x0: CONFIG.shapeStartX, y0: CONFIG.shapeStartY,
@@ -1440,11 +1441,25 @@ class CanvasManager {
     // Ridisegna un singolo tratto/forma da dati vettoriali (usato da _redrawAllStrokes)
     _replayStroke(stroke) {
         if (stroke.tool === 'shape') {
-            this.brush.shape(this.ctx, stroke.shapeType, stroke.x0, stroke.y0, stroke.x1, stroke.y1, stroke.size, stroke.color, stroke.fill);
+            this.brush.shape(this.ctx, stroke.shapeType, stroke.x0, stroke.y0, stroke.x1, stroke.y1, stroke.size, stroke.color, stroke.fill, stroke.fillColor || stroke.color);
             return;
         }
         const { tool, color, size, points } = stroke;
         if (!points || points.length === 0) return;
+
+        // Riempimento tratto a mano libera: poligono chiuso (ultimo punto -> primo), disegnato
+        // sotto il tratto — stessa opacità (0.15) usata per il riempimento delle forme geometriche.
+        if (stroke.fill && points.length > 2) {
+            this.ctx.save();
+            this.ctx.fillStyle = stroke.fillColor || color;
+            this.ctx.globalAlpha = 0.15;
+            this.ctx.beginPath();
+            this.ctx.moveTo(points[0].x, points[0].y);
+            for (let i = 1; i < points.length; i++) this.ctx.lineTo(points[i].x, points[i].y);
+            this.ctx.closePath();
+            this.ctx.fill();
+            this.ctx.restore();
+        }
 
         // Evidenziatore: ricostruisce sulla maschera opaca e la compone una sola volta,
         // così il replay ha lo stesso aspetto uniforme del tratto disegnato dal vivo.
@@ -3938,35 +3953,148 @@ class SelectManager {
                 });
                 break;
             }
+            // Colore del tratto/bordo — su TUTTI i tratti/forme selezionati insieme (tap singolo o lazo multiplo)
             case 'stroke-color': {
-                const s = (this.selectedItems.length === 1 && this.selectedItems[0].type === 'stroke') ? this.selectedItems[0].ref : null;
-                if (!s) break;
-                popup.innerHTML = `<label>Colore <input type="color" value="${s.color}"></label>`;
+                const items = this.selectedItems.filter(it => it.type === 'stroke');
+                if (!items.length) break;
+                popup.innerHTML = '';
                 popup.style.display = 'block';
-                const inp = popup.querySelector('input');
-                inp.addEventListener('input', () => {
+                this._appendColorSwatchRow(popup, items[0].ref.color, (color) => {
                     if (typeof canvasMgr !== 'undefined') canvasMgr._saveUndo();
-                    s.color = inp.value;
+                    items.forEach(it => { it.ref.color = color; });
                     if (typeof canvasMgr !== 'undefined') canvasMgr._redrawAllStrokes();
                     CONFIG.isDirty = true; window.autoSaveMgr?.onDirty();
                 });
                 break;
             }
+            // Riempimento — colore indipendente dal bordo, per forme geometriche E tratti a mano
+            // libera (poligono chiuso automaticamente dall'ultimo punto al primo)
             case 'stroke-fill': {
-                const s = (this.selectedItems.length === 1 && this.selectedItems[0].type === 'stroke') ? this.selectedItems[0].ref : null;
-                if (!s || s.tool !== 'shape') break;
-                popup.innerHTML = `<label><input type="checkbox" ${s.fill ? 'checked' : ''}> Riempi</label>`;
+                const items = this.selectedItems.filter(it => it.type === 'stroke');
+                if (!items.length) break;
+                const first = items[0].ref;
+                popup.innerHTML = '';
                 popup.style.display = 'block';
-                const inp = popup.querySelector('input');
-                inp.addEventListener('change', () => {
+                const toggle = document.createElement('label');
+                toggle.className = 'ctx-fill-toggle';
+                toggle.innerHTML = `<input type="checkbox" ${first.fill ? 'checked' : ''}> Riempi`;
+                const checkbox = toggle.querySelector('input');
+                checkbox.addEventListener('change', () => {
                     if (typeof canvasMgr !== 'undefined') canvasMgr._saveUndo();
-                    s.fill = inp.checked;
+                    items.forEach(it => { it.ref.fill = checkbox.checked; });
                     if (typeof canvasMgr !== 'undefined') canvasMgr._redrawAllStrokes();
                     CONFIG.isDirty = true; window.autoSaveMgr?.onDirty();
                 });
+                popup.appendChild(toggle);
+                this._appendColorSwatchRow(popup, first.fillColor || first.color, (color) => {
+                    if (typeof canvasMgr !== 'undefined') canvasMgr._saveUndo();
+                    items.forEach(it => { it.ref.fillColor = color; it.ref.fill = true; });
+                    checkbox.checked = true;
+                    if (typeof canvasMgr !== 'undefined') canvasMgr._redrawAllStrokes();
+                    CONFIG.isDirty = true; window.autoSaveMgr?.onDirty();
+                });
+                break;
+            }
+            // Unisci — lega 2+ elementi selezionati in un unico gruppo spostabile insieme
+            case 'group': {
+                this._groupSelectedItems();
+                break;
+            }
+            // Dividi — scioglie il gruppo corrente, gli elementi tornano indipendenti
+            case 'ungroup': {
+                this._ungroupSelectedItems();
                 break;
             }
         }
+    }
+
+    // Riga di ~10 colori pronti + un pulsante "altro colore" che apre il selettore libero
+    // esistente (input color nativo) — due passi come richiesto: prima i quadretti, poi
+    // eventualmente la scelta libera.
+    _appendColorSwatchRow(container, currentColor, onPick) {
+        const wrap = document.createElement('div');
+        wrap.className = 'ctx-color-swatches';
+        DEFAULT_COLORS.forEach(c => {
+            const b = document.createElement('button');
+            b.className = 'ctx-swatch-btn';
+            b.style.background = c.color;
+            b.title = c.title;
+            if (currentColor && c.color.toLowerCase() === currentColor.toLowerCase()) b.classList.add('active');
+            b.addEventListener('click', () => onPick(c.color));
+            wrap.appendChild(b);
+        });
+        const customBtn = document.createElement('button');
+        customBtn.className = 'ctx-swatch-btn ctx-swatch-custom';
+        customBtn.title = 'Altro colore…';
+        customBtn.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18"/></svg>';
+        const nativeInput = document.createElement('input');
+        nativeInput.type = 'color';
+        nativeInput.value = currentColor || '#000000';
+        nativeInput.style.cssText = 'position:absolute;width:0;height:0;opacity:0;pointer-events:none;';
+        nativeInput.addEventListener('input', () => onPick(nativeInput.value));
+        customBtn.addEventListener('click', () => nativeInput.click());
+        wrap.appendChild(customBtn);
+        wrap.appendChild(nativeInput);
+        container.appendChild(wrap);
+        return wrap;
+    }
+
+    // Lega tutti gli elementi correntemente selezionati (2+) in un unico gruppo: da qui in poi
+    // toccarne uno solo seleziona tutto il gruppo (vedi _expandGroups), utile per spostarli insieme.
+    _groupSelectedItems() {
+        if (this.selectedItems.length < 2) return;
+        if (typeof canvasMgr !== 'undefined') canvasMgr._saveUndo();
+        const gid = 'g' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+        this.selectedItems.forEach(it => { it.ref.groupId = gid; });
+        CONFIG.isDirty = true;
+        window.autoSaveMgr?.onDirty();
+        this._highlightSelectedItems();
+        this._showItemsContextPanel();
+    }
+
+    // Scioglie il gruppo della selezione corrente: gli elementi restano selezionati ma tornano
+    // indipendenti (si possono di nuovo spostare/colorare separatamente).
+    _ungroupSelectedItems() {
+        if (!this.selectedItems.length) return;
+        if (typeof canvasMgr !== 'undefined') canvasMgr._saveUndo();
+        this.selectedItems.forEach(it => { delete it.ref.groupId; });
+        CONFIG.isDirty = true;
+        window.autoSaveMgr?.onDirty();
+        this._highlightSelectedItems();
+        this._showItemsContextPanel();
+    }
+
+    // true se la selezione corrente è (tutta) un unico gruppo esistente
+    _isCurrentSelectionAGroup() {
+        if (this.selectedItems.length < 2) return false;
+        const gid = this.selectedItems[0].ref.groupId;
+        if (!gid) return false;
+        return this.selectedItems.every(it => it.ref.groupId === gid);
+    }
+
+    // Se un elemento toccato/racchiuso fa parte di un gruppo, espande la selezione a tutto
+    // il gruppo (tratti/forme in _pageStrokes + oggetti in objectLayer.objects).
+    _expandGroups(items) {
+        const result = [];
+        const seen = new Set();
+        const addAllWithGroup = (gid) => {
+            if (typeof canvasMgr !== 'undefined') {
+                canvasMgr._pageStrokes.forEach(s => {
+                    if (s && s.groupId === gid && !seen.has(s)) { seen.add(s); result.push({ type: 'stroke', ref: s }); }
+                });
+            }
+            if (typeof objectLayer !== 'undefined' && objectLayer) {
+                objectLayer.objects.forEach(o => {
+                    if (o.groupId === gid && !seen.has(o)) { seen.add(o); result.push({ type: 'object', ref: o }); }
+                });
+            }
+        };
+        items.forEach(it => {
+            if (seen.has(it.ref)) return;
+            if (it.ref.groupId) addAllWithGroup(it.ref.groupId);
+            else { seen.add(it.ref); result.push(it); }
+        });
+        return result;
     }
 
     // Elimina tutti gli elementi correntemente selezionati (tap singolo o lazo multiplo)
@@ -4370,8 +4498,9 @@ class SelectManager {
         this._highlightSelectedItems();
     }
 
-    // Pannello contestuale per la selezione precisa: solo Elimina (tutti) + Colore/Riempimento
-    // (solo per un singolo tratto/forma — cambiare colore a più elementi misti non è ben definito)
+    // Pannello contestuale per la selezione precisa (tap o lazo, singola o multipla):
+    // trasformazioni sempre disponibili; colore/riempimento su tutti i tratti/forme selezionati
+    // in un colpo solo; unisci/dividi per legare più elementi in un unico gruppo spostabile.
     _showItemsContextPanel() {
         const panel = document.getElementById('object-context-panel');
         if (!panel) return;
@@ -4387,17 +4516,28 @@ class SelectManager {
         const transSep = panel.querySelectorAll('.ctx-sep.ctx-obj-only')[1];
         if (transSep) transSep.style.display = '';
 
-        const single = this.selectedItems.length === 1 ? this.selectedItems[0] : null;
-        const singleStroke = (single && single.type === 'stroke') ? single.ref : null;
-
-        if (singleStroke) {
+        // Colore/riempimento: applicabili a TUTTI i tratti/forme della selezione insieme
+        // (multi-selezione inclusa) — gli oggetti (immagini/PDF) non hanno un colore di tratto.
+        const strokeItems = this.selectedItems.filter(it => it.type === 'stroke');
+        if (strokeItems.length) {
             const colorBtn = panel.querySelector('[data-action="stroke-color"]');
             if (colorBtn) colorBtn.style.display = '';
-            if (singleStroke.tool === 'shape') {
-                const fillBtn = panel.querySelector('[data-action="stroke-fill"]');
-                if (fillBtn) fillBtn.style.display = '';
-            }
+            const fillBtn = panel.querySelector('[data-action="stroke-fill"]');
+            if (fillBtn) fillBtn.style.display = '';
         }
+
+        // Unisci/dividi: disponibili solo con 2+ elementi selezionati
+        if (this.selectedItems.length >= 2) {
+            const groupBtn = panel.querySelector('[data-action="group"]');
+            if (groupBtn) groupBtn.style.display = '';
+            if (this._isCurrentSelectionAGroup()) {
+                const ungroupBtn = panel.querySelector('[data-action="ungroup"]');
+                if (ungroupBtn) ungroupBtn.style.display = '';
+            }
+            const groupSep = panel.querySelectorAll('.ctx-sep.ctx-stroke-only')[1];
+            if (groupSep) groupSep.style.display = '';
+        }
+
         const delBtn = panel.querySelector('[data-action="delete"]');
         if (delBtn) delBtn.style.display = '';
 
@@ -4913,7 +5053,8 @@ class SelectManager {
             this._lassoPath = null;
             const item = this._hitTestItem(this.startX, this.startY);
             if (item) {
-                this.selectedItems = [item];
+                // Se l'elemento toccato fa parte di un gruppo (Unisci), seleziona tutto il gruppo
+                this.selectedItems = this._expandGroups([item]);
                 this.phase = 'items-selected';
                 this._highlightSelectedItems();
                 this._showItemsContextPanel();
@@ -4929,7 +5070,8 @@ class SelectManager {
             const enclosed = this._findItemsInLasso(this._lassoPath);
             this._lassoPath = null;
             if (enclosed.length) {
-                this.selectedItems = enclosed;
+                // Se il lazo racchiude anche solo un elemento di un gruppo, espandi a tutto il gruppo
+                this.selectedItems = this._expandGroups(enclosed);
                 this.phase = 'items-selected';
                 this._highlightSelectedItems();
                 this._showItemsContextPanel();
