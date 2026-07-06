@@ -537,20 +537,37 @@ class BrushEngine {
         ctx.restore();
     }
 
-    // Evidenziatore — tratto largo e semitrasparente
+    // Evidenziatore — punta a scalpello (larga se il movimento è orizzontale, sottile se
+    // verticale) disegnata OPACA: la vera trasparenza (0.42) viene applicata una sola volta
+    // a fine tratto compositando l'intera maschera (vedi CanvasManager._compositeMarkerMask),
+    // così il colore copre la scrittura sotto in modo uniforme invece di scurirsi dove il
+    // tratto si sovrappone a se stesso (ogni segmento veniva prima disegnato col proprio alpha).
     marker(ctx, x0, y0, cpX, cpY, x1, y1, size, color) {
         ctx.save();
         ctx.strokeStyle = color;
-        ctx.lineWidth = size * 2.5;
-        ctx.lineCap = 'square';
+        ctx.lineCap = 'butt';
         ctx.lineJoin = 'round';
-        ctx.globalAlpha = 0.35;
+        ctx.globalAlpha = 1;
         ctx.globalCompositeOperation = 'source-over';
+        const angle = Math.atan2(y1 - y0, x1 - x0);
+        const wide = size * 2.5, thin = size * 0.7;
+        ctx.lineWidth = thin + (wide - thin) * Math.abs(Math.cos(angle));
         ctx.beginPath();
         ctx.moveTo(x0, y0);
         ctx.quadraticCurveTo(cpX, cpY, x1, y1);
         ctx.stroke();
         ctx.restore();
+    }
+
+    // Compositing dell'evidenziatore: applica la maschera opaca (costruita da marker()) sul
+    // contesto di destinazione con l'alpha reale, in un colpo solo per tutto il tratto.
+    static MARKER_ALPHA = 0.42;
+    compositeMarkerMask(destCtx, maskCanvas, alpha = BrushEngine.MARKER_ALPHA) {
+        destCtx.save();
+        destCtx.globalAlpha = alpha;
+        destCtx.globalCompositeOperation = 'source-over';
+        destCtx.drawImage(maskCanvas, 0, 0);
+        destCtx.restore();
     }
 
     // Gomma — cancella usando destination-out (mostra il bg-canvas sotto)
@@ -946,6 +963,11 @@ class CanvasManager {
         this.overlayCanvas = document.getElementById('overlay-canvas');
         this.overlayCtx = this.overlayCanvas.getContext('2d');
 
+        // Maschera opaca per l'evidenziatore: accumula il tratto corrente a piena opacità
+        // (nessun canvas nel DOM, solo di supporto) — vedi _onStart/_onMove/_onEnd marker.
+        this._markerMaskCanvas = document.createElement('canvas');
+        this._markerMaskCtx = this._markerMaskCanvas.getContext('2d');
+
         this.undoStack = [];
         this.redoStack = [];
 
@@ -986,6 +1008,7 @@ class CanvasManager {
         this.canvas.style.width  = W + 'px'; this.canvas.style.height = H + 'px';
         this.overlayCanvas.width = W; this.overlayCanvas.height = H;
         this.overlayCanvas.style.width = W + 'px'; this.overlayCanvas.style.height = H + 'px';
+        this._markerMaskCanvas.width = W; this._markerMaskCanvas.height = H;
         const bgCvs = document.getElementById('bg-canvas');
         if (bgCvs) { bgCvs.width = W; bgCvs.height = H;
                      bgCvs.style.width = W + 'px'; bgCvs.style.height = H + 'px'; }
@@ -1127,6 +1150,10 @@ class CanvasManager {
             this.brush.eraser(this.ctx, x, y, CONFIG.currentSize * 2);
             this._eraseObjectsNear(x, y);
         } else {
+            if (CONFIG.currentTool === 'marker') {
+                // Nuovo tratto: ripulisce la maschera opaca dal tratto precedente
+                this._markerMaskCtx.clearRect(0, 0, this._markerMaskCanvas.width, this._markerMaskCanvas.height);
+            }
             this._drawSegment(x, y, x, y, x, y);
         }
     }
@@ -1251,6 +1278,13 @@ class CanvasManager {
             return;
         }
 
+        // Evidenziatore: applica la maschera opaca del tratto sul canvas reale UNA SOLA
+        // VOLTA a fine tratto (con l'alpha vera), poi ripulisce l'anteprima sull'overlay.
+        if (CONFIG.currentTool === 'marker') {
+            this.brush.compositeMarkerMask(this.ctx, this._markerMaskCanvas);
+            this.overlayCtx.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height);
+        }
+
         // Fine tratto per strumenti di disegno (pen, pencil, pastel, marker, eraser):
         // salva dati vettoriali + notifica dirty
         if (CONFIG.drawTools.includes(CONFIG.currentTool)) {
@@ -1277,11 +1311,20 @@ class CanvasManager {
         const color = CONFIG.currentColor;
         const size  = CONFIG.currentSize;
 
+        // Evidenziatore: il segmento va sulla maschera opaca (mai sul canvas reale durante
+        // il tratto), l'anteprima live sull'overlay è la maschera ricompositata con l'alpha
+        // vera — evita che i segmenti che si sovrappongono nello stesso tratto si scuriscano.
+        if (tool === 'marker') {
+            this.brush.marker(this._markerMaskCtx, x0, y0, cpX, cpY, x1, y1, size, color);
+            this.overlayCtx.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height);
+            this.brush.compositeMarkerMask(this.overlayCtx, this._markerMaskCanvas);
+            return;
+        }
+
         switch (tool) {
             case 'pen':    this.brush.pen(this.ctx, x0, y0, cpX, cpY, x1, y1, size, color);    break;
             case 'pencil': this.brush.pencil(this.ctx, x0, y0, cpX, cpY, x1, y1, size, color); break;
             case 'pastel': this.brush.pastel(this.ctx, x0, y0, cpX, cpY, x1, y1, size, color); break;
-            case 'marker': this.brush.marker(this.ctx, x0, y0, cpX, cpY, x1, y1, size, color); break;
         }
     }
 
@@ -1402,25 +1445,34 @@ class CanvasManager {
         }
         const { tool, color, size, points } = stroke;
         if (!points || points.length === 0) return;
+
+        // Evidenziatore: ricostruisce sulla maschera opaca e la compone una sola volta,
+        // così il replay ha lo stesso aspetto uniforme del tratto disegnato dal vivo.
+        const isMarker = tool === 'marker';
+        if (isMarker) this._markerMaskCtx.clearRect(0, 0, this._markerMaskCanvas.width, this._markerMaskCanvas.height);
+        const targetCtx = isMarker ? this._markerMaskCtx : this.ctx;
+
         // Dot iniziale + segmenti successivi (stessa logica di _drawSegment, con midpoint
         // Bézier per la stessa morbidezza del tratto originale)
         let smoothX = points[0].x, smoothY = points[0].y;
-        this._drawSegmentWith(tool, color, size, smoothX, smoothY, smoothX, smoothY, points[0].x, points[0].y);
+        this._drawSegmentWith(tool, color, size, smoothX, smoothY, smoothX, smoothY, points[0].x, points[0].y, targetCtx);
         for (let i = 1; i < points.length; i++) {
             const midX = (points[i-1].x + points[i].x) / 2;
             const midY = (points[i-1].y + points[i].y) / 2;
-            this._drawSegmentWith(tool, color, size, smoothX, smoothY, points[i-1].x, points[i-1].y, midX, midY);
+            this._drawSegmentWith(tool, color, size, smoothX, smoothY, points[i-1].x, points[i-1].y, midX, midY, targetCtx);
             smoothX = midX; smoothY = midY;
         }
+
+        if (isMarker) this.brush.compositeMarkerMask(this.ctx, this._markerMaskCanvas);
     }
 
     // Come _drawSegment ma con parametri tool/color/size espliciti (per il replay)
-    _drawSegmentWith(tool, color, size, x0, y0, cpX, cpY, x1, y1) {
+    _drawSegmentWith(tool, color, size, x0, y0, cpX, cpY, x1, y1, targetCtx = this.ctx) {
         switch (tool) {
-            case 'pen':    this.brush.pen(this.ctx, x0, y0, cpX, cpY, x1, y1, size, color);    break;
-            case 'pencil': this.brush.pencil(this.ctx, x0, y0, cpX, cpY, x1, y1, size, color); break;
-            case 'pastel': this.brush.pastel(this.ctx, x0, y0, cpX, cpY, x1, y1, size, color); break;
-            case 'marker': this.brush.marker(this.ctx, x0, y0, cpX, cpY, x1, y1, size, color); break;
+            case 'pen':    this.brush.pen(targetCtx, x0, y0, cpX, cpY, x1, y1, size, color);    break;
+            case 'pencil': this.brush.pencil(targetCtx, x0, y0, cpX, cpY, x1, y1, size, color); break;
+            case 'pastel': this.brush.pastel(targetCtx, x0, y0, cpX, cpY, x1, y1, size, color); break;
+            case 'marker': this.brush.marker(targetCtx, x0, y0, cpX, cpY, x1, y1, size, color); break;
         }
     }
 

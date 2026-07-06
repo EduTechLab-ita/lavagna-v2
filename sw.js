@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-039'; // v2-039 — Flip/ruota/ridimensiona per tratti/forme selezionati col lazo
+const CACHE_NAME = 'eduboard-v2-040'; // v2-040 — Evidenziatore a punta a scalpello, colore uniforme senza scurimento su auto-sovrapposizione
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-039 — La selezione precisa (tap/lazo) ora si puo\' anche capovolgere, ruotare (90 gradi o 180) e ridimensionare trascinando gli angoli, sia per un singolo tratto/forma sia per piu\' elementi insieme.';
+const CHANGELOG  = 'EduBoard V2-040 — L\'evidenziatore ora ha una punta a scalpello (largo in orizzontale, sottile in verticale) e un colore uniforme che copre la scrittura sotto invece di scurirsi dove il tratto si sovrappone a se stesso.';
 
 const urlsToCache = [
   '.',
