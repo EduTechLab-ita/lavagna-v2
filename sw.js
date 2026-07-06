@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-042'; // v2-042 — Fix blocco app (popup nativi) + fix lentezza trascinamento + intensità riempimento regolabile
+const CACHE_NAME = 'eduboard-v2-043'; // v2-043 — Fix lentezza reale nel trascinare/ridimensionare selezioni su pagine con molti tratti/forme
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-042 — Risolto un blocco dell\'app: i popup di conferma nativi del browser (cancella pagina, cancella tutto, nome progetto) sono stati sostituiti con popup interni all\'app, più affidabili su LIM e tablet. Risolto anche un rallentamento nel trascinare le selezioni quando ci sono molti tratti evidenziatore nella pagina. In più: l\'intensità del riempimento ora è regolabile, dal leggermente trasparente al colore pieno e coprente.';
+const CHANGELOG  = 'EduBoard V2-043 — Risolto un rallentamento importante nel trascinare o ridimensionare una selezione quando la pagina contiene molti tratti/forme: prima veniva ridisegnata tutta la pagina ad ogni movimento, ora si ridisegna solo ciò che stai effettivamente spostando. Dovrebbe essere di nuovo fluido anche sui PC meno potenti.';
 
 const urlsToCache = [
   '.',

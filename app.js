@@ -1455,10 +1455,12 @@ class CanvasManager {
         }
     }
 
-    // Ridisegna un singolo tratto/forma da dati vettoriali (usato da _redrawAllStrokes)
-    _replayStroke(stroke) {
+    // Ridisegna un singolo tratto/forma da dati vettoriali (usato da _redrawAllStrokes e dal
+    // bitmap statico del drag). destCtx di default è il canvas reale, ma può essere un
+    // canvas offscreen (vedi _buildDragStaticBitmap).
+    _replayStroke(stroke, destCtx = this.ctx) {
         if (stroke.tool === 'shape') {
-            this.brush.shape(this.ctx, stroke.shapeType, stroke.x0, stroke.y0, stroke.x1, stroke.y1, stroke.size, stroke.color, stroke.fill, stroke.fillColor || stroke.color, stroke.fillAlpha ?? 0.15);
+            this.brush.shape(destCtx, stroke.shapeType, stroke.x0, stroke.y0, stroke.x1, stroke.y1, stroke.size, stroke.color, stroke.fill, stroke.fillColor || stroke.color, stroke.fillAlpha ?? 0.15);
             return;
         }
         const { tool, color, size, points } = stroke;
@@ -1467,15 +1469,15 @@ class CanvasManager {
         // Riempimento tratto a mano libera: poligono chiuso (ultimo punto -> primo), disegnato
         // sotto il tratto — opacità regolabile dal menu contestuale (default 0.15, come le forme).
         if (stroke.fill && points.length > 2) {
-            this.ctx.save();
-            this.ctx.fillStyle = stroke.fillColor || color;
-            this.ctx.globalAlpha = stroke.fillAlpha ?? 0.15;
-            this.ctx.beginPath();
-            this.ctx.moveTo(points[0].x, points[0].y);
-            for (let i = 1; i < points.length; i++) this.ctx.lineTo(points[i].x, points[i].y);
-            this.ctx.closePath();
-            this.ctx.fill();
-            this.ctx.restore();
+            destCtx.save();
+            destCtx.fillStyle = stroke.fillColor || color;
+            destCtx.globalAlpha = stroke.fillAlpha ?? 0.15;
+            destCtx.beginPath();
+            destCtx.moveTo(points[0].x, points[0].y);
+            for (let i = 1; i < points.length; i++) destCtx.lineTo(points[i].x, points[i].y);
+            destCtx.closePath();
+            destCtx.fill();
+            destCtx.restore();
         }
 
         // Evidenziatore: ricostruisce sulla maschera opaca e la compone una sola volta,
@@ -1486,7 +1488,7 @@ class CanvasManager {
         const isMarker = tool === 'marker';
         const markerBBox = isMarker ? this._strokeBBox(points, size) : null;
         if (isMarker) this._markerMaskCtx.clearRect(markerBBox.x, markerBBox.y, markerBBox.w, markerBBox.h);
-        const targetCtx = isMarker ? this._markerMaskCtx : this.ctx;
+        const targetCtx = isMarker ? this._markerMaskCtx : destCtx;
 
         // Dot iniziale + segmenti successivi (stessa logica di _drawSegment, con midpoint
         // Bézier per la stessa morbidezza del tratto originale)
@@ -1499,7 +1501,32 @@ class CanvasManager {
             smoothX = midX; smoothY = midY;
         }
 
-        if (isMarker) this.brush.compositeMarkerMask(this.ctx, this._markerMaskCanvas, undefined, markerBBox);
+        if (isMarker) this.brush.compositeMarkerMask(destCtx, this._markerMaskCanvas, undefined, markerBBox);
+    }
+
+    // Costruisce (o riusa) un canvas offscreen con tutti i tratti/forme della pagina TRANNE
+    // quelli in movimento (excludeRefs): usato durante il trascinamento di una selezione per
+    // evitare di ridisegnare l'intera pagina ad ogni frame — vedi SelectManager._previewDragItems.
+    _buildDragStaticBitmap(excludeRefs) {
+        if (!this._dragStaticCanvas) {
+            this._dragStaticCanvas = document.createElement('canvas');
+            this._dragStaticCtx = this._dragStaticCanvas.getContext('2d');
+        }
+        this._dragStaticCanvas.width  = this.canvas.width;
+        this._dragStaticCanvas.height = this.canvas.height;
+        for (const stroke of this._pageStrokes) {
+            if (stroke && !excludeRefs.has(stroke)) this._replayStroke(stroke, this._dragStaticCtx);
+        }
+    }
+
+    // Ridisegna il canvas reale durante il drag: incolla il bitmap statico (economico) e
+    // ridisegna sopra SOLO i tratti/forme in movimento (movingRefs).
+    _redrawWithStaticBitmap(movingRefs) {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        if (this._dragStaticCanvas) this.ctx.drawImage(this._dragStaticCanvas, 0, 0);
+        for (const stroke of this._pageStrokes) {
+            if (stroke && movingRefs.has(stroke)) this._replayStroke(stroke);
+        }
     }
 
     // Bounding box (con margine per lo spessore) di un array di punti — usato per limitare
@@ -4570,7 +4597,16 @@ class SelectManager {
         }
     }
 
-    // Sposta live gli elementi selezionati durante il drag (ridisegna tutto)
+    // Set dei tratti/forme (ref in _pageStrokes) tra gli elementi selezionati — usato per
+    // sapere cosa escludere/ridisegnare nel bitmap statico durante drag/resize.
+    _movingStrokeRefs() {
+        return new Set(this.selectedItems.filter(it => it.type === 'stroke').map(it => it.ref));
+    }
+
+    // Sposta live gli elementi selezionati durante il drag. Usa il bitmap statico costruito
+    // all'inizio del drag (vedi onPointerDown) invece di ridisegnare TUTTI i tratti della
+    // pagina ad ogni frame — con molti tratti/forme sulla pagina, ridisegnarli tutti ad ogni
+    // pointermove era il motivo principale della lentezza segnalata su pagine "cariche".
     _previewDragItems(dx, dy) {
         if (!this._itemDragStart) return;
         this.selectedItems.forEach((it, i) => {
@@ -4588,7 +4624,7 @@ class SelectManager {
                 it.ref.y = orig.y + dy;
             }
         });
-        if (typeof canvasMgr !== 'undefined') canvasMgr._redrawAllStrokes();
+        if (typeof canvasMgr !== 'undefined') canvasMgr._redrawWithStaticBitmap(this._itemDragStart.strokeRefs);
         if (typeof objectLayer !== 'undefined') objectLayer.render();
         this._highlightSelectedItems();
     }
@@ -4765,10 +4801,13 @@ class SelectManager {
                     if (Math.abs(x - h.hx) < HIT_RADIUS && Math.abs(y - h.hy) < HIT_RADIUS) {
                         if (typeof canvasMgr !== 'undefined') canvasMgr._saveUndo();
                         this.phase = 'items-resizing';
+                        const resizeStrokeRefs = this._movingStrokeRefs();
+                        if (typeof canvasMgr !== 'undefined') canvasMgr._buildDragStaticBitmap(resizeStrokeRefs);
                         this._itemResizeHandle = {
                             corner: h.corner,
                             startX: x, startY: y,
                             bbox: { ...bbox },
+                            strokeRefs: resizeStrokeRefs,
                             originals: this.selectedItems.map(it => {
                                 if (it.type === 'stroke') {
                                     const s = it.ref;
@@ -4789,8 +4828,11 @@ class SelectManager {
         if (this.phase === 'items-selected' && this.selectedItems.length && this._pointInSelectedItems(x, y)) {
             if (typeof canvasMgr !== 'undefined') canvasMgr._saveUndo();
             this.phase = 'items-dragging';
+            const dragStrokeRefs = this._movingStrokeRefs();
+            if (typeof canvasMgr !== 'undefined') canvasMgr._buildDragStaticBitmap(dragStrokeRefs);
             this._itemDragStart = {
                 x, y,
+                strokeRefs: dragStrokeRefs,
                 originals: this.selectedItems.map(it => {
                     if (it.type === 'stroke') {
                         const s = it.ref;
@@ -4950,7 +4992,7 @@ class SelectManager {
                 }
             });
 
-            if (typeof canvasMgr !== 'undefined') canvasMgr._redrawAllStrokes();
+            if (typeof canvasMgr !== 'undefined') canvasMgr._redrawWithStaticBitmap(rh.strokeRefs);
             if (typeof objectLayer !== 'undefined') objectLayer.render();
             this._highlightSelectedItems();
             return true;
