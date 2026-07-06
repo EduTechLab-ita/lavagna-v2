@@ -3510,6 +3510,7 @@ class SelectManager {
         this._objDragStart  = null; // {x, y, origObjX, origObjY}
         this._pixelClipboard  = null; // { data: ImageData, w, h, srcX, srcY }
         this._objectClipboard = null; // copia di un oggetto ObjectLayer
+        this._itemsClipboard  = null; // copia di tratti/forme/oggetti da selezione precisa (tap/lazo) — [{type, data}]
         this._pixelResizeData = null; // dati resize in corso per selezione pixel
         this._pastedData      = null; // { snap: ImageData, data: ImageData, w, h } — snapshot pre-paste
         this._pressing        = false; // true solo quando pointer/mouse è premuto
@@ -3828,7 +3829,31 @@ class SelectManager {
                 }
                 return;
             case 'copy':
-                if (obj) {
+                if (this.phase === 'items-selected' && this.selectedItems.length) {
+                    // Copia tratti/forme/oggetti dalla selezione precisa (tap o lazo, singola o
+                    // multipla). Il clipboard vive in memoria (non è legato alla pagina), quindi
+                    // cambiare pagina e poi incollare funziona automaticamente.
+                    this._itemsClipboard = this.selectedItems.map(it => {
+                        if (it.type === 'stroke') {
+                            const clone = { ...it.ref };
+                            delete clone.groupId;
+                            if (clone.points) clone.points = clone.points.map(p => ({ ...p }));
+                            return { type: 'stroke', data: clone };
+                        }
+                        const o = it.ref;
+                        return { type: 'object', data: {
+                            type: o.type, img: o.img, x: o.x, y: o.y, w: o.w, h: o.h,
+                            originalW: o.originalW, originalH: o.originalH,
+                            opacity: o.opacity, rotation: o.rotation || 0,
+                            filter: { ...(o.filter || {}) },
+                            flipH: o.flipH || false, flipV: o.flipV || false,
+                        } };
+                    });
+                    this._objectClipboard = null;
+                    this._pixelClipboard = null;
+                    const n = this._itemsClipboard.length;
+                    toast(n > 1 ? `${n} elementi copiati!` : 'Copiato!', 'success');
+                } else if (obj) {
                     // Copia oggetto ObjectLayer
                     this._objectClipboard = {
                         type: obj.type, img: obj.img,
@@ -3839,16 +3864,25 @@ class SelectManager {
                         flipH: obj.flipH || false, flipV: obj.flipV || false,
                     };
                     this._pixelClipboard = null;
+                    this._itemsClipboard = null;
                     toast('Oggetto copiato!', 'success');
                 } else if (this.phase === 'selected' && this.selection) {
                     // Copia area pixel
                     const { x, y, w, h } = this.selection;
                     this._pixelClipboard = { data: this.ctx.getImageData(x, y, w, h), w, h, srcX: x, srcY: y };
                     this._objectClipboard = null;
+                    this._itemsClipboard = null;
                     toast('Area copiata!', 'success');
                 }
                 return;
             case 'cut':
+                if (this.phase === 'items-selected' && this.selectedItems.length) {
+                    // Taglia = copia + elimina (riusa la logica di copy sopra)
+                    this._handleCtxAction('copy', btn);
+                    this._deleteSelectedItems();
+                    toast('Tagliato!', 'success');
+                    return;
+                }
                 // Taglia = copia + elimina
                 this._handleCtxAction('copy', btn);
                 if (obj) {
@@ -3870,7 +3904,52 @@ class SelectManager {
                 }
                 return;
             case 'paste':
-                if (this._objectClipboard) {
+                if (this._itemsClipboard && this._itemsClipboard.length) {
+                    // Incolla tratti/forme/oggetti (offset +20px, cascata sui paste successivi).
+                    // Funziona anche su una pagina diversa da quella di origine, dato che il
+                    // clipboard è in memoria e non appartiene a nessuna pagina in particolare.
+                    if (typeof canvasMgr !== 'undefined') canvasMgr._saveUndo();
+                    const newItems = [];
+                    this._itemsClipboard.forEach(entry => {
+                        if (entry.type === 'stroke' && typeof canvasMgr !== 'undefined') {
+                            const clone = { ...entry.data };
+                            if (clone.points) {
+                                clone.points = clone.points.map(p => ({ x: p.x + 20, y: p.y + 20 }));
+                            } else {
+                                clone.x0 += 20; clone.y0 += 20; clone.x1 += 20; clone.y1 += 20;
+                            }
+                            canvasMgr._pageStrokes.push(clone);
+                            newItems.push({ type: 'stroke', ref: clone });
+                        } else if (entry.type === 'object' && typeof objectLayer !== 'undefined') {
+                            const d = entry.data;
+                            const nx = d.x + 20, ny = d.y + 20;
+                            objectLayer.addObject(d.type, d.img, nx, ny, d.w, d.h);
+                            const newObj = objectLayer.objects[objectLayer.objects.length - 1];
+                            if (newObj) {
+                                newObj.opacity = d.opacity; newObj.rotation = d.rotation;
+                                newObj.filter = { ...d.filter };
+                                newObj.flipH = d.flipH; newObj.flipV = d.flipV;
+                                newItems.push({ type: 'object', ref: newObj });
+                            }
+                        }
+                    });
+                    // Aggiorna il clipboard con le nuove posizioni, per una prossima cascata
+                    this._itemsClipboard = this._itemsClipboard.map((entry, i) => {
+                        const placed = newItems[i];
+                        if (!placed) return entry;
+                        return placed.type === 'stroke'
+                            ? { type: 'stroke', data: { ...placed.ref, points: placed.ref.points ? placed.ref.points.map(p => ({ ...p })) : undefined } }
+                            : { type: 'object', data: { ...entry.data, x: placed.ref.x, y: placed.ref.y } };
+                    });
+                    if (typeof canvasMgr !== 'undefined') canvasMgr._redrawAllStrokes();
+                    if (typeof objectLayer !== 'undefined') objectLayer.render();
+                    this.selectedItems = newItems; // copie fresche, mai in un gruppo esistente
+                    this.phase = 'items-selected';
+                    this._highlightSelectedItems();
+                    this._showItemsContextPanel();
+                    CONFIG.isDirty = true; window.autoSaveMgr?.onDirty();
+                    toast(newItems.length > 1 ? `${newItems.length} elementi incollati!` : 'Incollato!', 'success');
+                } else if (this._objectClipboard) {
                     // Incolla oggetto (offset +20px per distinguerlo dall'originale)
                     const src = this._objectClipboard;
                     const nx = src.x + 20, ny = src.y + 20;
@@ -4336,6 +4415,29 @@ class SelectManager {
         }
     }
 
+    // Mini-pannello con solo "Incolla", mostrato quando si tocca un'area vuota (nulla da
+    // selezionare) ma c'è qualcosa in memoria — es. dopo aver copiato su un'altra pagina.
+    _showPasteOnlyPanel(x, y) {
+        const panel = document.getElementById('object-context-panel');
+        if (!panel) return;
+        panel.querySelectorAll('.ctx-icon-btn[data-action]').forEach(el => { el.style.display = 'none'; });
+        panel.querySelectorAll('.ctx-sep').forEach(el => { el.style.display = 'none'; });
+        const pasteBtn = panel.querySelector('[data-action="paste"]');
+        if (pasteBtn) pasteBtn.style.display = '';
+
+        const area = document.getElementById('canvas-area');
+        const rect = area.getBoundingClientRect();
+        const scale = (typeof panMgr !== 'undefined' && panMgr) ? panMgr.scale : 1;
+        panel.style.left = Math.min(rect.left + x * scale + 8, window.innerWidth - 260) + 'px';
+        panel.style.top  = Math.max(Math.min(rect.top + y * scale, window.innerHeight - 60), 60) + 'px';
+        panel.style.display = 'flex';
+        panel.classList.remove('ctx-panel--open');
+        const gearBtn = document.getElementById('ctx-gear-btn');
+        if (gearBtn) gearBtn.classList.remove('is-open');
+        const popup = document.getElementById('ctx-popup');
+        if (popup) { popup.style.display = 'none'; popup.dataset.action = ''; }
+    }
+
     _hideContextPanel() {
         const panel = document.getElementById('object-context-panel');
         if (panel) panel.style.display = 'none';
@@ -4668,6 +4770,20 @@ class SelectManager {
             const groupSep = panel.querySelectorAll('.ctx-sep.ctx-stroke-only')[1];
             if (groupSep) groupSep.style.display = '';
         }
+
+        // Taglia/copia (sempre disponibili con una selezione) e incolla (solo se c'è qualcosa
+        // in memoria da incollare) — indispensabili su LIM/tablet senza tastiera (Ctrl+C/X/V
+        // funzionano già, ma un utente touch deve poterli fare anche dal menu).
+        ['cut', 'copy'].forEach(act => {
+            const btn = panel.querySelector(`[data-action="${act}"]`);
+            if (btn) btn.style.display = '';
+        });
+        if (this._itemsClipboard && this._itemsClipboard.length) {
+            const pasteBtn = panel.querySelector('[data-action="paste"]');
+            if (pasteBtn) pasteBtn.style.display = '';
+        }
+        const ccpSep = panel.querySelector('.ctx-cut-copy-sep');
+        if (ccpSep) ccpSep.style.display = '';
 
         const delBtn = panel.querySelector('[data-action="delete"]');
         if (delBtn) delBtn.style.display = '';
@@ -5197,6 +5313,12 @@ class SelectManager {
                 this._showItemsContextPanel();
             } else {
                 this._clearSelection();
+                // Tap su area vuota con qualcosa da incollare in memoria: mostra un mini-pannello
+                // con solo "Incolla" — su LIM/tablet senza tastiera è l'unico modo di incollare
+                // su una pagina dove non c'è ancora nulla da selezionare (es. dopo cambio pagina).
+                if (this._itemsClipboard && this._itemsClipboard.length) {
+                    this._showPasteOnlyPanel(this.startX, this.startY);
+                }
             }
             return true;
         }

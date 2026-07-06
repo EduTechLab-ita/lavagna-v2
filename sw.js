@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-043'; // v2-043 — Fix lentezza reale nel trascinare/ridimensionare selezioni su pagine con molti tratti/forme
+const CACHE_NAME = 'eduboard-v2-044'; // v2-044 — Taglia/copia/incolla per tratti e forme selezionati, anche tra pagine diverse
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-043 — Risolto un rallentamento importante nel trascinare o ridimensionare una selezione quando la pagina contiene molti tratti/forme: prima veniva ridisegnata tutta la pagina ad ogni movimento, ora si ridisegna solo ciò che stai effettivamente spostando. Dovrebbe essere di nuovo fluido anche sui PC meno potenti.';
+const CHANGELOG  = 'EduBoard V2-044 — Ora puoi selezionare uno o più tratti/forme (tap o lazo) e tagliarli/copiarli/incollarli, anche su una pagina diversa della stessa lezione. Pulsanti Taglia/Copia/Incolla aggiunti anche nel menu della selezione, per chi usa la LIM col dito senza tastiera.';
 
 const urlsToCache = [
   '.',
