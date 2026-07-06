@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-041'; // v2-041 — Unisci/dividi, colore e riempimento multi-selezione, icone menu selezione ridisegnate
+const CACHE_NAME = 'eduboard-v2-042'; // v2-042 — Fix blocco app (popup nativi) + fix lentezza trascinamento + intensità riempimento regolabile
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-041 — Nel menu della selezione: nuovi pulsanti Unisci/Dividi per legare più elementi e spostarli insieme, cambio colore e riempimento ora funzionano anche su più elementi selezionati insieme, riempimento disponibile anche per i tratti a mano libera (non solo per le forme), bordo e riempimento delle forme ora hanno colori indipendenti, selettore colore con tavolozza pronta + colore libero, e icone del menu ridisegnate per essere più chiare.';
+const CHANGELOG  = 'EduBoard V2-042 — Risolto un blocco dell\'app: i popup di conferma nativi del browser (cancella pagina, cancella tutto, nome progetto) sono stati sostituiti con popup interni all\'app, più affidabili su LIM e tablet. Risolto anche un rallentamento nel trascinare le selezioni quando ci sono molti tratti evidenziatore nella pagina. In più: l\'intensità del riempimento ora è regolabile, dal leggermente trasparente al colore pieno e coprente.';
 
 const urlsToCache = [
   '.',

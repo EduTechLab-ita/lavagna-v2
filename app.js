@@ -561,12 +561,20 @@ class BrushEngine {
 
     // Compositing dell'evidenziatore: applica la maschera opaca (costruita da marker()) sul
     // contesto di destinazione con l'alpha reale, in un colpo solo per tutto il tratto.
+    // 'region' (se passata) limita clear/composite al solo rettangolo del tratto invece che
+    // all'intero canvas (che su una lavagna grande può essere enorme) — indispensabile per
+    // le prestazioni quando ci sono molti tratti evidenziatore (es. durante _redrawAllStrokes,
+    // chiamato ad ogni frame mentre si trascina una selezione).
     static MARKER_ALPHA = 0.42;
-    compositeMarkerMask(destCtx, maskCanvas, alpha = BrushEngine.MARKER_ALPHA) {
+    compositeMarkerMask(destCtx, maskCanvas, alpha = BrushEngine.MARKER_ALPHA, region = null) {
         destCtx.save();
         destCtx.globalAlpha = alpha;
         destCtx.globalCompositeOperation = 'source-over';
-        destCtx.drawImage(maskCanvas, 0, 0);
+        if (region) {
+            destCtx.drawImage(maskCanvas, region.x, region.y, region.w, region.h, region.x, region.y, region.w, region.h);
+        } else {
+            destCtx.drawImage(maskCanvas, 0, 0);
+        }
         destCtx.restore();
     }
 
@@ -592,7 +600,7 @@ class BrushEngine {
     }
 
     // Forme geometriche — disegna su ctx passato, con colore bordo/riempimento indipendenti
-    shape(ctx, type, x0, y0, x1, y1, size, color, fill, fillColor) {
+    shape(ctx, type, x0, y0, x1, y1, size, color, fill, fillColor, fillAlpha = 0.15) {
         ctx.save();
         ctx.strokeStyle = color;
         ctx.fillStyle = fillColor || color;
@@ -611,7 +619,7 @@ class BrushEngine {
 
             case 'rect':
                 if (fill) {
-                    ctx.globalAlpha = 0.15;
+                    ctx.globalAlpha = fillAlpha;
                     ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
                     ctx.globalAlpha = 1;
                 }
@@ -625,7 +633,7 @@ class BrushEngine {
                 const cy = (y0 + y1) / 2;
                 ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
                 if (fill) {
-                    ctx.globalAlpha = 0.15;
+                    ctx.globalAlpha = fillAlpha;
                     ctx.fill();
                     ctx.globalAlpha = 1;
                 }
@@ -642,7 +650,7 @@ class BrushEngine {
                 const cy = (y0 + y1) / 2;
                 ctx.arc(cx, cy, r, 0, Math.PI * 2);
                 if (fill) {
-                    ctx.globalAlpha = 0.15;
+                    ctx.globalAlpha = fillAlpha;
                     ctx.fill();
                     ctx.globalAlpha = 1;
                 }
@@ -657,7 +665,7 @@ class BrushEngine {
                 ctx.lineTo(x0, y1);
                 ctx.closePath();
                 if (fill) {
-                    ctx.globalAlpha = 0.15;
+                    ctx.globalAlpha = fillAlpha;
                     ctx.fill();
                     ctx.globalAlpha = 1;
                 }
@@ -701,7 +709,7 @@ class BrushEngine {
                 }
                 ctx.closePath();
                 if (fill) {
-                    ctx.globalAlpha = 0.15;
+                    ctx.globalAlpha = fillAlpha;
                     ctx.fill();
                     ctx.globalAlpha = 1;
                 }
@@ -721,7 +729,7 @@ class BrushEngine {
                 ctx.lineTo(dcx, dcy + dh);
                 ctx.lineTo(dcx - dw, dcy);
                 ctx.closePath();
-                if (fill) { ctx.globalAlpha = 0.15; ctx.fill(); ctx.globalAlpha = 1; }
+                if (fill) { ctx.globalAlpha = fillAlpha; ctx.fill(); ctx.globalAlpha = 1; }
                 ctx.stroke();
                 break;
             }
@@ -731,7 +739,7 @@ class BrushEngine {
                 const pcy = (y0 + y1) / 2;
                 const pr = Math.min(Math.abs(x1 - x0), Math.abs(y1 - y0)) / 2;
                 this._polygon(ctx, pcx, pcy, pr, 5);
-                if (fill) { ctx.globalAlpha = 0.15; ctx.fill(); ctx.globalAlpha = 1; }
+                if (fill) { ctx.globalAlpha = fillAlpha; ctx.fill(); ctx.globalAlpha = 1; }
                 ctx.stroke();
                 break;
             }
@@ -741,7 +749,7 @@ class BrushEngine {
                 const hcy = (y0 + y1) / 2;
                 const hr = Math.min(Math.abs(x1 - x0), Math.abs(y1 - y0)) / 2;
                 this._polygon(ctx, hcx, hcy, hr, 6, Math.PI / 6);
-                if (fill) { ctx.globalAlpha = 0.15; ctx.fill(); ctx.globalAlpha = 1; }
+                if (fill) { ctx.globalAlpha = fillAlpha; ctx.fill(); ctx.globalAlpha = 1; }
                 ctx.stroke();
                 break;
             }
@@ -763,7 +771,7 @@ class BrushEngine {
                 ctx.lineTo(arBody, aryB);
                 ctx.lineTo(x0, aryB);
                 ctx.closePath();
-                if (fill) { ctx.globalAlpha = 0.15; ctx.fill(); ctx.globalAlpha = 1; }
+                if (fill) { ctx.globalAlpha = fillAlpha; ctx.fill(); ctx.globalAlpha = 1; }
                 ctx.stroke();
                 break;
             }
@@ -789,7 +797,7 @@ class BrushEngine {
                 ctx.lineTo(daBodyL, dayB);
                 ctx.lineTo(daBodyL, y1);
                 ctx.closePath();
-                if (fill) { ctx.globalAlpha = 0.15; ctx.fill(); ctx.globalAlpha = 1; }
+                if (fill) { ctx.globalAlpha = fillAlpha; ctx.fill(); ctx.globalAlpha = 1; }
                 ctx.stroke();
                 break;
             }
@@ -821,7 +829,7 @@ class BrushEngine {
                 ctx.lineTo(sx0, sy0 + sRadius);
                 ctx.arcTo(sx0, sy0, sx0 + sRadius, sy0, sRadius);
                 ctx.closePath();
-                if (fill) { ctx.globalAlpha = 0.15; ctx.fill(); ctx.globalAlpha = 1; }
+                if (fill) { ctx.globalAlpha = fillAlpha; ctx.fill(); ctx.globalAlpha = 1; }
                 ctx.stroke();
                 break;
             }
@@ -836,7 +844,7 @@ class BrushEngine {
                 ctx.bezierCurveTo(hx, hy + hr2, hx + hr2, hy + hr2 * 0.6, hx + hr2, hy);
                 ctx.bezierCurveTo(hx + hr2, hy - hr2 * 0.6, hx, hy - hr2 * 0.6, hx, hy + hr2 * 0.3);
                 ctx.closePath();
-                if (fill) { ctx.globalAlpha = 0.15; ctx.fill(); ctx.globalAlpha = 1; }
+                if (fill) { ctx.globalAlpha = fillAlpha; ctx.fill(); ctx.globalAlpha = 1; }
                 ctx.stroke();
                 break;
             }
@@ -1151,8 +1159,10 @@ class CanvasManager {
             this._eraseObjectsNear(x, y);
         } else {
             if (CONFIG.currentTool === 'marker') {
-                // Nuovo tratto: ripulisce la maschera opaca dal tratto precedente
+                // Nuovo tratto: ripulisce la maschera opaca dal tratto precedente e resetta
+                // il bbox live (si allarga man mano che il tratto viene disegnato, vedi _drawSegment)
                 this._markerMaskCtx.clearRect(0, 0, this._markerMaskCanvas.width, this._markerMaskCanvas.height);
+                this._markerLiveBBox = null;
             }
             this._drawSegment(x, y, x, y, x, y);
         }
@@ -1269,6 +1279,7 @@ class CanvasManager {
                 shapeType: CONFIG.currentShape,
                 color: CONFIG.currentColor,
                 fillColor: CONFIG.currentColor, // bordo e riempimento indipendenti da qui in poi (menu contestuale)
+                fillAlpha: 0.15, // intensità del riempimento, regolabile dal menu contestuale
                 size: CONFIG.currentSize,
                 fill: CONFIG.shapeFill,
                 x0: CONFIG.shapeStartX, y0: CONFIG.shapeStartY,
@@ -1281,8 +1292,9 @@ class CanvasManager {
 
         // Evidenziatore: applica la maschera opaca del tratto sul canvas reale UNA SOLA
         // VOLTA a fine tratto (con l'alpha vera), poi ripulisce l'anteprima sull'overlay.
+        // Limitato al bbox del tratto appena disegnato (vedi _drawSegment), non l'intero canvas.
         if (CONFIG.currentTool === 'marker') {
-            this.brush.compositeMarkerMask(this.ctx, this._markerMaskCanvas);
+            this.brush.compositeMarkerMask(this.ctx, this._markerMaskCanvas, undefined, this._markerLiveBBox);
             this.overlayCtx.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height);
         }
 
@@ -1315,10 +1327,15 @@ class CanvasManager {
         // Evidenziatore: il segmento va sulla maschera opaca (mai sul canvas reale durante
         // il tratto), l'anteprima live sull'overlay è la maschera ricompositata con l'alpha
         // vera — evita che i segmenti che si sovrappongono nello stesso tratto si scuriscano.
+        // Il clear+composite è limitato al bbox del tratto fin qui (si allarga ad ogni
+        // segmento): con un canvas grande, farlo sull'intero canvas ad ogni pointermove
+        // è molto più lento e rende il tratto a scatti.
         if (tool === 'marker') {
             this.brush.marker(this._markerMaskCtx, x0, y0, cpX, cpY, x1, y1, size, color);
-            this.overlayCtx.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height);
-            this.brush.compositeMarkerMask(this.overlayCtx, this._markerMaskCanvas);
+            const segBBox = this._strokeBBox([{x:x0,y:y0},{x:cpX,y:cpY},{x:x1,y:y1}], size);
+            this._markerLiveBBox = this._markerLiveBBox ? this._unionBBox(this._markerLiveBBox, segBBox) : segBBox;
+            this.overlayCtx.clearRect(this._markerLiveBBox.x, this._markerLiveBBox.y, this._markerLiveBBox.w, this._markerLiveBBox.h);
+            this.brush.compositeMarkerMask(this.overlayCtx, this._markerMaskCanvas, undefined, this._markerLiveBBox);
             return;
         }
 
@@ -1441,18 +1458,18 @@ class CanvasManager {
     // Ridisegna un singolo tratto/forma da dati vettoriali (usato da _redrawAllStrokes)
     _replayStroke(stroke) {
         if (stroke.tool === 'shape') {
-            this.brush.shape(this.ctx, stroke.shapeType, stroke.x0, stroke.y0, stroke.x1, stroke.y1, stroke.size, stroke.color, stroke.fill, stroke.fillColor || stroke.color);
+            this.brush.shape(this.ctx, stroke.shapeType, stroke.x0, stroke.y0, stroke.x1, stroke.y1, stroke.size, stroke.color, stroke.fill, stroke.fillColor || stroke.color, stroke.fillAlpha ?? 0.15);
             return;
         }
         const { tool, color, size, points } = stroke;
         if (!points || points.length === 0) return;
 
         // Riempimento tratto a mano libera: poligono chiuso (ultimo punto -> primo), disegnato
-        // sotto il tratto — stessa opacità (0.15) usata per il riempimento delle forme geometriche.
+        // sotto il tratto — opacità regolabile dal menu contestuale (default 0.15, come le forme).
         if (stroke.fill && points.length > 2) {
             this.ctx.save();
             this.ctx.fillStyle = stroke.fillColor || color;
-            this.ctx.globalAlpha = 0.15;
+            this.ctx.globalAlpha = stroke.fillAlpha ?? 0.15;
             this.ctx.beginPath();
             this.ctx.moveTo(points[0].x, points[0].y);
             for (let i = 1; i < points.length; i++) this.ctx.lineTo(points[i].x, points[i].y);
@@ -1462,9 +1479,13 @@ class CanvasManager {
         }
 
         // Evidenziatore: ricostruisce sulla maschera opaca e la compone una sola volta,
-        // così il replay ha lo stesso aspetto uniforme del tratto disegnato dal vivo.
+        // così il replay ha lo stesso aspetto uniforme del tratto disegnato dal vivo. Tutto
+        // limitato al bbox del tratto (non l'intero canvas, enorme): con molti tratti
+        // evidenziatore su una pagina, _redrawAllStrokes gira ad ogni frame durante un
+        // trascinamento — senza questo limite diventa lentissimo o a scatti.
         const isMarker = tool === 'marker';
-        if (isMarker) this._markerMaskCtx.clearRect(0, 0, this._markerMaskCanvas.width, this._markerMaskCanvas.height);
+        const markerBBox = isMarker ? this._strokeBBox(points, size) : null;
+        if (isMarker) this._markerMaskCtx.clearRect(markerBBox.x, markerBBox.y, markerBBox.w, markerBBox.h);
         const targetCtx = isMarker ? this._markerMaskCtx : this.ctx;
 
         // Dot iniziale + segmenti successivi (stessa logica di _drawSegment, con midpoint
@@ -1478,7 +1499,32 @@ class CanvasManager {
             smoothX = midX; smoothY = midY;
         }
 
-        if (isMarker) this.brush.compositeMarkerMask(this.ctx, this._markerMaskCanvas);
+        if (isMarker) this.brush.compositeMarkerMask(this.ctx, this._markerMaskCanvas, undefined, markerBBox);
+    }
+
+    // Bounding box (con margine per lo spessore) di un array di punti — usato per limitare
+    // le operazioni sulla maschera evidenziatore a una piccola area invece che al canvas intero.
+    _strokeBBox(points, size) {
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        for (const p of points) {
+            if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
+            if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;
+        }
+        const margin = size * 2.5 + 4;
+        const x = Math.max(0, Math.floor(minX - margin));
+        const y = Math.max(0, Math.floor(minY - margin));
+        const w = Math.min(this.canvas.width  - x, Math.ceil(maxX - minX + margin * 2));
+        const h = Math.min(this.canvas.height - y, Math.ceil(maxY - minY + margin * 2));
+        return { x, y, w, h };
+    }
+
+    // Unione di due bbox — usato per far crescere il bbox live dell'evidenziatore man mano
+    // che il tratto viene disegnato (vedi _drawSegment).
+    _unionBBox(a, b) {
+        const x = Math.min(a.x, b.x), y = Math.min(a.y, b.y);
+        const right  = Math.max(a.x + a.w, b.x + b.w);
+        const bottom = Math.max(a.y + a.h, b.y + b.h);
+        return { x, y, w: right - x, h: bottom - y };
     }
 
     // Come _drawSegment ma con parametri tool/color/size espliciti (per il replay)
@@ -1771,7 +1817,7 @@ class ToolbarManager {
         document.getElementById('btn-undo').addEventListener('click',  () => canvasMgr.undo());
         document.getElementById('btn-redo').addEventListener('click',  () => canvasMgr.redo());
         document.getElementById('btn-clear').addEventListener('click', () => {
-            if (confirm('Cancellare tutto il disegno?')) canvasMgr.clear();
+            showConfirmModal('Cancellare tutto il disegno?', () => canvasMgr.clear());
         });
     }
 
@@ -2508,7 +2554,24 @@ class TextManager {
 
 class ProjectManager {
     save() {
-        const name = prompt('Nome progetto:', CONFIG.projectName) || CONFIG.projectName;
+        const modal = document.getElementById('rename-modal');
+        const input = document.getElementById('rename-modal-input');
+        input.value = CONFIG.projectName;
+        modal.style.display = 'flex';
+        input.focus();
+        input.select();
+
+        const doSave = () => {
+            modal.style.display = 'none';
+            const name = input.value.trim() || CONFIG.projectName;
+            this._saveWithName(name);
+        };
+        document.getElementById('rename-modal-ok-btn').onclick = doSave;
+        document.getElementById('rename-modal-cancel-btn').onclick = () => { modal.style.display = 'none'; };
+        input.onkeydown = (e) => { if (e.key === 'Enter') doSave(); };
+    }
+
+    _saveWithName(name) {
         CONFIG.projectName = name;
         document.getElementById('project-name').textContent = name;
 
@@ -2670,6 +2733,23 @@ function toast(msg, type = 'info') {
     el.textContent = msg;
     container.appendChild(el);
     setTimeout(() => el.remove(), 3200);
+}
+
+// Conferma interna all'app — sostituisce window.confirm(), che su alcune LIM/tablet/webview
+// può bloccare l'intera pagina senza un modo visibile di chiuderlo. Nessun dialogo nativo
+// del sistema: solo DOM, quindi non può mai "impiccare" l'app.
+function showConfirmModal(message, onConfirm, title = 'Conferma') {
+    const modal = document.getElementById('confirm-modal');
+    document.getElementById('confirm-modal-title').textContent = title;
+    document.getElementById('confirm-modal-message').textContent = message;
+    modal.style.display = 'flex';
+    document.getElementById('confirm-modal-ok-btn').onclick = () => {
+        modal.style.display = 'none';
+        onConfirm();
+    };
+    document.getElementById('confirm-modal-cancel-btn').onclick = () => {
+        modal.style.display = 'none';
+    };
 }
 
 // =============================================================================
@@ -3986,6 +4066,21 @@ class SelectManager {
                     CONFIG.isDirty = true; window.autoSaveMgr?.onDirty();
                 });
                 popup.appendChild(toggle);
+                // Intensità: da leggera trasparenza fino a colore pieno e coprente
+                const alphaLabel = document.createElement('label');
+                alphaLabel.style.cssText = 'display:flex;align-items:center;gap:6px;margin-top:6px;font-size:0.8rem;color:var(--text-muted);';
+                const startAlpha = Math.round((first.fillAlpha ?? 0.15) * 100);
+                alphaLabel.innerHTML = `Intensità <input type="range" min="15" max="100" value="${startAlpha}" style="flex:1"> <span>${startAlpha}%</span>`;
+                const alphaInput = alphaLabel.querySelector('input');
+                const alphaSpan  = alphaLabel.querySelector('span');
+                alphaInput.addEventListener('input', () => {
+                    alphaSpan.textContent = alphaInput.value + '%';
+                    items.forEach(it => { it.ref.fillAlpha = parseInt(alphaInput.value) / 100; it.ref.fill = true; });
+                    checkbox.checked = true;
+                    if (typeof canvasMgr !== 'undefined') canvasMgr._redrawAllStrokes();
+                    CONFIG.isDirty = true; window.autoSaveMgr?.onDirty();
+                });
+                popup.appendChild(alphaLabel);
                 this._appendColorSwatchRow(popup, first.fillColor || first.color, (color) => {
                     if (typeof canvasMgr !== 'undefined') canvasMgr._saveUndo();
                     items.forEach(it => { it.ref.fillColor = color; it.ref.fill = true; });
@@ -5951,7 +6046,10 @@ class PageManager {
 
     deletePage(index) {
         if (this.pages.length <= 1) return;
-        if (!confirm(`Eliminare la pagina ${index + 1}?`)) return;
+        showConfirmModal(`Eliminare la pagina ${index + 1}?`, () => this._deletePageConfirmed(index));
+    }
+
+    _deletePageConfirmed(index) {
         this.pages.splice(index, 1);
         const newIndex = Math.min(this.currentIndex, this.pages.length - 1);
         this.currentIndex = newIndex;
