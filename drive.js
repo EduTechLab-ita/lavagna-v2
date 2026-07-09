@@ -229,6 +229,15 @@ class DriveManager {
             this.bgFolderId      = null;
             this._folderColorsId = null;
             this._prefsFileId    = null;
+            // Anche la libreria ha uno stato "già caricato" che altrimenti farebbe
+            // solo un background refresh soggetto a cooldown di 3 min, mostrando
+            // ancora l'albero del vecchio account.
+            if (window.libraryMgr) {
+                window.libraryMgr._treeLoaded    = false;
+                window.libraryMgr._lastBgRefresh = 0;
+                window.libraryMgr.currentFileId  = null;
+            }
+            try { localStorage.removeItem('eduboard-lib-cache'); } catch (_) {}
         }
 
         // 1. Connetti subito — la UI si aggiorna immediatamente (senza aspettare le cartelle)

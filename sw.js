@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-045'; // v2-045 — Fix cambio account EduConnect: cartelle Drive non si azzeravano al cambio utente
+const CACHE_NAME = 'eduboard-v2-046'; // v2-046 — Fix libreria non aggiornata al cambio account EduConnect
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-045 — Corretto un bug: cambiando account Google dal telefono (EduConnect) senza ricaricare la pagina, l\'app restava "connessa" ma non salvava più nulla sul Drive del nuovo account. Ora il cambio account viene rilevato correttamente e le cartelle si ricreano per il nuovo utente.';
+const CHANGELOG  = 'EduBoard V2-046 — Corretto un altro bug legato al cambio account: la libreria (lezioni e cartelle) restava quella dell\'account precedente invece di aggiornarsi con quella del nuovo account collegato da EduConnect.';
 
 const urlsToCache = [
   '.',
