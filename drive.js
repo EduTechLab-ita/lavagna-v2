@@ -206,9 +206,20 @@ class DriveManager {
         this.lessonsFolderId = null;
         this.bgFolderId      = null;
         this._folderColorsId = null;
+        this._prefsFileId    = null;
         sessionStorage.removeItem('eduboard_drive_session');
         localStorage.removeItem('eduboard_drive_session');
         localStorage.removeItem('eduboard_user_email');
+        // La prossima connessione (stesso account o un altro) deve ricaricare la libreria
+        // da zero — altrimenti _onExternalToken non può più rilevare un cambio account
+        // (userEmail è già vuoto qui) e la scorciatoia _treeLoaded mostrerebbe ancora
+        // l'albero di chi era connesso prima del disconnetti.
+        if (window.libraryMgr) {
+            window.libraryMgr._treeLoaded    = false;
+            window.libraryMgr._lastBgRefresh = 0;
+            window.libraryMgr.currentFileId  = null;
+        }
+        try { localStorage.removeItem('eduboard-lib-cache'); } catch (_) {}
     }
 
     // Chiamato da EduBoardConnect quando il telefono invia il token
@@ -2072,30 +2083,30 @@ async function _autoOpenLastLesson() {
         const raw = localStorage.getItem('eduboard_last_lesson');
         if (raw) {
             const last = JSON.parse(raw);
-            if (!last?.fileId) return;
-            // FIX QR 404: salta se il fileId appartiene a un account diverso
-            if (last.userEmail && driveMgr.userEmail && last.userEmail !== driveMgr.userEmail) return;
-            await libraryMgr.openLesson(last.fileId, last.fileName || 'ultima lezione', last.lastPage || 0);
-        } else {
-            // Nessuna lezione in localStorage (Chromebook fresco, seconda LIM, ecc.)
-            // → 1° tentativo: leggi _prefs.json da Drive (device-independent)
-            await driveMgr._ensureRootFolder();
-            const prefs = await driveMgr._loadPrefs();
-            if (prefs?.lastLesson?.fileId) {
-                const p = prefs.lastLesson;
-                if (!p.userEmail || !driveMgr.userEmail || p.userEmail === driveMgr.userEmail) {
-                    await libraryMgr.openLesson(p.fileId, p.fileName || 'ultima lezione', p.lastPage || 0);
-                    return;
-                }
+            // FIX QR 404: usa il fileId in localStorage solo se è dello stesso account connesso
+            if (last?.fileId && (!last.userEmail || !driveMgr.userEmail || last.userEmail === driveMgr.userEmail)) {
+                await libraryMgr.openLesson(last.fileId, last.fileName || 'ultima lezione', last.lastPage || 0);
+                return;
             }
-            // → 2° fallback: file più recente nella cartella Lezioni
-            await driveMgr._ensureLessonsFolder();
-            if (!driveMgr.lessonsFolderId) return;
-            const files = await driveMgr.listFiles(driveMgr.lessonsFolderId);
-            if (!files.length) return;
-            files.sort((a, b) => (b.modifiedTime || '').localeCompare(a.modifiedTime || ''));
-            await libraryMgr.openLesson(files[0].id, files[0].name || 'ultima lezione');
         }
+        // localStorage assente o di un account diverso da quello connesso (cambio account,
+        // Chromebook fresco, seconda LIM, ecc.) → 1° tentativo: _prefs.json da Drive (device-independent)
+        await driveMgr._ensureRootFolder();
+        const prefs = await driveMgr._loadPrefs();
+        if (prefs?.lastLesson?.fileId) {
+            const p = prefs.lastLesson;
+            if (!p.userEmail || !driveMgr.userEmail || p.userEmail === driveMgr.userEmail) {
+                await libraryMgr.openLesson(p.fileId, p.fileName || 'ultima lezione', p.lastPage || 0);
+                return;
+            }
+        }
+        // → 2° fallback: file più recente nella cartella Lezioni
+        await driveMgr._ensureLessonsFolder();
+        if (!driveMgr.lessonsFolderId) return;
+        const files = await driveMgr.listFiles(driveMgr.lessonsFolderId);
+        if (!files.length) return;
+        files.sort((a, b) => (b.modifiedTime || '').localeCompare(a.modifiedTime || ''));
+        await libraryMgr.openLesson(files[0].id, files[0].name || 'ultima lezione');
     } catch (_) {}
 }
 

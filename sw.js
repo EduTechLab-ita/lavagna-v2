@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-046'; // v2-046 — Fix libreria non aggiornata al cambio account EduConnect
+const CACHE_NAME = 'eduboard-v2-047'; // v2-047 — Fix reset libreria anche su Disconnetti esplicito + ultima lezione non caricata
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-046 — Corretto un altro bug legato al cambio account: la libreria (lezioni e cartelle) restava quella dell\'account precedente invece di aggiornarsi con quella del nuovo account collegato da EduConnect.';
+const CHANGELOG  = 'EduBoard V2-047 — Cambio account più robusto: la libreria si aggiorna anche quando ci si disconnette esplicitamente dalla LIM prima di ricollegarsi, e l\'ultima lezione del nuovo account viene di nuovo cercata correttamente (prima si fermava se in cache c\'era quella dell\'account precedente).';
 
 const urlsToCache = [
   '.',
