@@ -1506,15 +1506,15 @@
     if (e.target.id === 'help-modal') e.currentTarget.classList.add('hidden');
   });
 
-  // Richiedi assistenza (dal menu account) — apre Gmail con destinatario/oggetto precompilati,
-  // stesso pattern già usato nelle altre app EduTechLab (es. VitaeLab)
+  // Richiedi assistenza (dal menu account) — mailto: standard: su mobile apre l'app di posta
+  // predefinita con oggetto/corpo precompilati. Il link web di Gmail (view=cm) su mobile
+  // ignora il parametro e mostra solo la posta in arrivo, non la compose.
   document.getElementById('btn-menu-support').addEventListener('click', () => {
     toggleUserMenu(true);
     const email = localStorage.getItem(STORAGE_EMAIL) || '';
+    const subject = encodeURIComponent('EduBoard Connect - Assistenza');
     const body = encodeURIComponent(`Account: ${email}\nDescrivi qui il problema riscontrato:\n\n`);
-    // window.open('_blank') non è affidabile in PWA standalone su telefono (niente "nuova
-    // scheda" in quella modalità) — la navigazione diretta funziona sia lì che nel browser.
-    location.href = `https://mail.google.com/mail/?view=cm&to=info@edutechlab.it&subject=EduBoard%20Connect%20-%20Assistenza&body=${body}`;
+    location.href = `mailto:info@edutechlab.it?subject=${subject}&body=${body}`;
   });
 
   // Timer

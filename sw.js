@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-051'; // v2-051 — Fix "Richiedi assistenza" non apriva Gmail da telefono (PWA standalone)
+const CACHE_NAME = 'eduboard-v2-052'; // v2-052 — Fix "Richiedi assistenza": mailto: al posto del link web Gmail
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-051 — Corretto "Richiedi assistenza" su EduConnect: da telefono (app installata) non apriva Gmail precompilata come sul PC. Ora naviga direttamente invece di aprire una nuova scheda, funziona su entrambi.';
+const CHANGELOG  = 'EduBoard V2-052 — "Richiedi assistenza" ora usa mailto: standard: apre l\'app di posta predefinita del telefono con oggetto e testo già pronti, invece del sito Gmail che su mobile mostrava solo la posta in arrivo.';
 
 const urlsToCache = [
   '.',
