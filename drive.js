@@ -219,6 +219,18 @@ class DriveManager {
             console.error('[EduBoard] _onExternalToken: token mancante', { email, expiry });
             return;
         }
+        // 0. Cambio account rispetto alla sessione precedente: le cartelle Drive cache
+        // (rootFolderId/lessonsFolderId/bgFolderId) appartengono all'account vecchio e non
+        // sono valide per il nuovo → vanno azzerate, altrimenti _ensureRootFolder() le
+        // riusa senza cercare/creare quelle del nuovo account (silenziosamente non salva nulla).
+        if (this.userEmail && email && this.userEmail !== email) {
+            this.rootFolderId    = null;
+            this.lessonsFolderId = null;
+            this.bgFolderId      = null;
+            this._folderColorsId = null;
+            this._prefsFileId    = null;
+        }
+
         // 1. Connetti subito — la UI si aggiorna immediatamente (senza aspettare le cartelle)
         this.accessToken = token;
         this.userEmail   = email;

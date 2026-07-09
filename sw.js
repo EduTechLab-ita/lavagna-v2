@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-044'; // v2-044 — Taglia/copia/incolla per tratti e forme selezionati, anche tra pagine diverse
+const CACHE_NAME = 'eduboard-v2-045'; // v2-045 — Fix cambio account EduConnect: cartelle Drive non si azzeravano al cambio utente
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-044 — Ora puoi selezionare uno o più tratti/forme (tap o lazo) e tagliarli/copiarli/incollarli, anche su una pagina diversa della stessa lezione. Pulsanti Taglia/Copia/Incolla aggiunti anche nel menu della selezione, per chi usa la LIM col dito senza tastiera.';
+const CHANGELOG  = 'EduBoard V2-045 — Corretto un bug: cambiando account Google dal telefono (EduConnect) senza ricaricare la pagina, l\'app restava "connessa" ma non salvava più nulla sul Drive del nuovo account. Ora il cambio account viene rilevato correttamente e le cartelle si ricreano per il nuovo utente.';
 
 const urlsToCache = [
   '.',
