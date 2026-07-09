@@ -1165,7 +1165,7 @@ class LibraryManager {
                 }
                 p = p.parentElement;
             }
-            setTimeout(() => item.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 150);
+            setTimeout(() => item.scrollIntoView({ block: 'center', behavior: 'smooth' }), 150);
             found = true;
         });
         return found;

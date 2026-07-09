@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-048'; // v2-048 — EduConnect: menu account a tendina (foto profilo in alto a destra)
+const CACHE_NAME = 'eduboard-v2-049'; // v2-049 — Lezione evidenziata in libreria centrata invece che al bordo
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-048 — Su EduConnect (telefono), la fotografia del profilo si sposta in alto a destra e apre un menu con "Cambia account" ed "Esci account", per liberare spazio e rendere il cambio account più rapido.';
+const CHANGELOG  = 'EduBoard V2-049 — La lezione aperta, evidenziata nella libreria, ora scorre al centro del pannello invece che restare vicino al bordo: si individua a colpo d\'occhio.';
 
 const urlsToCache = [
   '.',
