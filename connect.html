@@ -325,15 +325,21 @@
     .user-header {
       position: fixed; top: 0; left: 0; right: 0;
       height: 52px; z-index: 200;
-      display: flex; align-items: center; gap: 10px;
+      display: flex; align-items: center; justify-content: flex-end;
       padding: 0 16px;
       background: #ffffff; border-bottom: 1px solid var(--border);
       box-shadow: 0 1px 6px rgba(15,23,42,0.06);
     }
+    .user-avatar-btn {
+      background: none; border: none; padding: 0; cursor: pointer;
+      border-radius: 50%; line-height: 0;
+      transition: box-shadow 0.15s;
+    }
+    .user-avatar-btn:active { transform: scale(0.94); }
     .user-avatar {
       width: 34px; height: 34px; border-radius: 50%;
       object-fit: cover; border: 2px solid var(--accent);
-      flex-shrink: 0;
+      flex-shrink: 0; display: block;
     }
     .user-avatar-init {
       width: 34px; height: 34px; border-radius: 50%;
@@ -341,20 +347,38 @@
       display: flex; align-items: center; justify-content: center;
       font-size: 0.85rem; font-weight: 700; flex-shrink: 0;
     }
-    .user-header-name {
-      flex: 1; font-size: 0.82rem; font-weight: 600; color: var(--text);
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    }
-    .user-signout-btn {
-      background: none; border: 1px solid var(--border);
-      color: var(--text-muted); border-radius: 8px;
-      padding: 5px 10px; font-size: 0.72rem;
-      font-family: inherit; cursor: pointer; white-space: nowrap;
-      transition: background 0.15s, color 0.15s;
-    }
-    .user-signout-btn:hover { background: #fee2e2; color: #dc2626; border-color: #fca5a5; }
     /* Padding top body quando l'header è visibile */
     body.has-user-header { padding-top: 52px; }
+
+    /* ── Menu account a tendina (si apre dal tap sulla fotografia) ── */
+    .user-menu {
+      position: fixed; top: 58px; right: 12px; z-index: 210;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 14px; width: 240px; overflow: hidden;
+      box-shadow: 0 8px 28px rgba(15,23,42,0.16);
+      animation: card-in 0.15s ease forwards;
+    }
+    .user-menu-header {
+      display: flex; align-items: center; gap: 10px;
+      padding: 14px; border-bottom: 1px solid var(--border);
+    }
+    .user-menu-header .user-avatar,
+    .user-menu-header .user-avatar-init {
+      width: 40px; height: 40px; font-size: 1rem;
+    }
+    .user-menu-identity { min-width: 0; text-align: left; }
+    .user-menu-name  { font-size: 0.86rem; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .user-menu-email { font-size: 0.72rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .user-menu-item {
+      display: flex; align-items: center; gap: 10px; width: 100%;
+      background: none; border: none; text-align: left;
+      padding: 12px 14px; font-size: 0.85rem; font-family: inherit;
+      color: var(--text); cursor: pointer; transition: background 0.12s;
+    }
+    .user-menu-item:hover { background: #f1f5f9; }
+    .user-menu-item.danger { color: #dc2626; }
+    .user-menu-item.danger:hover { background: #fee2e2; }
+    .user-menu-icon { font-size: 1rem; width: 20px; text-align: center; flex-shrink: 0; }
 
     /* ── Connected header ── */
     .connected-header {
@@ -374,9 +398,22 @@
 
   <!-- Header account utente (visibile solo quando autenticato) -->
   <div id="user-header" class="user-header" style="display:none">
-    <div id="user-avatar-wrap"></div>
-    <span class="user-header-name" id="user-header-name"></span>
-    <button class="user-signout-btn" id="btn-signout">Esci account</button>
+    <button class="user-avatar-btn" id="user-avatar-btn" aria-label="Menu account">
+      <div id="user-avatar-wrap"></div>
+    </button>
+  </div>
+
+  <!-- Menu a tendina account (si apre dal tap sulla fotografia) -->
+  <div id="user-menu" class="user-menu hidden">
+    <div class="user-menu-header">
+      <div id="user-menu-avatar-wrap"></div>
+      <div class="user-menu-identity">
+        <div class="user-menu-name" id="user-menu-name"></div>
+        <div class="user-menu-email" id="user-menu-email"></div>
+      </div>
+    </div>
+    <button class="user-menu-item" id="btn-menu-change-account"><span class="user-menu-icon">🔄</span> Cambia account</button>
+    <button class="user-menu-item danger" id="btn-signout"><span class="user-menu-icon">🚪</span> Esci account</button>
   </div>
 
   <!-- Logo (visibile nelle schermate normali) -->
@@ -727,6 +764,7 @@
       uh.style.display = show ? 'flex' : 'none';
       document.body.classList.toggle('has-user-header', show);
       if (show) updateUserHeader();
+      else toggleUserMenu(true);
     }
   }
 
@@ -804,19 +842,42 @@
     savedEmail = null;
   }
 
-  // Aggiorna l'header con avatar + nome dell'utente
+  // Aggiorna l'header (avatar) e il menu a tendina (avatar + nome + email)
   function updateUserHeader() {
-    const wrap    = document.getElementById('user-avatar-wrap');
-    const nameEl  = document.getElementById('user-header-name');
+    const wrap     = document.getElementById('user-avatar-wrap');
+    const menuWrap = document.getElementById('user-menu-avatar-wrap');
+    const nameEl   = document.getElementById('user-menu-name');
+    const emailEl  = document.getElementById('user-menu-email');
     if (!wrap || !nameEl) return;
     const picture = localStorage.getItem(STORAGE_PICTURE) || '';
-    const name    = localStorage.getItem(STORAGE_NAME) || localStorage.getItem(STORAGE_EMAIL) || '';
+    const email   = localStorage.getItem(STORAGE_EMAIL) || '';
+    const name    = localStorage.getItem(STORAGE_NAME) || email;
     const initials = (name.charAt(0) || '?').toUpperCase();
-    wrap.innerHTML = picture
+    const avatarHtml = picture
       ? `<img class="user-avatar" src="${picture}" alt="${initials}" onerror="this.parentNode.innerHTML='<div class=user-avatar-init>${initials}</div>'">`
       : `<div class="user-avatar-init">${initials}</div>`;
+    wrap.innerHTML = avatarHtml;
+    if (menuWrap) menuWrap.innerHTML = avatarHtml;
     nameEl.textContent = name;
+    if (emailEl) emailEl.textContent = email;
   }
+
+  // Apertura/chiusura menu account a tendina
+  function toggleUserMenu(forceClose) {
+    const menu = document.getElementById('user-menu');
+    if (!menu) return;
+    const willOpen = forceClose === true ? false : menu.classList.contains('hidden');
+    menu.classList.toggle('hidden', !willOpen);
+  }
+  document.getElementById('user-avatar-btn')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleUserMenu();
+  });
+  document.addEventListener('click', (e) => {
+    const menu = document.getElementById('user-menu');
+    if (!menu || menu.classList.contains('hidden')) return;
+    if (!menu.contains(e.target)) toggleUserMenu(true);
+  });
 
   // ══════════════════════════════════════════════════════════════
   // FIREBASE AUTH (anonimo) — richiesto dalle regole sicure del DB.
@@ -1361,6 +1422,15 @@
 
   // Cambia account — azzera tutto e rifai il login
   document.getElementById('btn-change-account').addEventListener('click', () => {
+    clearAuthData();
+    showScreen('screen-login');
+    waitForGIS(null, () => {});
+  });
+
+  // "Cambia account" dal menu a tendina (header, quando già connessi): stessa logica,
+  // mantiene limId così non serve riscansionare il QR per la nuova connessione.
+  document.getElementById('btn-menu-change-account').addEventListener('click', () => {
+    toggleUserMenu(true);
     clearAuthData();
     showScreen('screen-login');
     waitForGIS(null, () => {});
