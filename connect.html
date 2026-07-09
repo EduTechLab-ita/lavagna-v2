@@ -1512,7 +1512,9 @@
     toggleUserMenu(true);
     const email = localStorage.getItem(STORAGE_EMAIL) || '';
     const body = encodeURIComponent(`Account: ${email}\nDescrivi qui il problema riscontrato:\n\n`);
-    window.open(`https://mail.google.com/mail/?view=cm&to=info@edutechlab.it&subject=EduBoard%20Connect%20-%20Assistenza&body=${body}`, '_blank');
+    // window.open('_blank') non è affidabile in PWA standalone su telefono (niente "nuova
+    // scheda" in quella modalità) — la navigazione diretta funziona sia lì che nel browser.
+    location.href = `https://mail.google.com/mail/?view=cm&to=info@edutechlab.it&subject=EduBoard%20Connect%20-%20Assistenza&body=${body}`;
   });
 
   // Timer
