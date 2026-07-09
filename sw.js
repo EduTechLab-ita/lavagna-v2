@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-049'; // v2-049 — Lezione evidenziata in libreria centrata invece che al bordo
+const CACHE_NAME = 'eduboard-v2-050'; // v2-050 — EduConnect: fix pulsanti sotto la fascia camera su iPhone + Istruzioni/Assistenza nel menu
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-049 — La lezione aperta, evidenziata nella libreria, ora scorre al centro del pannello invece che restare vicino al bordo: si individua a colpo d\'occhio.';
+const CHANGELOG  = 'EduBoard V2-050 — Su EduConnect: corretto un bug su iPhone con notch/Dynamic Island dove i pulsanti in alto finivano sotto la fascia della fotocamera e non rispondevano al tocco. Aggiunte anche due nuove voci nel menu account: Istruzioni e Richiedi assistenza.';
 
 const urlsToCache = [
   '.',

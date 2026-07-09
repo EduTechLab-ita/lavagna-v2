@@ -321,12 +321,17 @@
     }
 
 
-    /* ── User account header (fisso in alto, visibile quando autenticato) ── */
+    /* ── User account header (fisso in alto, visibile quando autenticato) ──
+       min-height + padding-top:env(safe-area-inset-top) invece di height fissa:
+       su iPhone con notch/Dynamic Island, il bottone finiva sotto la fascia della
+       fotocamera e il touch non lo intercettava (Android senza notch: inset = 0,
+       nessun cambiamento). Richiede viewport-fit=cover (già presente nel meta viewport). */
     .user-header {
       position: fixed; top: 0; left: 0; right: 0;
-      height: 52px; z-index: 200;
+      min-height: 52px; z-index: 200;
+      padding-top: env(safe-area-inset-top, 0px);
       display: flex; align-items: center; justify-content: flex-end;
-      padding: 0 16px;
+      padding-left: 16px; padding-right: 16px;
       background: #ffffff; border-bottom: 1px solid var(--border);
       box-shadow: 0 1px 6px rgba(15,23,42,0.06);
     }
@@ -347,12 +352,12 @@
       display: flex; align-items: center; justify-content: center;
       font-size: 0.85rem; font-weight: 700; flex-shrink: 0;
     }
-    /* Padding top body quando l'header è visibile */
-    body.has-user-header { padding-top: 52px; }
+    /* Padding top body quando l'header è visibile (52px header + eventuale notch/status bar) */
+    body.has-user-header { padding-top: calc(52px + env(safe-area-inset-top, 0px)); }
 
     /* ── Menu account a tendina (si apre dal tap sulla fotografia) ── */
     .user-menu {
-      position: fixed; top: 58px; right: 12px; z-index: 210;
+      position: fixed; top: calc(58px + env(safe-area-inset-top, 0px)); right: 12px; z-index: 210;
       background: var(--card); border: 1px solid var(--border);
       border-radius: 14px; width: 240px; overflow: hidden;
       box-shadow: 0 8px 28px rgba(15,23,42,0.16);
@@ -379,6 +384,33 @@
     .user-menu-item.danger { color: #dc2626; }
     .user-menu-item.danger:hover { background: #fee2e2; }
     .user-menu-icon { font-size: 1rem; width: 20px; text-align: center; flex-shrink: 0; }
+    .user-menu-sep { height: 1px; background: var(--border); margin: 4px 0; }
+
+    /* ── Modale istruzioni ── */
+    .help-modal {
+      position: fixed; inset: 0; z-index: 300;
+      background: rgba(15,23,42,0.5); backdrop-filter: blur(4px);
+      display: flex; align-items: center; justify-content: center; padding: 20px;
+    }
+    .help-modal-card {
+      background: var(--card); border-radius: 18px; width: 100%; max-width: 360px;
+      max-height: 80vh; overflow-y: auto; box-shadow: 0 16px 48px rgba(15,23,42,0.2);
+      border: 1px solid var(--border); text-align: left;
+    }
+    .help-modal-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 18px; border-bottom: 1px solid var(--border);
+      font-weight: 700; font-size: 0.95rem; color: var(--text);
+      position: sticky; top: 0; background: var(--card);
+    }
+    .help-modal-close {
+      background: none; border: none; font-size: 1.1rem; color: var(--text-muted);
+      cursor: pointer; padding: 4px 8px;
+    }
+    .help-modal-body { padding: 6px 18px 18px; }
+    .help-modal-body p { font-size: 0.85rem; color: var(--text); line-height: 1.5; margin: 14px 0 0; }
+    .help-modal-body p strong { display: block; margin-bottom: 2px; }
+    .help-modal-body p:first-child { margin-top: 14px; }
 
     /* ── Connected header ── */
     .connected-header {
@@ -414,6 +446,25 @@
     </div>
     <button class="user-menu-item" id="btn-menu-change-account"><span class="user-menu-icon">🔄</span> Cambia account</button>
     <button class="user-menu-item danger" id="btn-signout"><span class="user-menu-icon">🚪</span> Esci account</button>
+    <div class="user-menu-sep"></div>
+    <button class="user-menu-item" id="btn-menu-help"><span class="user-menu-icon">❓</span> Istruzioni</button>
+    <button class="user-menu-item" id="btn-menu-support"><span class="user-menu-icon">✉️</span> Richiedi assistenza</button>
+  </div>
+
+  <!-- Modale istruzioni (aperta dal menu account) -->
+  <div id="help-modal" class="help-modal hidden">
+    <div class="help-modal-card">
+      <div class="help-modal-header">
+        <span>❓ Come si usa EduConnect</span>
+        <button class="help-modal-close" id="btn-help-close">✕</button>
+      </div>
+      <div class="help-modal-body">
+        <p><strong>📷 Invia foto</strong>Scatta una foto con il telefono e mandala direttamente sulla lavagna.</p>
+        <p><strong>⏱️ Timer</strong>Avvia un conto alla rovescia visibile sulla LIM, utile per le attività a tempo.</p>
+        <p><strong>🔄 Cambia account</strong>Tocca la tua foto profilo in alto a destra per passare a un altro account Google, senza dover riscansionare il QR.</p>
+        <p><strong>📱 Cambia LIM</strong>Usa il pulsante con l'icona a quadretti per collegarti a una lavagna diversa.</p>
+      </div>
+    </div>
   </div>
 
   <!-- Logo (visibile nelle schermate normali) -->
@@ -1441,6 +1492,27 @@
     clearAuthData();
     updateUserHeader();
     disconnect();
+  });
+
+  // Istruzioni (dal menu account)
+  document.getElementById('btn-menu-help').addEventListener('click', () => {
+    toggleUserMenu(true);
+    document.getElementById('help-modal').classList.remove('hidden');
+  });
+  document.getElementById('btn-help-close').addEventListener('click', () => {
+    document.getElementById('help-modal').classList.add('hidden');
+  });
+  document.getElementById('help-modal').addEventListener('click', (e) => {
+    if (e.target.id === 'help-modal') e.currentTarget.classList.add('hidden');
+  });
+
+  // Richiedi assistenza (dal menu account) — apre Gmail con destinatario/oggetto precompilati,
+  // stesso pattern già usato nelle altre app EduTechLab (es. VitaeLab)
+  document.getElementById('btn-menu-support').addEventListener('click', () => {
+    toggleUserMenu(true);
+    const email = localStorage.getItem(STORAGE_EMAIL) || '';
+    const body = encodeURIComponent(`Account: ${email}\nDescrivi qui il problema riscontrato:\n\n`);
+    window.open(`https://mail.google.com/mail/?view=cm&to=info@edutechlab.it&subject=EduBoard%20Connect%20-%20Assistenza&body=${body}`, '_blank');
   });
 
   // Timer
