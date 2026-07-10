@@ -1952,6 +1952,30 @@ body.fullscreen-mode #canvas-area {
     top: 0 !important;
 }
 
+/* Nome lezione discreto in fullscreen (l'header con project-name è nascosto) */
+#fullscreen-lesson-name {
+    display: none;
+    position: fixed;
+    top: 10px;
+    left: 14px;
+    z-index: 190;
+    font-size: 12px;
+    font-weight: 500;
+    color: rgba(15, 23, 42, 0.38);
+    background: rgba(255, 255, 255, 0.55);
+    padding: 3px 10px;
+    border-radius: 20px;
+    pointer-events: none;
+    user-select: none;
+    max-width: 40vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+body.fullscreen-mode #fullscreen-lesson-name {
+    display: block;
+}
+
 /* ===== MODAL — Salva prima di continuare ===== */
 #dirty-modal {
     position: fixed;

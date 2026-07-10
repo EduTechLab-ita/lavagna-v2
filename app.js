@@ -2927,6 +2927,16 @@ function setupFullscreen() {
     const icon     = document.getElementById('fullscreen-icon');
     const label    = document.getElementById('fullscreen-label');
 
+    // Nome lezione discreto in fullscreen: rispecchia sempre #project-name (badge
+    // nell'header, nascosto in fullscreen), incluso il rename inline con contentEditable.
+    const fsName   = document.getElementById('fullscreen-lesson-name');
+    const nameBadge = document.getElementById('project-name');
+    if (fsName && nameBadge) {
+        fsName.textContent = nameBadge.textContent;
+        new MutationObserver(() => { fsName.textContent = nameBadge.textContent; })
+            .observe(nameBadge, { characterData: true, childList: true, subtree: true });
+    }
+
     function enterFs() {
         const el = document.documentElement;
         if (el.requestFullscreen)            el.requestFullscreen();
@@ -6166,6 +6176,21 @@ class PageManager {
         }
     }
 
+    // Aggiorna la pagina corrente in localStorage per il ripristino auto-open — va richiamato
+    // da OGNI punto che cambia currentIndex (goToPage, addPage, delete pagina, ecc.), altrimenti
+    // al riavvio l'app riapre una pagina non aggiornata (bug segnalato da Fabio 10/07/2026: dopo
+    // aggiungere una pagina e disegnarci sopra, il riavvio tornava sempre alla prima pagina).
+    _syncLastPage() {
+        try {
+            const raw = localStorage.getItem('eduboard_last_lesson');
+            if (raw) {
+                const d = JSON.parse(raw);
+                d.lastPage = this.currentIndex;
+                localStorage.setItem('eduboard_last_lesson', JSON.stringify(d));
+            }
+        } catch (_) {}
+    }
+
     goToPage(index) {
         if (index < 0 || index >= this.pages.length) return;
         // Non sovrascrivere la pagina corrente se è ancora in fase di ripristino
@@ -6176,15 +6201,7 @@ class PageManager {
         this.currentIndex = index;
         this._restorePage(this.pages[this.currentIndex]);
         this._updatePageBar();
-        // Aggiorna la pagina corrente in localStorage per il ripristino auto-open
-        try {
-            const raw = localStorage.getItem('eduboard_last_lesson');
-            if (raw) {
-                const d = JSON.parse(raw);
-                d.lastPage = this.currentIndex;
-                localStorage.setItem('eduboard_last_lesson', JSON.stringify(d));
-            }
-        } catch (_) {}
+        this._syncLastPage();
     }
 
     addPage() {
@@ -6204,6 +6221,7 @@ class PageManager {
         this.currentIndex = this.pages.length - 1;
         this._restorePage(this.pages[this.currentIndex]);
         this._updatePageBar();
+        this._syncLastPage();
         CONFIG.isDirty = true;
         window.autoSaveMgr?.onDirty();
     }
@@ -6219,6 +6237,7 @@ class PageManager {
         this.currentIndex = newIndex;
         this._restorePage(this.pages[this.currentIndex]);
         this._updatePageBar();
+        this._syncLastPage();
         CONFIG.isDirty = true;
         window.autoSaveMgr?.onDirty();
     }

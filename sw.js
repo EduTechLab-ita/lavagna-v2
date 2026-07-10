@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-053'; // v2-053 — Fix lazo: righello/goniometro ora selezionabili
+const CACHE_NAME = 'eduboard-v2-054'; // v2-054 — Fix ultima pagina + nome lezione in fullscreen
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-053 — Corretto il lazo: i tratti disegnati con righello e goniometro ora vengono riconosciuti e possono essere selezionati, spostati o cancellati come tutti gli altri.';
+const CHANGELOG  = 'EduBoard V2-054 — Riaprendo l\'app ora torna sempre all\'ultima pagina su cui stavi lavorando (anche dopo aver aggiunto o eliminato pagine). In modalità schermo intero compare anche il nome della lezione, discreto in alto a sinistra.';
 
 const urlsToCache = [
   '.',
