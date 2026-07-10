@@ -1356,6 +1356,7 @@ class GeometryManager {
                 mgr._saveUndo();
                 CONFIG.lastX = x;
                 CONFIG.lastY = y;
+                mgr._currentPoints = [{ x, y }]; // primo punto per tracking vettoriale (lazo/selezione)
                 // _drawSegment(x0,y0, cpX,cpY, x1,y1) — 6 argomenti richiesti
                 mgr._drawSegment(x, y, x, y, x, y);
                 return;
@@ -1370,6 +1371,7 @@ class GeometryManager {
                 CONFIG.lastX = snap.x;
                 CONFIG.lastY = snap.y;
                 geo._protLastAngle = snap.angle;
+                mgr._currentPoints = [{ x: snap.x, y: snap.y }]; // primo punto per tracking vettoriale (lazo/selezione)
                 mgr._drawSegment(snap.x, snap.y, snap.x, snap.y, snap.x, snap.y);
                 return;
             }
@@ -1391,6 +1393,7 @@ class GeometryManager {
                 mgr._drawSegment(CONFIG.lastX, CONFIG.lastY, CONFIG.lastX, CONFIG.lastY, x, y);
                 CONFIG.lastX = x;
                 CONFIG.lastY = y;
+                mgr._currentPoints.push({ x, y }); // raccolta punti per tracking vettoriale (lazo/selezione)
                 return;
             }
             if (geo.protractor.isVisible() && CONFIG.isDrawing &&
@@ -1402,6 +1405,7 @@ class GeometryManager {
                 CONFIG.lastX = snap.x;
                 CONFIG.lastY = snap.y;
                 geo._protLastAngle = snap.angle;
+                mgr._currentPoints.push({ x: snap.x, y: snap.y }); // raccolta punti per tracking vettoriale (lazo/selezione)
                 return;
             }
             origMove(e);
@@ -1416,15 +1420,38 @@ class GeometryManager {
             if (geo.ruler.isVisible() && CONFIG.isDrawing &&
                 ['pen', 'pencil', 'pastel', 'marker'].includes(CONFIG.currentTool)) {
                 CONFIG.isDrawing = false;
+                geo._finalizeGeoStroke(mgr);
                 return;
             }
             if (geo.protractor.isVisible() && CONFIG.isDrawing &&
                 ['pen', 'pencil', 'pastel', 'marker'].includes(CONFIG.currentTool)) {
                 CONFIG.isDrawing = false;
+                geo._finalizeGeoStroke(mgr);
                 return;
             }
             origEnd(e);
         };
+    }
+
+    // Registra il tratto disegnato con righello/goniometro come vettore in _pageStrokes,
+    // esattamente come fa CanvasManager._onEnd per pen/pencil/pastel/marker — senza
+    // questo, il tratto resta solo pixel sul canvas e lazo/tap-selezione non lo trovano
+    // (bug segnalato da Fabio 09/07/2026: "il lazo non riconosce righello/compasso").
+    _finalizeGeoStroke(mgr) {
+        const lastIdx = mgr._vectorStrokes.length - 1;
+        if (lastIdx >= 0 && mgr._currentPoints.length > 0) {
+            const strokeEntry = {
+                tool:   CONFIG.currentTool,
+                color:  CONFIG.currentColor,
+                size:   CONFIG.currentSize,
+                points: [...mgr._currentPoints],
+            };
+            mgr._vectorStrokes[lastIdx] = strokeEntry;
+            mgr._pageStrokes.push({ ...strokeEntry });
+        }
+        mgr._currentPoints = [];
+        CONFIG.isDirty = true;
+        window.autoSaveMgr?.onDirty();
     }
 
     // ------------------------------------------------------------------

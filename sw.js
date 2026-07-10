@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-052'; // v2-052 — Fix "Richiedi assistenza": mailto: al posto del link web Gmail
+const CACHE_NAME = 'eduboard-v2-053'; // v2-053 — Fix lazo: righello/goniometro ora selezionabili
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-052 — "Richiedi assistenza" ora usa mailto: standard: apre l\'app di posta predefinita del telefono con oggetto e testo già pronti, invece del sito Gmail che su mobile mostrava solo la posta in arrivo.';
+const CHANGELOG  = 'EduBoard V2-053 — Corretto il lazo: i tratti disegnati con righello e goniometro ora vengono riconosciuti e possono essere selezionati, spostati o cancellati come tutti gli altri.';
 
 const urlsToCache = [
   '.',
