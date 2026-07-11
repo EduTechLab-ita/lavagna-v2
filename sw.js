@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-056'; // v2-056 — Fix timer sfasato di qualche secondo (clock skew telefono/LIM)
+const CACHE_NAME = 'eduboard-v2-057'; // v2-057 — Nuovi suoni notifica foto e allarme timer (campanella invece del beep)
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-056 — Corretto un piccolo sfasamento nel timer avviato da telefono.';
+const CHANGELOG  = 'EduBoard V2-057 — Nuovi suoni per la notifica foto e per l\'allarme del timer, più adatti alla classe.';
 
 const urlsToCache = [
   '.',

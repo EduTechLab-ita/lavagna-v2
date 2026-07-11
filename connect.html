@@ -1179,21 +1179,34 @@
     if (cls === 'ok') setTimeout(() => { el.textContent = ''; el.className = 'timer-status'; }, 3000);
   }
 
-  function _timerBeep(freq, duration) {
+  // Onda triangolare (più calda del sine) con attacco morbido + decadimento,
+  // invece del beep a scatto secco.
+  function _timerBeep(freq, duration, volume) {
     try {
       if (!_timerAudioCtx) {
         _timerAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
       }
+      const now  = _timerAudioCtx.currentTime;
       const osc  = _timerAudioCtx.createOscillator();
       const gain = _timerAudioCtx.createGain();
+      osc.type = 'triangle';
       osc.connect(gain);
       gain.connect(_timerAudioCtx.destination);
       osc.frequency.value = freq || 880;
-      gain.gain.setValueAtTime(0.5, _timerAudioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, _timerAudioCtx.currentTime + (duration || 0.5));
-      osc.start(_timerAudioCtx.currentTime);
-      osc.stop(_timerAudioCtx.currentTime + (duration || 0.5));
+      const peak = volume || 0.5;
+      const d = duration || 0.5;
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(peak, now + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + d);
+      osc.start(now);
+      osc.stop(now + d + 0.02);
     } catch(_) {}
+  }
+
+  // Come _timerBeep ma con un'armonica (quinta giusta) sopra: timbro "campana".
+  function _timerChime(freq, duration, volume) {
+    _timerBeep(freq, duration, volume);
+    _timerBeep(freq * 1.5, duration * 0.8, (volume || 0.5) * 0.4);
   }
 
   function _stopTimerAlarm() {
@@ -1215,14 +1228,15 @@
     // Vibrazione sul telefono
     if (navigator.vibrate) navigator.vibrate([500, 200, 500, 200, 500]);
 
-    // Avvia beep audio in loop sul telefono
+    // Avvia l'allarme in loop sul telefono — stesso accordo campana della LIM
     _stopTimerAlarm();
-    _timerBeep(880, 0.5);
-    setTimeout(() => _timerBeep(1100, 0.4), 350);
-    _timerAlarmInt = setInterval(() => {
-      _timerBeep(880, 0.5);
-      setTimeout(() => _timerBeep(1100, 0.4), 350);
-    }, 2000);
+    const ring = () => {
+      _timerChime(783.99, 0.5, 0.5);               // Sol5
+      setTimeout(() => _timerChime(1046.5, 0.5, 0.5), 180); // Do6
+      setTimeout(() => _timerChime(1318.5, 0.6, 0.5), 360); // Mi6
+    };
+    ring();
+    _timerAlarmInt = setInterval(ring, 2500);
 
     // Cambia UI: nascondi inputs, mostra pannello scaduto
     document.querySelector('.timer-inputs').style.display = 'none';

@@ -2777,10 +2777,10 @@ class EduBoardConnect {
         badge.style.display = count > 0 ? 'flex' : 'none';
         if (count > 0) bell.classList.add('bell-has-photos');
         else           bell.classList.remove('bell-has-photos');
-        // Beep di notifica quando arrivano foto nuove
+        // Ding di notifica quando arrivano foto nuove
         if (this._lastPhotoCount === undefined) this._lastPhotoCount = 0;
         const isNew = count > this._lastPhotoCount;
-        if (isNew) this._beep(523, 0.3, 0.4);
+        if (isNew) this._chime(1046.5, 0.5, 0.35); // Do6, un ding pulito
         this._lastPhotoCount = count;
         // Campanella foto in fullscreen — compare SOLO quando si è in fullscreen e ci sono foto
         const fsBell  = document.getElementById('fs-photo-bell');
@@ -2960,24 +2960,33 @@ class EduBoardConnect {
         this._timerTickInt = setInterval(tick, 1000);
     }
 
+    // Nota singola tipo "campanella": onda triangolare (più calda del sine puro) con
+    // attacco morbido + decadimento esponenziale, invece del beep a scatto secco.
     _beep(freq, duration, volume) {
         const ctx = this._audioCtx;
         if (!ctx) return;
         try {
+            const now  = ctx.currentTime;
             const osc  = ctx.createOscillator();
             const gain = ctx.createGain();
+            osc.type = 'triangle';
             osc.connect(gain);
             gain.connect(ctx.destination);
             osc.frequency.value = freq;
-            gain.gain.setValueAtTime(volume || 0.35, ctx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
-            osc.start(ctx.currentTime);
-            osc.stop(ctx.currentTime + duration);
+            const peak = volume || 0.35;
+            gain.gain.setValueAtTime(0.0001, now);
+            gain.gain.exponentialRampToValueAtTime(peak, now + 0.015);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+            osc.start(now);
+            osc.stop(now + duration + 0.02);
         } catch(_) {}
     }
 
-    _playTimerAlarm() {
-        [0, 500, 1000].forEach(d => setTimeout(() => this._beep(880, 0.45), d));
+    // Come _beep ma con un'armonica (quinta giusta) sopra a volume ridotto: dà il
+    // timbro "campana"/carillon invece del tono secco a onda singola.
+    _chime(freq, duration, volume) {
+        this._beep(freq, duration, volume);
+        this._beep(freq * 1.5, duration * 0.8, (volume || 0.35) * 0.4);
     }
 
     _stopAlarm() {
@@ -2989,12 +2998,15 @@ class EduBoardConnect {
 
     _startAlarm() {
         if (this._alarmInt) return; // già attivo
-        // Suona subito il primo beep, poi ripete ogni 2s
-        this._beep(880, 0.6, 0.6);
-        this._alarmInt = setInterval(() => {
-            this._beep(880, 0.45, 0.5);
-            setTimeout(() => this._beep(1100, 0.35, 0.4), 300);
-        }, 2000);
+        // Accordo campana scolastica (Sol-Do-Mi ascendente), ripetuto ogni 2.5s —
+        // udibile in classe ma non un buzzer acuto.
+        const ring = () => {
+            this._chime(783.99, 0.5, 0.45);               // Sol5
+            setTimeout(() => this._chime(1046.5, 0.5, 0.45), 180); // Do6
+            setTimeout(() => this._chime(1318.5, 0.6, 0.45), 360); // Mi6
+        };
+        ring();
+        this._alarmInt = setInterval(ring, 2500);
     }
 
     _updateTimer(data) {
