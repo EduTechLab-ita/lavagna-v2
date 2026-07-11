@@ -1282,10 +1282,13 @@
     timerSetStatus('Avvio timer...');
     try {
       const fbToken = await getFirebaseAuthToken();
+      // startedAt: timestamp lato server Firebase (".sv") invece dell'orologio del telefono —
+      // così la LIM calcola il tempo trascorso contro un orologio comune, non contro quello
+      // (potenzialmente sfasato di qualche secondo) del telefono di chi avvia il timer.
       const res = await fetch(`${FIREBASE_DB}/timer/${limId}.json?auth=${fbToken}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ active: true, seconds, startedAt: Date.now() })
+        body: JSON.stringify({ active: true, seconds, startedAt: { '.sv': 'timestamp' } })
       });
       if (!res.ok) throw new Error('Errore database: ' + res.status);
       timerSetStatus('Timer avviato sulla LIM!', 'ok');

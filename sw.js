@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-055'; // v2-055 — Foto/timer EduConnect migrati da Cloudflare KV a Firebase (push, non più polling)
+const CACHE_NAME = 'eduboard-v2-056'; // v2-056 — Fix timer sfasato di qualche secondo (clock skew telefono/LIM)
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-055 — Foto e timer inviati dal telefono ora arrivano sulla lavagna all\'istante, senza attese.';
+const CHANGELOG  = 'EduBoard V2-056 — Corretto un piccolo sfasamento nel timer avviato da telefono.';
 
 const urlsToCache = [
   '.',
