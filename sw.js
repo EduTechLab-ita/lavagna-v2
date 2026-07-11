@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-068'; // v2-068 — Fix critico: QR EduConnect puntavano sempre a produzione invece che all'ambiente corrente
+const CACHE_NAME = 'eduboard-v2-069'; // v2-069 — Fix iPhone: pulsante Chiudi del Timer EduConnect nascosto sotto la fotocamera/Dynamic Island
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-068 — Corretto un bug importante: i QR code di EduConnect (aggancio e installazione) puntavano sempre a board.edutechlab.it invece che all\'ambiente in uso, causando l\'installazione della versione sbagliata sul telefono. Aggiunta anche la versione visibile nel menu account di EduConnect.';
+const CHANGELOG  = 'EduBoard V2-069 — Corretto il pulsante "Chiudi" del Timer in EduConnect: su iPhone con notch/Dynamic Island finiva nascosto sotto la fascia della fotocamera e non era cliccabile.';
 
 const urlsToCache = [
   '.',

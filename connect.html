@@ -235,8 +235,12 @@
       z-index: 9998; gap: 24px; padding: 24px;
     }
     .timer-header {
+      /* Stesso fix già applicato a .user-header per notch/Dynamic Island: senza
+         env(safe-area-inset-top) il pulsante "Chiudi" finiva sotto la fascia della
+         fotocamera su iPhone, non cliccabile (segnalato da Fabio 11/07/2026). */
       position: absolute; top: 0; left: 0; right: 0;
-      display: flex; align-items: center; gap: 12px; padding: 16px 20px;
+      display: flex; align-items: center; gap: 12px;
+      padding: calc(16px + env(safe-area-inset-top, 0px)) 20px 16px;
       background: rgba(248,250,252,0.95); backdrop-filter: blur(8px);
       border-bottom: 1px solid var(--border);
     }
@@ -459,7 +463,7 @@
     <button class="user-menu-item" id="btn-menu-help"><span class="user-menu-icon">❓</span> Istruzioni</button>
     <button class="user-menu-item" id="btn-menu-support"><span class="user-menu-icon">✉️</span> Richiedi assistenza</button>
     <div class="user-menu-sep"></div>
-    <div class="user-menu-version" id="ec-version-text">v2-068</div>
+    <div class="user-menu-version" id="ec-version-text">v2-069</div>
   </div>
 
   <!-- Modale istruzioni (aperta dal menu account) -->
