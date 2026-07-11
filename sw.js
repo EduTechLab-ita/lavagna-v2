@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-059'; // v2-059 — Timer LIM: quadrante rotondo, cifre toccabili, schermo intero, riduci a icona
+const CACHE_NAME = 'eduboard-v2-060'; // v2-060 — Timer LIM: quadrante davvero rotondo, fix trascinamento a dito, riduzione a soli numeri, suono din-don
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-059 — Il Timer/Cronometro ha un nuovo quadrante rotondo: tocca sopra/sotto ai numeri per impostarlo, e ora puoi metterlo a schermo intero o ridurlo a icona in alto mentre continui a scrivere.';
+const CHANGELOG  = 'EduBoard V2-060 — Il Timer/Cronometro ora è un vero orologio rotondo: si trascina bene anche col dito, "riduci" lo trasforma in soli numeri in sovraimpressione, e il suono di fine è un din-don più gradevole.';
 
 const urlsToCache = [
   '.',

@@ -2815,52 +2815,41 @@ body.has-page-bar #zoom-indicator {
    ============================================================================= */
 
 /* --- Timer Widget --- */
+/* Contenitore trasparente — non è più un pannello rettangolare, la forma che
+   si vede è solo il quadrante rotondo (.timer-dial) più i controlli sotto. */
 #timer-widget {
     position: fixed;
     top: 100px;
     right: 20px;
-    background: rgba(20,20,30,0.92);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255,255,255,0.12);
-    color: #fff;
-    border-radius: 20px;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
     z-index: 9000;
-    width: 200px;
+    width: 180px;
     user-select: none;
     font-family: 'Segoe UI', sans-serif;
     display: none;
     flex-direction: column;
     align-items: center;
-    gap: 0;
-    transition: border-radius 0.25s, background 0.25s;
+    gap: 8px;
 }
-.timer-drag-bar, #timer-drag-bar {
-    background: rgba(255,255,255,0.06);
-    border-radius: 20px 20px 0 0;
-    padding: 6px 12px;
-    cursor: grab;
-    font-size: 9px;
-    color: rgba(255,255,255,0.4);
-    text-align: center;
-    width: 100%;
-    box-sizing: border-box;
-    letter-spacing: 2px;
-}
-.timer-drag-bar:active, #timer-drag-bar:active { cursor: grabbing; }
 
-/* Quadrante rotondo tipo orologio/cronometro da classe */
+/* Quadrante rotondo tipo orologio/cronometro da classe — QUESTA è la forma
+   dell'orologio: cerchio pieno con anello di avanzamento, niente cornice
+   rettangolare intorno. */
 .timer-dial {
     position: relative;
-    width: 160px;
-    height: 160px;
-    margin: 10px 0 4px;
+    width: 180px;
+    height: 180px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #1f2937, #0f172a 75%);
+    box-shadow: 0 10px 34px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(255,255,255,0.08);
+    touch-action: none; /* niente scroll/zoom del browser durante trascinamento o tocco */
+    cursor: grab;
 }
+.timer-dial:active { cursor: grabbing; }
 .timer-ring-svg {
     width: 100%;
     height: 100%;
     transform: rotate(-90deg); /* parte dalle ore 12 */
+    pointer-events: none;
 }
 .timer-ring-bg {
     fill: none;
@@ -2886,33 +2875,29 @@ body.has-page-bar #zoom-indicator {
     font-weight: 800;
     font-variant-numeric: tabular-nums;
     color: #fff;
+    pointer-events: none; /* il gesto è gestito dal .timer-dial (drag + tap unificati) */
 }
 .timer-dial-low .timer-dial-center { color: #ef4444; }
 .timer-digit-tap {
     display: flex;
     flex-direction: column;
     align-items: center;
-    cursor: pointer;
     border-radius: 10px;
     padding: 2px 6px;
-    transition: background 0.15s;
     line-height: 1;
+    pointer-events: auto; /* riceve il pointerdown iniziale per sapere quale cifra è stata toccata */
 }
-.timer-digit-tap:hover { background: rgba(255,255,255,0.08); }
-.timer-stopwatch-mode .timer-digit-tap { cursor: default; }
-.timer-stopwatch-mode .timer-digit-tap:hover { background: none; }
 .timer-digit-arrow {
-    font-size: 9px;
-    opacity: 0.35;
-    height: 9px;
+    font-size: 11px;
+    opacity: 0.4;
+    height: 11px;
 }
 .timer-stopwatch-mode .timer-digit-arrow { visibility: hidden; }
-.timer-colon { color: #ccc; font-size: 30px; font-weight: bold; align-self: center; }
+.timer-colon { color: #ccc; font-size: 30px; font-weight: bold; align-self: center; pointer-events: none; }
 
 .timer-controls {
     display: flex;
     gap: 6px;
-    padding: 6px 10px;
     flex-wrap: wrap;
     justify-content: center;
 }
@@ -2921,11 +2906,11 @@ body.has-page-bar #zoom-indicator {
     gap: 5px;
     flex-wrap: wrap;
     justify-content: center;
-    padding: 4px 10px 10px;
 }
 .timer-preset {
-    background: rgba(255,255,255,0.12);
-    border: none;
+    background: rgba(20,20,30,0.85);
+    backdrop-filter: blur(6px);
+    border: 1px solid rgba(255,255,255,0.1);
     color: #fff;
     border-radius: 6px;
     padding: 5px 10px;
@@ -2934,11 +2919,12 @@ body.has-page-bar #zoom-indicator {
     min-height: 32px;
     transition: background 0.2s;
 }
-.timer-preset:hover { background: rgba(255,255,255,0.25); }
+.timer-preset:hover { background: rgba(255,255,255,0.2); }
 
 .timer-btn, .timer-mode, .timer-close {
-    background: rgba(255,255,255,0.15);
-    border: none;
+    background: rgba(20,20,30,0.85);
+    backdrop-filter: blur(6px);
+    border: 1px solid rgba(255,255,255,0.1);
     color: #fff;
     border-radius: 50%;
     width: 36px;
@@ -2950,13 +2936,13 @@ body.has-page-bar #zoom-indicator {
     justify-content: center;
     transition: background 0.2s;
     padding: 0;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.35);
 }
-.timer-btn:hover, .timer-mode:hover, .timer-close:hover { background: rgba(255,255,255,0.3); }
-.timer-close { background: rgba(220,50,50,0.3); }
-.timer-close:hover { background: rgba(220,50,50,0.6); }
-#timer-widget.timer-finished {
-    border: 2px solid #ef4444;
-    box-shadow: 0 0 20px rgba(239,68,68,0.4);
+.timer-btn:hover, .timer-mode:hover, .timer-close:hover { background: rgba(255,255,255,0.25); }
+.timer-close { background: rgba(220,50,50,0.55); }
+.timer-close:hover { background: rgba(220,50,50,0.8); }
+#timer-widget.timer-finished .timer-dial {
+    box-shadow: 0 0 24px 4px rgba(239,68,68,0.55), inset 0 0 0 1px rgba(255,255,255,0.08);
 }
 #timer-widget.timer-finished .timer-dial-center { color: #ef4444; animation: timer-blink 0.5s step-end 6; }
 @keyframes timer-blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
@@ -2968,47 +2954,50 @@ body.has-page-bar #zoom-indicator {
 #timer-widget.timer-fullscreen {
     position: fixed;
     inset: 0;
-    top: 0; left: 0; right: 0; bottom: 0;
     width: 100%;
     height: 100%;
-    border-radius: 0;
-    border: none;
     background: linear-gradient(160deg, #0f172a, #1e293b);
     justify-content: center;
 }
-#timer-widget.timer-fullscreen .timer-dial { width: min(60vw, 60vh); height: min(60vw, 60vh); }
-#timer-widget.timer-fullscreen .timer-dial-center { font-size: min(11vw, 11vh); }
-#timer-widget.timer-fullscreen .timer-drag-bar { display: none; }
+#timer-widget.timer-fullscreen .timer-dial {
+    width: min(64vw, 64vh);
+    height: min(64vw, 64vh);
+    background: none;
+    box-shadow: none;
+    cursor: default;
+}
+#timer-widget.timer-fullscreen .timer-dial-center { font-size: min(13vw, 13vh); }
+#timer-widget.timer-fullscreen .timer-digit-arrow { font-size: min(3.4vw, 3.4vh); height: auto; opacity: 0.55; }
 #timer-widget.timer-fullscreen .timer-btn,
 #timer-widget.timer-fullscreen .timer-mode,
 #timer-widget.timer-fullscreen .timer-close { width: 52px; height: 52px; font-size: 20px; }
 
-/* Ridotto a icona — pillola in alto, il conteggio continua ma non blocca
-   il disegno sulla lavagna sottostante. Un tocco la riporta normale. */
-#timer-widget.timer-minimized {
+/* Ridotto a soli numeri — nessun box, solo la cifra in sovraimpressione
+   leggera in alto pagina: il docente continua a scrivere sulla lavagna
+   sotto, gli alunni vedono comunque il tempo scorrere. Un tocco riporta
+   al widget normale. */
+.timer-mini-readout {
+    display: none;
     position: fixed;
-    top: 8px;
+    top: 10px;
     left: 50%;
     transform: translateX(-50%);
-    width: auto;
-    border-radius: 999px;
-    padding: 0;
+    font-size: 30px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 2px;
+    color: rgba(255,255,255,0.6);
+    text-shadow: 0 1px 4px rgba(0,0,0,0.55), 0 0 12px rgba(0,0,0,0.35);
+    pointer-events: auto;
     cursor: pointer;
+    z-index: 9001;
+    user-select: none;
+    font-family: 'Segoe UI', sans-serif;
 }
-#timer-widget.timer-minimized .timer-drag-bar,
+#timer-widget.timer-minimized .timer-mini-readout { display: block; }
+#timer-widget.timer-minimized .timer-dial,
 #timer-widget.timer-minimized .timer-controls,
-#timer-widget.timer-minimized #timer-presets,
-#timer-widget.timer-minimized .timer-ring-svg,
-#timer-widget.timer-minimized .timer-close { display: none; }
-#timer-widget.timer-minimized .timer-dial {
-    width: auto;
-    height: auto;
-    margin: 0;
-    padding: 8px 18px;
-}
-#timer-widget.timer-minimized .timer-dial-center { position: static; font-size: 18px; }
-#timer-widget.timer-minimized .timer-digit-tap { pointer-events: none; padding: 0; }
-#timer-widget.timer-minimized .timer-digit-arrow { display: none; }
+#timer-widget.timer-minimized #timer-presets { display: none; }
 
 /* --- Spotlight --- */
 #spotlight-canvas {
