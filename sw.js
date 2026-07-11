@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-057'; // v2-057 — Nuovi suoni notifica foto e allarme timer (campanella invece del beep)
+const CACHE_NAME = 'eduboard-v2-058'; // v2-058 — Flush auto-save immediato su tab nascosta/reload (non perde più modifiche recenti)
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-057 — Nuovi suoni per la notifica foto e per l\'allarme del timer, più adatti alla classe.';
+const CHANGELOG  = 'EduBoard V2-058 — Le modifiche appena fatte non si perdono più se ricarichi subito la pagina.';
 
 const urlsToCache = [
   '.',

@@ -853,6 +853,16 @@ class AutoSaveManager {
     /** True se ci sono modifiche in attesa di salvataggio. */
     hasPending() { return this._timer !== null; }
 
+    /** Salva subito, saltando i secondi di debounce rimasti (chiamato quando la
+     * pagina sta per essere nascosta/ricaricata — non tocca il debounce normale). */
+    flush() {
+        if (this._timer) {
+            clearTimeout(this._timer);
+            this._timer = null;
+            this._doSave();
+        }
+    }
+
     /** Cancella il timer e resetta lo stato (usato dopo caricamento lezione). */
     reset() {
         clearTimeout(this._timer);
@@ -897,6 +907,16 @@ class AutoSaveManager {
 
 // Istanza globale (disponibile anche in app.js)
 window.autoSaveMgr = new AutoSaveManager();
+
+// Flush immediato quando la scheda viene nascosta (cambio tab, minimizzazione,
+// reload, chiusura) — copre il caso in cui un F5 arrivi prima che i 3s di
+// debounce siano scaduti (es. dopo Unregister SW per aggiornare l'app).
+// Non interferisce con la fluidità della scrittura: scatta una sola volta,
+// non durante il disegno.
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') window.autoSaveMgr.flush();
+});
+window.addEventListener('pagehide', () => window.autoSaveMgr.flush());
 
 
 // =============================================================================
