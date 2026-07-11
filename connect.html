@@ -751,7 +751,6 @@
   // ══════════════════════════════════════════════════════════════
   const CLIENT_ID   = '374342529488-c123a5j5v8hnfs241udbl55fos5thfq6.apps.googleusercontent.com';
   const SCOPE       = 'https://www.googleapis.com/auth/drive.file email profile';
-  const CF_WORKER   = 'https://eduboard-connect.edutechlab-ita.workers.dev'; // timer
   const FIREBASE_DB = 'https://eduboard-connect-default-rtdb.europe-west1.firebasedatabase.app';
   const FIREBASE_API_KEY = 'AIzaSyAQqLPBBFXUKACLrChHrJljQfnlWA_tGg8';
   const STORAGE_EMAIL   = 'ec_saved_email';
@@ -779,7 +778,7 @@
   let scannerStream    = null;
   let scannerAnimFrame = null;
   let deferredInstall  = null; // BeforeInstallPromptEvent
-  let _timerPollInt    = null; // polling GET /timer/:limId
+  let _timerExpireTimeout = null; // setTimeout locale per far scattare l'allarme allo scadere
   let _timerAlarmInt   = null; // loop audio allarme sul telefono
   let _timerAudioCtx   = null; // AudioContext per beep telefono
   let _needsExplicitLogin = false; // true se il silent refresh è già fallito una volta
@@ -1202,20 +1201,14 @@
   }
 
   function _stopTimerPoll() {
-    if (_timerPollInt) { clearInterval(_timerPollInt); _timerPollInt = null; }
+    if (_timerExpireTimeout) { clearTimeout(_timerExpireTimeout); _timerExpireTimeout = null; }
   }
 
-  function _startTimerPoll() {
+  // Non c'è più polling: il telefono calcola in locale quando far scattare
+  // l'allarme (stesso istante che la LIM calcola in autonomia dal proprio _updateTimer).
+  function _scheduleLocalExpiry(seconds) {
     _stopTimerPoll();
-    _timerPollInt = setInterval(async () => {
-      try {
-        const res = await fetch(`${CF_WORKER}/timer/${limId}`).then(r => r.json());
-        if (res.expired) {
-          _stopTimerPoll();
-          _showTimerExpired();
-        }
-      } catch(_) {}
-    }, 1000);
+    _timerExpireTimeout = setTimeout(() => _showTimerExpired(), seconds * 1000);
   }
 
   function _showTimerExpired() {
@@ -1288,14 +1281,15 @@
     if (seconds <= 0) { timerSetStatus('Imposta un tempo valido', 'err'); return; }
     timerSetStatus('Avvio timer...');
     try {
-      const res = await fetch(`${CF_WORKER}/timer/${limId}`, {
-        method: 'POST',
+      const fbToken = await getFirebaseAuthToken();
+      const res = await fetch(`${FIREBASE_DB}/timer/${limId}.json?auth=${fbToken}`, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ seconds, action: 'start' })
-      }).then(r => r.json());
-      if (!res.ok) throw new Error(res.error || 'Errore');
+        body: JSON.stringify({ active: true, seconds, startedAt: Date.now() })
+      });
+      if (!res.ok) throw new Error('Errore database: ' + res.status);
       timerSetStatus('Timer avviato sulla LIM!', 'ok');
-      _startTimerPoll();
+      _scheduleLocalExpiry(seconds);
     } catch (e) {
       timerSetStatus('Errore: ' + e.message, 'err');
     }
@@ -1307,12 +1301,9 @@
     _hideTimerExpired();
     timerSetStatus('Stop timer...');
     try {
-      const res = await fetch(`${CF_WORKER}/timer/${limId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'stop' })
-      }).then(r => r.json());
-      if (!res.ok) throw new Error(res.error || 'Errore');
+      const fbToken = await getFirebaseAuthToken();
+      const res = await fetch(`${FIREBASE_DB}/timer/${limId}.json?auth=${fbToken}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Errore database: ' + res.status);
       timerSetStatus('Timer fermato.', 'ok');
     } catch (e) {
       timerSetStatus('Errore: ' + e.message, 'err');
@@ -1339,11 +1330,12 @@
       btn.disabled = true;
       try {
         const dataUrl = await compressImage(file, 1200, 0.82);
-        const res = await fetch(`${CF_WORKER}/photo/${limId}`, {
+        const fbToken = await getFirebaseAuthToken();
+        const res = await fetch(`${FIREBASE_DB}/photos/${limId}.json?auth=${fbToken}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ dataUrl, name: file.name || 'foto.jpg' })
-        }).then(r => r.json());
+          body: JSON.stringify({ dataUrl, name: file.name || 'foto.jpg', ts: Date.now() })
+        });
         status.textContent = res.ok ? 'Foto inviata alla lavagna!' : 'Errore invio. Riprova.';
         status.className = 'status-line ' + (res.ok ? 'ok' : 'err');
       } catch (_) {

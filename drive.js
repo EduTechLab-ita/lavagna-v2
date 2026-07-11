@@ -2474,7 +2474,6 @@ function _injectDriveStyles() {
 
 const FIREBASE_DB      = 'https://eduboard-connect-default-rtdb.europe-west1.firebasedatabase.app';
 const FIREBASE_API_KEY = 'AIzaSyAQqLPBBFXUKACLrChHrJljQfnlWA_tGg8';
-const CONNECT_SERVER   = 'https://eduboard-connect.edutechlab-ita.workers.dev'; // foto/laser/timer
 
 // Login anonimo Firebase — richiesto dalle regole sicure del DB (auth != null).
 // Invisibile per l'utente: nessuna schermata, nessun click. Token cache 1h con buffer 5min.
@@ -2498,10 +2497,11 @@ async function _fbAuthToken() {
 class EduBoardConnect {
     constructor() {
         this._limId          = this._getLimId();
-        this._eventSource    = null;
-        this._photoInt       = null;
-        this._laserInt       = null;
-        this._timerInt       = null;
+        this._eventSource       = null;
+        this._photoEventSource  = null;
+        this._timerEventSource  = null;
+        this._seenPhotoIds      = new Set();
+        this._timerTickInt      = null;
         this._alarmInt       = null;
         this._panel          = null;
         this._phoneConnected = false;
@@ -2518,6 +2518,8 @@ class EduBoardConnect {
         // Avvia subito l'ascolto Firebase: l'EventSource sopravvive ai reload del SW
         // e permette al telefono di riconnettersi senza dover riaprire il pannello QR.
         this._startListening();
+        this._startPhotoListening();
+        this._startTimerListening();
     }
 
     // ID univoco per questa finestra LIM — sessionStorage (per-tab) evita che
@@ -2726,64 +2728,40 @@ class EduBoardConnect {
         if (window.driveConnectBtn) window.driveConnectBtn.update();
     }
 
-    // Polling foto dal telefono — avviato da initDrive dopo la connessione
-    startPhotoPolling() {
-        if (this._photoInt) return;
+    // Ascolto foto dal telefono via Firebase RTDB (push-based, non più polling).
+    // Ogni foto inviata dal telefono è un push-child sotto /photos/{limId};
+    // qui riceviamo sia lo snapshot iniziale (path "/") sia i push successivi
+    // (path "/-pushId"), e cancelliamo ogni nodo consumato per tenere pulito il DB.
+    _startPhotoListening() {
+        if (this._photoEventSource) { this._photoEventSource.close(); this._photoEventSource = null; }
         this._pendingPhotos = this._pendingPhotos || [];
 
-        this._photoInt = setInterval(async () => {
-            try {
-                const res = await fetch(`${CONNECT_SERVER}/photos/${this._limId}`).then(r => r.json());
-                if (!res.photos?.length) return;
-                for (const photo of res.photos) {
-                    this._pendingPhotos.push(photo);
-                }
-                this._updateBell();
-            } catch (_) { /* silenzioso */ }
-        }, 3000);
+        _fbAuthToken().then(fbToken => {
+            const es = new EventSource(`${FIREBASE_DB}/photos/${this._limId}.json?auth=${fbToken}`);
+            es.onerror = () => { /* si riconnette automaticamente */ };
+            es.addEventListener('put', (e) => this._onPhotoEvent(e, fbToken));
+            es.addEventListener('patch', (e) => this._onPhotoEvent(e, fbToken));
+            this._photoEventSource = es;
+            this._photoRefreshTimer = setTimeout(() => this._startPhotoListening(), 50 * 60 * 1000);
+        }).catch(err => console.error('[EduBoardConnect] Firebase auth error (photos):', err));
     }
 
-    // Polling laser — avviato da initDrive dopo la connessione
-    startLaserPolling() {
-        if (this._laserInt) return;
-        this._laserInt = setInterval(async () => {
-            if (!this._phoneConnected) return;
-            try {
-                const res = await fetch(`${CONNECT_SERVER}/laser/${this._limId}`).then(r => r.json());
-                this._updateLaser(res);
-            } catch (_) { /* silenzioso */ }
-        }, 500);
-    }
+    _onPhotoEvent(e, fbToken) {
+        try {
+            const { path, data } = JSON.parse(e.data);
+            if (!data) return; // cancellazione (nostra stessa pulizia) — ignora
 
-    _updateLaser(data) {
-        let dot = document.getElementById('laser-pointer-dot');
-        if (!dot) {
-            dot = document.createElement('div');
-            dot.id = 'laser-pointer-dot';
-            dot.style.cssText = `
-                position:fixed; width:22px; height:22px; border-radius:50%;
-                background:radial-gradient(circle, #ff3333 0%, rgba(255,0,0,0.4) 60%, transparent 100%);
-                box-shadow: 0 0 16px #ff3333, 0 0 4px #fff;
-                pointer-events:none; z-index:9000; transform:translate(-50%,-50%);
-                display:none; transition:none;
-            `;
-            document.body.appendChild(dot);
-        }
-
-        if (!data.active) {
-            dot.style.display = 'none';
-            return;
-        }
-
-        // Mappa coordinate relative (0-1) sull'area canvas
-        const canvasArea = document.getElementById('canvas-area');
-        if (!canvasArea) return;
-        const rect = canvasArea.getBoundingClientRect();
-        const x = rect.left + data.x * rect.width;
-        const y = rect.top  + data.y * rect.height;
-        dot.style.left    = x + 'px';
-        dot.style.top     = y + 'px';
-        dot.style.display = 'block';
+            // path === "/" → snapshot iniziale con più foto già presenti (es. dopo un reload)
+            const entries = path === '/' ? Object.entries(data) : [[path.slice(1), data]];
+            for (const [photoId, photo] of entries) {
+                if (this._seenPhotoIds.has(photoId)) continue;
+                this._seenPhotoIds.add(photoId);
+                this._pendingPhotos.push(photo);
+                // Consumata: cancella dal DB (la LIM la tiene già in memoria locale)
+                fetch(`${FIREBASE_DB}/photos/${this._limId}/${photoId}.json?auth=${fbToken}`, { method: 'DELETE' }).catch(() => {});
+            }
+            this._updateBell();
+        } catch (_) { /* silenzioso */ }
     }
 
     _updateBell() {
@@ -2941,15 +2919,45 @@ class EduBoardConnect {
         img.src = photo.dataUrl;
     }
 
-    // Polling timer — avviato da initDrive
-    startTimerPolling() {
-        if (this._timerInt) return;
-        this._timerInt = setInterval(async () => {
-            try {
-                const res = await fetch(`${CONNECT_SERVER}/timer/${this._limId}`).then(r => r.json());
-                this._updateTimer(res);
-            } catch(_) {}
-        }, 500);
+    // Ascolto timer dal telefono via Firebase RTDB: il PUT/DELETE del telefono
+    // arriva qui in tempo reale, poi il countdown a schermo è un tick locale
+    // (nessuna chiamata di rete al secondo).
+    _startTimerListening() {
+        if (this._timerEventSource) { this._timerEventSource.close(); this._timerEventSource = null; }
+
+        _fbAuthToken().then(fbToken => {
+            const es = new EventSource(`${FIREBASE_DB}/timer/${this._limId}.json?auth=${fbToken}`);
+            es.onerror = () => { /* si riconnette automaticamente */ };
+            es.addEventListener('put', (e) => {
+                try {
+                    const { data } = JSON.parse(e.data);
+                    this._onTimerData(data);
+                } catch (_) { /* silenzioso */ }
+            });
+            this._timerEventSource = es;
+            this._timerRefreshTimer = setTimeout(() => this._startTimerListening(), 50 * 60 * 1000);
+        }).catch(err => console.error('[EduBoardConnect] Firebase auth error (timer):', err));
+    }
+
+    // Riceve lo stato del timer (null = fermato, {active,seconds,startedAt} = avviato)
+    // e gestisce il tick locale di rendering (1/s) senza altre chiamate di rete.
+    _onTimerData(data) {
+        if (this._timerTickInt) { clearInterval(this._timerTickInt); this._timerTickInt = null; }
+
+        if (!data) { this._updateTimer({ active: false }); return; }
+
+        const tick = () => {
+            const elapsed = Math.floor((Date.now() - data.startedAt) / 1000);
+            if (elapsed >= data.seconds) {
+                clearInterval(this._timerTickInt);
+                this._timerTickInt = null;
+                this._updateTimer({ active: false, expired: true });
+            } else {
+                this._updateTimer({ active: true, seconds: data.seconds, startedAt: data.startedAt });
+            }
+        };
+        tick();
+        this._timerTickInt = setInterval(tick, 1000);
     }
 
     _beep(freq, duration, volume) {
@@ -3086,9 +3094,7 @@ function initDrive() {
     libraryMgr      = new LibraryManager(driveMgr);
     driveConnectBtn = new DriveConnectButton(driveMgr);
     window.eduBoardConnect = new EduBoardConnect();
-    window.eduBoardConnect.startPhotoPolling();
-    window.eduBoardConnect.startLaserPolling();
-    window.eduBoardConnect.startTimerPolling();
+    // Ascolto foto/timer già avviato nel costruttore (stesso pattern delle sessioni Drive)
 
     document.getElementById('photo-bell-btn')?.addEventListener('click', () => {
         window.eduBoardConnect?.openPhotoPanel();

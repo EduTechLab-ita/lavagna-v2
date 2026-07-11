@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-054'; // v2-054 — Fix ultima pagina + nome lezione in fullscreen
+const CACHE_NAME = 'eduboard-v2-055'; // v2-055 — Foto/timer EduConnect migrati da Cloudflare KV a Firebase (push, non più polling)
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-054 — Riaprendo l\'app ora torna sempre all\'ultima pagina su cui stavi lavorando (anche dopo aver aggiunto o eliminato pagine). In modalità schermo intero compare anche il nome della lezione, discreto in alto a sinistra.';
+const CHANGELOG  = 'EduBoard V2-055 — Foto e timer inviati dal telefono ora arrivano sulla lavagna all\'istante, senza attese.';
 
 const urlsToCache = [
   '.',
