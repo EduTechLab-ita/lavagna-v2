@@ -1721,79 +1721,100 @@ class LibraryManager {
         });
     }
 
-    /**
-     * Elenco piatto ricorsivo di tutte le lezioni sotto una cartella (con percorso).
-     * Usato dal picker "Sposta/copia pagina in un'altra lezione".
-     */
-    async _flatListLessons(folderId, pathPrefix = '') {
-        const [folders, files] = await Promise.all([
-            this.drive.listFolders(folderId),
-            this.drive.listLessons(folderId)
-        ]);
-        let result = files
-            .filter(f => f.name !== '_order.json')
-            .map(f => ({ id: f.id, name: f.name.replace(/\.json$/, ''), rawName: f.name, folderId, path: pathPrefix }));
-        for (const folder of folders) {
-            const childPath = pathPrefix ? `${pathPrefix} / ${folder.name}` : folder.name;
-            result = result.concat(await this._flatListLessons(folder.id, childPath));
-        }
-        return result;
-    }
-
     /** Apre il picker per scegliere la lezione destinazione di Sposta/copia pagina. */
     async openMovePageModal(pageIndex) {
         if (!this.drive.isConnected()) { toast('Connetti Drive prima.', 'error'); return; }
         if (!this.currentFileId) { toast('Apri prima una lezione salvata su Drive.', 'error'); return; }
 
-        const modal    = document.getElementById('move-page-modal');
-        const listEl   = document.getElementById('move-page-list');
-        const searchEl = document.getElementById('move-page-search');
+        const modal  = document.getElementById('move-page-modal');
+        const listEl = document.getElementById('move-page-list');
         document.getElementById('move-page-modal-title').textContent = `Sposta o copia pagina ${pageIndex + 1}`;
-        listEl.innerHTML = `<div class="tree-loading">⏳ Caricamento lezioni...</div>`;
-        searchEl.value = '';
         modal.style.display = 'flex';
         document.getElementById('move-page-cancel-btn').onclick = () => { modal.style.display = 'none'; };
 
-        let lessons;
         try {
-            lessons = (await this._flatListLessons(this.drive.lessonsFolderId))
-                .filter(l => l.id !== this.currentFileId); // non ha senso spostare/copiare nella lezione stessa
+            await this._renderMovePageFolder(this.drive.lessonsFolderId, listEl, pageIndex, 0);
         } catch (err) {
             listEl.innerHTML = `<div class="tree-empty" style="color:#ef4444">Errore: ${err.message}</div>`;
+        }
+    }
+
+    /**
+     * Renderizza UNA cartella dell'albero del picker "Sposta/copia pagina" — stesso
+     * caricamento lazy (una cartella alla volta, solo quando si apre) della libreria
+     * principale: niente da scaricare tutto in anticipo, importante su connessioni lente.
+     */
+    async _renderMovePageFolder(folderId, container, pageIndex, depth) {
+        container.innerHTML = `<div class="tree-loading">⏳ Caricamento...</div>`;
+        const [folders, rawFiles] = await Promise.all([
+            this.drive.listFolders(folderId),
+            this.drive.listLessons(folderId)
+        ]);
+        const files = rawFiles.filter(f => f.name !== '_order.json' && f.id !== this.currentFileId);
+        container.innerHTML = '';
+        if (!folders.length && !files.length) {
+            container.innerHTML = `<div class="tree-empty">Cartella vuota</div>`;
             return;
         }
 
-        const renderList = (filterText) => {
-            const q = (filterText || '').trim().toLowerCase();
-            const filtered = q
-                ? lessons.filter(l => (l.path + ' ' + l.name).toLowerCase().includes(q))
-                : lessons;
-            if (!filtered.length) {
-                listEl.innerHTML = `<div class="tree-empty">Nessuna altra lezione trovata.</div>`;
-                return;
-            }
-            listEl.innerHTML = '';
-            filtered.forEach(l => {
-                const row = document.createElement('div');
-                row.className = 'move-page-row';
-                const label = l.path ? `${l.path} / ${l.name}` : l.name;
-                row.innerHTML = `
-                    <span class="move-page-row-name">${this._esc(label)}</span>
-                    <button data-action="move">Sposta</button>
-                    <button data-action="copy">Copia</button>`;
-                row.querySelector('[data-action="move"]').addEventListener('click', () => {
-                    modal.style.display = 'none';
-                    this.movePageToLesson(pageIndex, l.id, l.rawName, 'move');
-                });
-                row.querySelector('[data-action="copy"]').addEventListener('click', () => {
-                    modal.style.display = 'none';
-                    this.movePageToLesson(pageIndex, l.id, l.rawName, 'copy');
-                });
-                listEl.appendChild(row);
+        const indent = 8 + depth * 16;
+
+        for (const folder of folders) {
+            const item = document.createElement('div');
+            item.className = 'tree-item folder';
+            item.style.paddingLeft = indent + 'px';
+            item.innerHTML = `<span class="tree-icon">📁</span><span class="tree-label">${this._esc(folder.name)}</span>`;
+            container.appendChild(item);
+
+            const sub = document.createElement('div');
+            sub.className = 'tree-subtree';
+            sub.style.display = 'none';
+            sub.dataset.loaded = 'false';
+            container.appendChild(sub);
+
+            item.addEventListener('click', async () => {
+                const isOpen = sub.style.display !== 'none';
+                const iconEl = item.querySelector('.tree-icon');
+                if (isOpen) {
+                    sub.style.display = 'none';
+                    if (iconEl) iconEl.textContent = '📁';
+                    return;
+                }
+                sub.style.display = 'block';
+                if (iconEl) iconEl.textContent = '📂';
+                if (sub.dataset.loaded === 'false') {
+                    sub.dataset.loaded = 'true';
+                    try {
+                        await this._renderMovePageFolder(folder.id, sub, pageIndex, depth + 1);
+                    } catch (err) {
+                        sub.innerHTML = `<div class="tree-empty" style="color:#ef4444">Errore: ${err.message}</div>`;
+                    }
+                }
             });
-        };
-        renderList('');
-        searchEl.oninput = () => renderList(searchEl.value);
+        }
+
+        for (const file of files) {
+            const name = file.name.replace(/\.json$/, '');
+            const row = document.createElement('div');
+            row.className = 'move-page-row';
+            row.style.paddingLeft = indent + 'px';
+            row.innerHTML = `
+                <span class="tree-icon">📄</span>
+                <span class="move-page-row-name">${this._esc(name)}</span>
+                <button data-action="move">Sposta</button>
+                <button data-action="copy">Copia</button>`;
+            row.querySelector('[data-action="move"]').addEventListener('click', (e) => {
+                e.stopPropagation();
+                document.getElementById('move-page-modal').style.display = 'none';
+                this.movePageToLesson(pageIndex, file.id, file.name, 'move');
+            });
+            row.querySelector('[data-action="copy"]').addEventListener('click', (e) => {
+                e.stopPropagation();
+                document.getElementById('move-page-modal').style.display = 'none';
+                this.movePageToLesson(pageIndex, file.id, file.name, 'copy');
+            });
+            container.appendChild(row);
+        }
     }
 
     /** Sposta o copia una pagina della lezione aperta in un'altra lezione già salvata su Drive. */

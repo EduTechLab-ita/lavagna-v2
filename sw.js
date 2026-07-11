@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-062'; // v2-062 — Riordino pagine drag, Duplica lezione, Sposta/copia pagina tra lezioni
+const CACHE_NAME = 'eduboard-v2-063'; // v2-063 — Sposta/copia pagina: picker riscritto come albero cartelle (era elenco piatto poco chiaro)
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-062 — Ora puoi trascinare le pagine per riordinarle, duplicare un\'intera lezione con un tocco, e spostare o copiare una pagina in un\'altra lezione.';
+const CHANGELOG  = 'EduBoard V2-063 — Il picker di "Sposta/copia pagina" ora mostra un vero albero di cartelle come la libreria, invece di un elenco poco chiaro: carica solo quello che apri, più veloce anche con connessione debole.';
 
 const urlsToCache = [
   '.',

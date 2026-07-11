@@ -26,7 +26,7 @@
                 <img src="./icon-192x192.png" alt="EduBoard" class="logo-icon">
                 <div class="logo-info">
                     <span class="logo-text"><span class="logo-edu">Edu</span><span class="logo-board">Board</span></span>
-                    <span class="logo-sub">v2-062 &nbsp;&nbsp; © EduTechLab di Rizzotto Fabio</span>
+                    <span class="logo-sub">v2-063 &nbsp;&nbsp; © EduTechLab di Rizzotto Fabio</span>
                 </div>
             </div>
             <div class="project-badge" id="project-name">Nuova Lavagna</div>
@@ -688,13 +688,13 @@
         </div>
     </div>
 
-    <!-- Modal: sposta/copia una pagina in un'altra lezione -->
+    <!-- Modal: sposta/copia una pagina in un'altra lezione — albero di cartelle
+         identico alla libreria (non un elenco piatto): niente da caricare tutto
+         in anticipo, e navigazione familiare per Fabio. -->
     <div id="move-page-modal" class="modal-overlay" style="display:none">
         <div class="modal-box" style="max-width:380px">
             <h3 id="move-page-modal-title">Sposta o copia pagina</h3>
-            <input type="text" id="move-page-search" placeholder="Cerca lezione..."
-                style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg-elevated);color:var(--text);font-size:0.9rem;margin:6px 0">
-            <div id="move-page-list" style="max-height:280px;overflow-y:auto;display:flex;flex-direction:column;gap:4px"></div>
+            <div id="move-page-list" style="max-height:340px;overflow-y:auto;display:flex;flex-direction:column;gap:2px;margin-top:6px"></div>
             <div class="modal-actions">
                 <button id="move-page-cancel-btn" class="btn-secondary">Annulla</button>
             </div>
@@ -821,7 +821,7 @@
                     <img src="./icon-192x192.png" alt="EduBoard" width="64" height="64" style="border-radius:14px">
                     <div>
                         <div class="settings-info-appname"><span style="color:#3b82f6">Edu</span>Board</div>
-                        <div class="settings-info-version" id="info-version-text">v2-062</div>
+                        <div class="settings-info-version" id="info-version-text">v2-063</div>
                     </div>
                 </div>
                 <div class="settings-section">
@@ -906,6 +906,10 @@
             </div>
             <div class="settings-panel" id="tab-novita">
                 <div class="settings-section">
+                    <div class="settings-changelog-item">
+                        <div class="settings-changelog-ver">v2-063 — Luglio 2026</div>
+                        <div class="settings-changelog-desc">📂 Il picker di "Sposta/copia pagina" ora è un vero albero di cartelle come nella libreria (prima era un elenco poco chiaro con nomi tagliati)</div>
+                    </div>
                     <div class="settings-changelog-item">
                         <div class="settings-changelog-ver">v2-062 — Luglio 2026</div>
                         <div class="settings-changelog-desc">📑 Nella barra pagine ora puoi trascinare per riordinarle, e spostare/copiare una singola pagina in un'altra lezione (nuovo pulsante ⇄). In libreria, pulsante "Duplica" per copiare un'intera lezione con un tocco</div>
