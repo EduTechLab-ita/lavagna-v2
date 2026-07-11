@@ -2937,8 +2937,12 @@ class EduBoardConnect {
             }
         });
 
-        // QR connessione (con limId direttamente nell'URL)
-        const connectUrl = `https://board.edutechlab.it/connect.html?lid=${this._limId}`;
+        // QR connessione (con limId direttamente nell'URL) — costruito relativo alla
+        // pagina corrente (non hardcoded su board.edutechlab.it) così su V2 punta a V2
+        // e in produzione punta a produzione. Bug trovato dopo test dal vivo di Fabio
+        // (11/07/2026): il telefono si agganciava sempre al connect.html di produzione
+        // anche testando su V2, mostrando la UI vecchia pre-v2-048.
+        const connectUrl = new URL(`connect.html?lid=${this._limId}`, location.href).href;
         const qrEl      = document.getElementById('ec-qr-canvas');
         const loadingEl = document.getElementById('ec-qr-loading');
         if (qrEl) {
@@ -2964,6 +2968,11 @@ class EduBoardConnect {
     showInstallQR() {
         let popup = document.getElementById('ec-install-popup');
         if (!popup) {
+            // Stesso fix del QR di connessione: URL relativo alla pagina corrente,
+            // non più hardcoded su board.edutechlab.it (vedi commento sopra).
+            const installUrl = new URL('connect.html?install=1', location.href).href;
+            const installHost = installUrl.replace(/^https?:\/\//, '').replace(/\?.*$/, '')
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
             popup = document.createElement('div');
             popup.id = 'ec-install-popup';
             popup.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(15,23,42,0.5);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)';
@@ -2971,9 +2980,9 @@ class EduBoardConnect {
                 <div style="background:#ffffff;border-radius:20px;padding:28px 24px;text-align:center;color:#0f172a;max-width:280px;width:90%;box-shadow:0 16px 48px rgba(15,23,42,0.2);border:1px solid rgba(15,23,42,0.1)">
                     <div style="font-size:1rem;font-weight:700;margin-bottom:4px">📱 Installa EduBoard Connect</div>
                     <div style="font-size:0.75rem;color:#64748b;margin-bottom:16px">Scansiona con il telefono e aggiungi alla schermata Home</div>
-                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&ecc=M&data=https%3A%2F%2Fboard.edutechlab.it%2Fconnect.html%3Finstall%3D1"
+                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&ecc=M&data=${encodeURIComponent(installUrl)}"
                          style="width:180px;height:180px;display:block;margin:0 auto 12px" alt="QR install">
-                    <div style="font-size:0.65rem;color:#94a3b8;margin-bottom:16px">board.edutechlab.it/connect.html</div>
+                    <div style="font-size:0.65rem;color:#94a3b8;margin-bottom:16px">${installHost}</div>
                     <button id="ec-install-popup-close" style="background:#3b82f6;color:#fff;border:none;padding:8px 24px;border-radius:8px;cursor:pointer;font-size:0.85rem;font-weight:600">Chiudi</button>
                 </div>`;
             document.body.appendChild(popup);

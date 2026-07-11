@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-067'; // v2-067 — Fix Punto 6: anteprima testo con dimensione corretta a qualunque zoom
+const CACHE_NAME = 'eduboard-v2-068'; // v2-068 — Fix critico: QR EduConnect puntavano sempre a produzione invece che all'ambiente corrente
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-067 — Corretta l\'anteprima dello strumento Testo: ora mostra la dimensione REALE del font mentre scrivi, a qualunque livello di zoom (prima appariva più grande o più piccola del testo poi disegnato).';
+const CHANGELOG  = 'EduBoard V2-068 — Corretto un bug importante: i QR code di EduConnect (aggancio e installazione) puntavano sempre a board.edutechlab.it invece che all\'ambiente in uso, causando l\'installazione della versione sbagliata sul telefono. Aggiunta anche la versione visibile nel menu account di EduConnect.';
 
 const urlsToCache = [
   '.',

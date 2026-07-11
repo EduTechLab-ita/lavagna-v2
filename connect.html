@@ -10,6 +10,7 @@
   <meta name="theme-color" content="#f1f5f9">
   <title>EduBoard Connect</title>
   <link rel="manifest" href="connect-manifest.json">
+  <link rel="apple-touch-icon" href="./icon-192x192.png">
   <script src="jsqr.min.js"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <style>
@@ -385,6 +386,14 @@
     .user-menu-item.danger:hover { background: #fee2e2; }
     .user-menu-icon { font-size: 1rem; width: 20px; text-align: center; flex-shrink: 0; }
     .user-menu-sep { height: 1px; background: var(--border); margin: 4px 0; }
+    /* Versione installata — utile per capire a colpo d'occhio se il telefono ha
+       ancora una versione vecchia (a differenza di EduBoard sulla LIM, EduConnect
+       non mostrava la versione da nessuna parte: bug scoperto 11/07/2026 quando un
+       telefono si è agganciato al connect.html vecchio senza che nessuno se ne accorgesse) */
+    .user-menu-version {
+      padding: 8px 14px 10px; font-size: 0.68rem; color: var(--text-muted);
+      text-align: center; opacity: 0.7;
+    }
 
     /* ── Modale istruzioni ── */
     .help-modal {
@@ -449,6 +458,8 @@
     <div class="user-menu-sep"></div>
     <button class="user-menu-item" id="btn-menu-help"><span class="user-menu-icon">❓</span> Istruzioni</button>
     <button class="user-menu-item" id="btn-menu-support"><span class="user-menu-icon">✉️</span> Richiedi assistenza</button>
+    <div class="user-menu-sep"></div>
+    <div class="user-menu-version" id="ec-version-text">v2-068</div>
   </div>
 
   <!-- Modale istruzioni (aperta dal menu account) -->
