@@ -2450,8 +2450,18 @@ class TextManager {
 
     _syncInputStyle() {
         if (!this.inputEl) return;
-        const style = `${this.fontStyle} ${this.fontSize}px ${this.fontFamily}`.trim();
+        // Contro-scala per lo zoom: #canvas-area ha transform:scale(s) (PanManager),
+        // quindi una dimensione CSS letterale fontSize apparirebbe a schermo grande
+        // fontSize*s px, diversa dal testo poi disegnato sul canvas — che invece
+        // resta sempre a fontSize px "reali" indipendentemente dallo zoom, per design
+        // (vedi _renderTextToCanvas). Dividendo per s, l'anteprima combacia col
+        // risultato finale a qualunque livello di zoom (bug segnalato da Fabio, Punto 6:
+        // "l'anteprima non mostra la dimensione reale durante la digitazione").
+        const s = (typeof panMgr !== 'undefined' && panMgr) ? panMgr.scale : 1;
+        const displaySize = this.fontSize / s;
+        const style = `${this.fontStyle} ${displaySize}px ${this.fontFamily}`.trim();
         this.inputEl.style.font           = style;
+        this.inputEl.style.minHeight      = (displaySize + 8) + 'px';
         this.inputEl.style.textDecoration = this.underline ? 'underline' : '';
         this.inputEl.style.color          = this.color;
     }
@@ -2491,10 +2501,9 @@ class TextManager {
         this.inputEl.style.left     = x + 'px';
         this.inputEl.style.top      = y + 'px';
         this.inputEl.style.minWidth = '4px';
-        this.inputEl.style.minHeight = (this.fontSize + 8) + 'px';
         this.inputEl.textContent    = '';
         this.inputEl.contentEditable = 'true';
-        this._syncInputStyle();
+        this._syncInputStyle(); // imposta anche minHeight, scalata per lo zoom
 
         // Mostra toolbar testo
         document.getElementById('text-toolbar').style.display = 'flex';

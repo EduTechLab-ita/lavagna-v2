@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-066'; // v2-066 — Barra di progresso reale sul salvataggio + retry automatico/manuale in caso di errore
+const CACHE_NAME = 'eduboard-v2-067'; // v2-067 — Fix Punto 6: anteprima testo con dimensione corretta a qualunque zoom
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-066 — L\'anello attorno all\'icona Drive mostra ora la percentuale REALE di salvataggio (non piu una semplice rotazione). Se il salvataggio fallisce per connessione instabile, l\'app riprova da sola piu volte, e puoi anche toccare il pallino rosso per riprovare subito.';
+const CHANGELOG  = 'EduBoard V2-067 — Corretta l\'anteprima dello strumento Testo: ora mostra la dimensione REALE del font mentre scrivi, a qualunque livello di zoom (prima appariva più grande o più piccola del testo poi disegnato).';
 
 const urlsToCache = [
   '.',
