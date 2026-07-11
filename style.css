@@ -2645,18 +2645,40 @@ body.has-page-bar #zoom-indicator {
 #bottom-right-bar.autosave-saved .autosave-badge {
     opacity: 1;
 }
+/* Stato di errore: badge rosso persistente e cliccabile ("↻" tocca per riprovare) —
+   resta finché il salvataggio non riesce (auto-retry in background) o l'utente
+   tocca per un tentativo immediato (richiesto da Fabio 11/07/2026) */
+#bottom-right-bar.autosave-error .autosave-badge {
+    opacity: 1;
+    background: #ef4444;
+    pointer-events: auto;
+    cursor: pointer;
+    animation: autosave-error-pulse 1.6s ease-in-out infinite;
+}
+@keyframes autosave-error-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.45); }
+    50%      { box-shadow: 0 0 0 4px rgba(239,68,68,0); }
+}
 
-/* Anello rotante saving */
+/* Anello di progresso REALE durante il salvataggio — percentuale vera di byte
+   inviati (aggiornata da AutoSaveManager._setProgress() via upload.onprogress
+   di XMLHttpRequest), non una semplice rotazione indeterminata. Un disco pieno
+   creato con conic-gradient viene "svuotato" al centro con una mask radiale,
+   ottenendo un anello — trucco CSS che evita di dover disegnare un SVG a parte. */
+#bottom-right-bar {
+    --save-progress: 0;
+}
 #bottom-right-bar.autosave-saving #drive-fab::before {
     content: '';
     position: absolute;
     inset: -3px;
     border-radius: 50%;
-    border: 2px solid transparent;
-    border-top-color: #22c55e;
-    animation: spin 1s linear infinite;
+    background: conic-gradient(#22c55e calc(var(--save-progress) * 1%), rgba(34,197,94,0.15) 0);
+    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
+            mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
     pointer-events: none;
     z-index: 1;
+    transition: background 0.15s linear;
 }
 
 /* Stato pending: highlight giallo sul pulsante account */

@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-065'; // v2-065 — Piu robusto su connessioni instabili: timeout su Drive, installazione SW resiliente
+const CACHE_NAME = 'eduboard-v2-066'; // v2-066 — Barra di progresso reale sul salvataggio + retry automatico/manuale in caso di errore
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-065 — L\'app ora regge meglio le connessioni instabili (rete scolastica lenta, hotspot): le richieste a Google Drive non restano piu bloccate all\'infinito, e l\'aggiornamento dell\'app non si blocca piu se un file fatica a scaricarsi.';
+const CHANGELOG  = 'EduBoard V2-066 — L\'anello attorno all\'icona Drive mostra ora la percentuale REALE di salvataggio (non piu una semplice rotazione). Se il salvataggio fallisce per connessione instabile, l\'app riprova da sola piu volte, e puoi anche toccare il pallino rosso per riprovare subito.';
 
 const urlsToCache = [
   '.',

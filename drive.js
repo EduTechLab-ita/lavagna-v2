@@ -80,6 +80,43 @@ async function _fetchWithTimeout(url, options = {}, timeoutMs = 25000) {
     }
 }
 
+/**
+ * Upload con progresso reale (byte inviati/totali) — richiede XMLHttpRequest,
+ * fetch() non espone questa informazione durante l'invio. Usato per il
+ * salvataggio delle lezioni così l'anello attorno all'icona Drive può mostrare
+ * una percentuale vera invece di un'animazione indeterminata (richiesto da
+ * Fabio dopo un test dal vivo con connessione lenta, 11/07/2026).
+ * @param {string} url
+ * @param {string} method
+ * @param {*} body
+ * @param {Object} headers
+ * @param {number} timeoutMs
+ * @param {(fraction: number) => void} [onProgress] - 0..1
+ * @returns {Promise<Object>} risposta JSON
+ */
+function _uploadWithProgress(url, method, body, headers, timeoutMs, onProgress) {
+    return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open(method, url);
+        Object.entries(headers).forEach(([k, v]) => xhr.setRequestHeader(k, v));
+        xhr.timeout = timeoutMs;
+        xhr.upload.onprogress = (e) => {
+            if (onProgress && e.lengthComputable) onProgress(e.loaded / e.total);
+        };
+        xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+                try { resolve(JSON.parse(xhr.responseText)); }
+                catch (_) { reject(new Error('Risposta Drive non valida')); }
+            } else {
+                reject(new Error('Salvataggio Drive fallito (' + xhr.status + ')'));
+            }
+        };
+        xhr.onerror   = () => reject(new Error('Errore di rete durante il salvataggio'));
+        xhr.ontimeout = () => reject(new Error(`Connessione troppo lenta o assente (timeout dopo ${Math.round(timeoutMs / 1000)}s)`));
+        xhr.send(body);
+    });
+}
+
 // =============================================================================
 // SEZIONE 1 — DriveManager
 // Gestisce autenticazione OAuth2 e tutte le operazioni su Drive API v3
@@ -766,13 +803,14 @@ class DriveManager {
 
     /**
      * Upload multipart su Drive API v3 (per file JSON).
-     * @param {string}      name      - nome file
-     * @param {Object}      data      - oggetto JS da serializzare come JSON
-     * @param {string|null} fileId    - se non null: PATCH (aggiornamento)
-     * @param {string|null} parentId  - solo per nuovi file: cartella destinazione
+     * @param {string}      name        - nome file
+     * @param {Object}      data        - oggetto JS da serializzare come JSON
+     * @param {string|null} fileId      - se non null: PATCH (aggiornamento)
+     * @param {string|null} parentId    - solo per nuovi file: cartella destinazione
+     * @param {(fraction: number) => void} [onProgress] - percentuale reale di invio (0..1)
      * @returns {string} ID file
      */
-    async _uploadMultipart(name, data, fileId, parentId) {
+    async _uploadMultipart(name, data, fileId, parentId, onProgress) {
         const boundary  = 'eduboard_' + Date.now();
         const payload   = JSON.stringify(data, null, 2);
         const metaObj   = fileId ? {} : { name, parents: parentId ? [parentId] : undefined };
@@ -788,16 +826,10 @@ class DriveManager {
             : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id';
         const method = fileId ? 'PATCH' : 'POST';
 
-        const resp = await _fetchWithTimeout(url, {
-            method,
-            headers: {
-                Authorization:  'Bearer ' + this.accessToken,
-                'Content-Type': `multipart/related; boundary=${boundary}`
-            },
-            body
-        }, 45000); // lezioni con più pagine/immagini possono pesare qualche MB
-        if (!resp.ok) throw new Error('Salvataggio Drive fallito (' + resp.status + ')');
-        const result = await resp.json();
+        const result = await _uploadWithProgress(url, method, body, {
+            Authorization:  'Bearer ' + this.accessToken,
+            'Content-Type': `multipart/related; boundary=${boundary}`
+        }, 45000, onProgress); // lezioni con più pagine/immagini possono pesare qualche MB
         return result.id;
     }
 
@@ -850,6 +882,7 @@ class AutoSaveManager {
         if (!window.driveMgr?.isConnected()) return;
 
         clearTimeout(this._timer);
+        clearTimeout(this._retryTimer); // una nuova modifica programma già il proprio salvataggio
         this._setPending();
         this._timer = setTimeout(() => this._doSave(), this.DEBOUNCE_MS);
     }
@@ -863,15 +896,29 @@ class AutoSaveManager {
         this._saving = true;
         this._timer  = null;
         this._setSaving();
+        this._setProgress(0);
         try {
-            await window.libraryMgr.overwriteCurrentLesson(true); // silent = true
+            // onProgress: percentuale REALE di byte inviati (via XMLHttpRequest, vedi
+            // _uploadWithProgress) — così l'anello attorno all'icona Drive mostra a che
+            // punto è arrivato l'invio invece di una semplice rotazione indeterminata
+            // (richiesto da Fabio dopo un test dal vivo con connessione lenta, 11/07/2026).
+            await window.libraryMgr.overwriteCurrentLesson(true, (frac) => this._setProgress(frac));
             this._setSaved();
+            this._retryCount = 0;
         } catch (e) {
             console.warn('Auto-save fallito:', e);
-            this._setError();
+            this._setError(); // mostra il badge rosso e programma da sola un nuovo tentativo
         } finally {
             this._saving = false;
         }
+    }
+
+    /** Aggiorna la percentuale (0..1) mostrata dall'anello di progresso attorno all'icona Drive. */
+    _setProgress(fraction) {
+        const w = this._getWrapper();
+        if (!w) return;
+        const pct = Math.round(Math.max(0, Math.min(1, fraction)) * 100);
+        w.style.setProperty('--save-progress', pct);
     }
 
     /** True se un salvataggio è in corso (blocca la chiusura). */
@@ -893,9 +940,34 @@ class AutoSaveManager {
     /** Cancella il timer e resetta lo stato (usato dopo caricamento lezione). */
     reset() {
         clearTimeout(this._timer);
-        this._timer  = null;
-        this._saving = false;
-        this._setError(); // rimuove tutti i badge
+        clearTimeout(this._retryTimer);
+        this._timer       = null;
+        this._saving      = false;
+        this._retryCount  = 0;
+        this._clearBadges(); // stato neutro, non è un errore: si usa anche dopo un caricamento lezione riuscito
+    }
+
+    /** Riprova subito il salvataggio, saltando l'attesa del backoff automatico —
+     * chiamato quando Fabio tocca il badge rosso di errore. */
+    retryNow() {
+        clearTimeout(this._retryTimer);
+        this._retryCount = 0;
+        this._doSave();
+    }
+
+    /** Dopo un fallimento, riprova da sola con backoff crescente (10s, 20s, 30s...
+     * fino a 60s), fino a un massimo di tentativi — così su una connessione che si
+     * riprende da sola l'utente non deve fare nulla. Oltre il limite si ferma per non
+     * martellare la rete all'infinito, ma il badge resta cliccabile per un tentativo
+     * manuale (richiesto da Fabio 11/07/2026: "come faccio a farlo ritentare?"). */
+    _scheduleRetry() {
+        clearTimeout(this._retryTimer);
+        this._retryCount = (this._retryCount || 0) + 1;
+        if (this._retryCount > 8) return;
+        const delayMs = Math.min(10000 * this._retryCount, 60000);
+        this._retryTimer = setTimeout(() => {
+            if (window.libraryMgr?.currentFileId) this._doSave();
+        }, delayMs);
     }
 
     _getWrapper() {
@@ -907,33 +979,66 @@ class AutoSaveManager {
     _setPending() {
         const w = this._getWrapper();
         if (!w) return;
-        w.classList.remove('autosave-saving', 'autosave-saved');
+        w.classList.remove('autosave-saving', 'autosave-saved', 'autosave-error');
         w.classList.add('autosave-pending');
     }
     _setSaving() {
         const w = this._getWrapper();
         if (!w) return;
-        w.classList.remove('autosave-pending', 'autosave-saved');
+        w.classList.remove('autosave-pending', 'autosave-saved', 'autosave-error');
         w.classList.add('autosave-saving');
     }
     _setSaved() {
         const w = this._getWrapper();
         if (!w) return;
-        w.classList.remove('autosave-saving', 'autosave-pending');
+        w.classList.remove('autosave-saving', 'autosave-pending', 'autosave-error');
         w.classList.add('autosave-saved');
+        this._setBadge('✓', 'Salvato su Drive');
         // Rimuovi il checkmark dopo 4 secondi
         clearTimeout(this._savedTimer);
         this._savedTimer = setTimeout(() => w.classList.remove('autosave-saved'), 4000);
     }
+    /** Stato di errore PERSISTENTE (non sparisce da solo) — badge rosso cliccabile
+     * per riprovare subito, mentre in background _scheduleRetry() ritenta comunque. */
     _setError() {
         const w = this._getWrapper();
         if (!w) return;
+        clearTimeout(this._savedTimer);
         w.classList.remove('autosave-saving', 'autosave-pending', 'autosave-saved');
+        w.classList.add('autosave-error');
+        this._setBadge('↻', 'Salvataggio non riuscito — tocca per riprovare subito');
+        this._scheduleRetry();
+    }
+    /** Stato neutro (nessun badge visibile) — per il caricamento lezione, non è un errore. */
+    _clearBadges() {
+        const w = this._getWrapper();
+        if (!w) return;
+        clearTimeout(this._savedTimer);
+        w.classList.remove('autosave-saving', 'autosave-pending', 'autosave-saved', 'autosave-error');
+    }
+    _setBadge(text, title) {
+        const w = this._getWrapper();
+        const badge = w?.querySelector('.autosave-badge');
+        if (!badge) return;
+        badge.textContent = text;
+        badge.title = title;
     }
 }
 
 // Istanza globale (disponibile anche in app.js)
 window.autoSaveMgr = new AutoSaveManager();
+
+// Badge auto-save cliccabile: in stato di errore, un tocco riprova subito il
+// salvataggio invece di aspettare il prossimo ritentativo automatico.
+document.addEventListener('DOMContentLoaded', () => {
+    const badge = document.querySelector('#bottom-right-bar .autosave-badge');
+    badge?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (!document.getElementById('bottom-right-bar')?.classList.contains('autosave-error')) return;
+        toast('Nuovo tentativo di salvataggio...', 'info');
+        window.autoSaveMgr.retryNow();
+    });
+});
 
 // Flush immediato quando la scheda viene nascosta (cambio tab, minimizzazione,
 // reload, chiusura) — copre il caso in cui un F5 arrivi prima che i 3s di
@@ -1649,7 +1754,7 @@ class LibraryManager {
      * Usato dal dialog "modifiche non salvate" e dall'auto-save.
      * @param {boolean} [silent=false] - se true, non mostra toast (usato dall'auto-save)
      */
-    async overwriteCurrentLesson(silent = false) {
+    async overwriteCurrentLesson(silent = false, onProgress) {
         if (!this.drive.isConnected()) { if (!silent) toast('Connetti Drive prima di salvare.', 'error'); return; }
         if (!this.currentFileId) { return this.saveCurrentLesson(this.currentFolderId); }
 
@@ -1683,7 +1788,9 @@ class LibraryManager {
                     pagePx: (typeof bgMgr !== 'undefined' && canvasMgr?.canvas) ? bgMgr._getPageRect(canvasMgr.canvas.width, canvasMgr.canvas.height).px : null,
                     pagePy: (typeof bgMgr !== 'undefined' && canvasMgr?.canvas) ? bgMgr._getPageRect(canvasMgr.canvas.width, canvasMgr.canvas.height).py : null
                 },
-                this.currentFileId  // PATCH sul file esistente
+                this.currentFileId,  // PATCH sul file esistente
+                undefined,           // parentId non serve in PATCH
+                onProgress
             );
 
             CONFIG.isDirty = false;
