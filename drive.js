@@ -55,6 +55,31 @@ function _hexToRgba(hex, alpha) {
     return `rgba(${r},${g},${b},${alpha})`;
 }
 
+/**
+ * fetch() con timeout. Su connessione instabile una richiesta a Google Drive può
+ * restare "appesa" a tempo indeterminato (la risposta si perde ma il server ha
+ * già eseguito l'operazione) — senza timeout l'app resta bloccata in "salvataggio
+ * in corso" per minuti invece di fallire subito con un messaggio chiaro (visto
+ * in sessione dal vivo l'11/07/2026, connessione da hotspot in montagna).
+ * @param {string} url
+ * @param {Object} options    - stesse opzioni di fetch()
+ * @param {number} timeoutMs  - default 25s: generoso per WiFi scolastico lento, ma non infinito
+ */
+async function _fetchWithTimeout(url, options = {}, timeoutMs = 25000) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        return await fetch(url, { ...options, signal: controller.signal });
+    } catch (err) {
+        if (err.name === 'AbortError') {
+            throw new Error(`Connessione troppo lenta o assente (timeout dopo ${Math.round(timeoutMs / 1000)}s)`);
+        }
+        throw err;
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
 // =============================================================================
 // SEZIONE 1 — DriveManager
 // Gestisce autenticazione OAuth2 e tutte le operazioni su Drive API v3
@@ -584,7 +609,7 @@ class DriveManager {
      */
     async loadLesson(fileId) {
         this._checkConnected();
-        const resp = await fetch(
+        const resp = await _fetchWithTimeout(
             `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
             { headers: { Authorization: 'Bearer ' + this.accessToken } }
         );
@@ -666,7 +691,7 @@ class DriveManager {
         combined.set(bytes,     offset); offset += bytes.length;
         combined.set(endBytes,  offset);
 
-        const resp = await fetch(
+        const resp = await _fetchWithTimeout(
             'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webContentLink',
             {
                 method:  'POST',
@@ -675,7 +700,8 @@ class DriveManager {
                     'Content-Type': `multipart/related; boundary=${boundary}`
                 },
                 body: combined
-            }
+            },
+            60000 // upload immagine: può pesare qualche MB, timeout più generoso
         );
         if (!resp.ok) throw new Error('Caricamento sfondo fallito (' + resp.status + ')');
         return resp.json();
@@ -688,9 +714,10 @@ class DriveManager {
      */
     async loadBackgroundAsDataURL(fileId) {
         this._checkConnected();
-        const resp = await fetch(
+        const resp = await _fetchWithTimeout(
             `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
-            { headers: { Authorization: 'Bearer ' + this.accessToken } }
+            { headers: { Authorization: 'Bearer ' + this.accessToken } },
+            60000 // download immagine: stesso discorso, no fretta di abortire
         );
         if (!resp.ok) throw new Error('Errore download sfondo (' + resp.status + ')');
         const blob   = await resp.blob();
@@ -761,14 +788,14 @@ class DriveManager {
             : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id';
         const method = fileId ? 'PATCH' : 'POST';
 
-        const resp = await fetch(url, {
+        const resp = await _fetchWithTimeout(url, {
             method,
             headers: {
                 Authorization:  'Bearer ' + this.accessToken,
                 'Content-Type': `multipart/related; boundary=${boundary}`
             },
             body
-        });
+        }, 45000); // lezioni con più pagine/immagini possono pesare qualche MB
         if (!resp.ok) throw new Error('Salvataggio Drive fallito (' + resp.status + ')');
         const result = await resp.json();
         return result.id;
@@ -784,7 +811,7 @@ class DriveManager {
             opts.body                    = JSON.stringify(body);
             opts.headers['Content-Type'] = 'application/json';
         }
-        const resp = await fetch(url, opts);
+        const resp = await _fetchWithTimeout(url, opts);
         if (method === 'DELETE' && resp.status === 204) return null;
         if (!resp.ok) throw new Error(`Drive API error ${resp.status} — ${url}`);
         return resp.json();

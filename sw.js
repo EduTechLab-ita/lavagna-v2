@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-064'; // v2-064 — Fix: Sposta pagina ora salva subito la lezione di origine; modal picker piu largo e ridimensionabile
+const CACHE_NAME = 'eduboard-v2-065'; // v2-065 — Piu robusto su connessioni instabili: timeout su Drive, installazione SW resiliente
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-064 — Corretto "Sposta pagina": ora rimuove davvero la pagina dalla lezione di origine subito, senza aspettare il salvataggio automatico. Il picker "Sposta/copia" e ora piu largo e puoi ridimensionarlo trascinando l\'angolo.';
+const CHANGELOG  = 'EduBoard V2-065 — L\'app ora regge meglio le connessioni instabili (rete scolastica lenta, hotspot): le richieste a Google Drive non restano piu bloccate all\'infinito, e l\'aggiornamento dell\'app non si blocca piu se un file fatica a scaricarsi.';
 
 const urlsToCache = [
   '.',
@@ -23,12 +23,25 @@ self.addEventListener('install', (event) => {
   console.log('[SW] Installing Service Worker...');
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then((cache) => {
+      .then(async (cache) => {
         console.log('[SW] Cache opened successfully');
-        return cache.addAll(urlsToCache);
+        // cache.addAll() è tutto-o-niente: su connessione instabile basta UN file che
+        // fallisce a scaricarsi per bloccare l'intera installazione — l'app resta con
+        // JS/CSS vecchi in cache mentre index.html (mai cachato) mostra già il nuovo
+        // numero di versione, un disallineamento confuso (visto dal vivo l'11/07/2026,
+        // hotspot in montagna). Con Promise.allSettled i singoli file che falliscono
+        // vengono solo saltati (verranno ritentati al prossimo aggiornamento del SW),
+        // invece di far fallire in blocco tutti gli altri che erano andati a buon fine.
+        const results = await Promise.allSettled(
+          urlsToCache.map((url) => cache.add(url))
+        );
+        const failed = results
+          .map((r, i) => (r.status === 'rejected' ? urlsToCache[i] : null))
+          .filter(Boolean);
+        if (failed.length) console.warn('[SW] File non cacheati (rete instabile?):', failed);
+        else console.log('[SW] All resources cached');
       })
       .then(() => {
-        console.log('[SW] All resources cached');
         // Forza l'attivazione immediata del nuovo SW
         return self.skipWaiting();
       })
