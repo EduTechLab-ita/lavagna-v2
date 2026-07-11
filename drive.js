@@ -2431,7 +2431,14 @@ async function _autoOpenLastLesson() {
         await driveMgr._ensureLessonsFolder();
         if (!driveMgr.lessonsFolderId) return;
         const files = await driveMgr.listFiles(driveMgr.lessonsFolderId);
-        if (!files.length) return;
+        if (!files.length) {
+            // Account senza nessuna lezione salvata (es. un alunno mai loggato prima):
+            // senza questo reset restava a video il contenuto dell'account precedente,
+            // dando l'impressione che i due account condividessero la stessa lavagna
+            // (bug segnalato da Fabio 11/07/2026, test cambio account multi-LIM).
+            if (typeof projectMgr !== 'undefined' && projectMgr) projectMgr.resetToBlank();
+            return;
+        }
         files.sort((a, b) => (b.modifiedTime || '').localeCompare(a.modifiedTime || ''));
         await libraryMgr.openLesson(files[0].id, files[0].name || 'ultima lezione');
     } catch (_) {}
@@ -2671,6 +2678,15 @@ class DriveConnectButton {
                 if (window.libraryMgr?.currentFileId) {
                     try { await window.libraryMgr.overwriteCurrentLesson(true); } catch(_) {}
                 }
+                // Il contenuto di questa sessione non è più recuperabile per il PROSSIMO
+                // account che si collegherà (se non aveva un file Drive proprio — es. un
+                // alunno che disegna senza mai salvare — non c'è nulla da salvare). Azzerare
+                // isDirty evita che _autoOpenLastLesson() del nuovo account si blocchi
+                // credendo che ci sia ancora "lavoro in corso" da non sovrascrivere (bug
+                // segnalato da Fabio 11/07/2026: dopo un cambio account restava a video la
+                // lezione mai salvata dell'account precedente invece di aprire l'ultima
+                // lezione del nuovo).
+                if (typeof CONFIG !== 'undefined') CONFIG.isDirty = false;
                 await this.drive.disconnect();
                 this.update();
                 libraryMgr?.refresh();

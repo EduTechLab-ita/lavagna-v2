@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-069'; // v2-069 — Fix iPhone: pulsante Chiudi del Timer EduConnect nascosto sotto la fotocamera/Dynamic Island
+const CACHE_NAME = 'eduboard-v2-070'; // v2-070 — Fix cambio account multi-LIM: lavagna vuota per account senza lezioni, reset isDirty al disconnetti
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-069 — Corretto il pulsante "Chiudi" del Timer in EduConnect: su iPhone con notch/Dynamic Island finiva nascosto sotto la fascia della fotocamera e non era cliccabile.';
+const CHANGELOG  = 'EduBoard V2-070 — Corretto il cambio account: ora un account senza lezioni salvate vede subito una lavagna vuota invece del contenuto dell\'account precedente, e disconnettersi non blocca più l\'apertura automatica dell\'ultima lezione del prossimo account.';
 
 const urlsToCache = [
   '.',

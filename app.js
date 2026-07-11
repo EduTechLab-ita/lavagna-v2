@@ -2656,6 +2656,18 @@ class ProjectManager {
             const ok = await confirmIfDirty();
             if (!ok) return;
         }
+        this.resetToBlank();
+    }
+
+    /**
+     * Azzera la lavagna a una pagina bianca, SENZA controlli di conferma (quelli li fa
+     * newBoard() prima di chiamare questo metodo). Usato anche da _autoOpenLastLesson()
+     * in drive.js quando un account appena connesso non ha nessuna lezione salvata —
+     * altrimenti restava a video il contenuto dell'account precedente invece di mostrare
+     * una lavagna vuota (bug segnalato da Fabio 11/07/2026 testando il cambio account
+     * multi-LIM: suo figlio si connetteva e vedeva ancora la lezione del padre).
+     */
+    resetToBlank() {
         // Leggi preferenze utente salvate nelle Impostazioni
         const _prefs = (() => { try { return JSON.parse(localStorage.getItem('eduboard-prefs-v1') || '{}'); } catch(e) { return {}; } })();
         const defBg    = _prefs.defaultBg    || 'white';
@@ -2664,11 +2676,13 @@ class ProjectManager {
 
         canvasMgr.clear();
         if (typeof objectLayer !== 'undefined' && objectLayer) objectLayer.clear();
-        // FIX newBoard: reset PageManager → pagine vecchie non restano in memoria
-        if (window.pageMgr) {
-            window.pageMgr.pages = [{ drawImageData: null, objects: [], background: { type: defBg, color: '#ffffff', orientation: 'landscape' } }];
-            window.pageMgr.currentIndex = 0;
-            window.pageMgr._renderPageBar();
+        // Reset PageManager → pagine vecchie non restano in memoria. Il nome globale
+        // corretto è window.pageManager (non window.pageMgr, che non esiste mai — bug
+        // per cui questo reset non scattava mai prima di questa correzione).
+        if (window.pageManager) {
+            window.pageManager.pages = [{ drawImageData: null, objects: [], background: { type: defBg, color: '#ffffff', orientation: 'landscape' } }];
+            window.pageManager.currentIndex = 0;
+            window.pageManager._renderPageBar();
         }
         bgMgr.setBackground(defBg);
         CONFIG.projectName = 'Nuova Lavagna';
