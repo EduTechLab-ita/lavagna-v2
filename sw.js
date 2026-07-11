@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-060'; // v2-060 — Timer LIM: quadrante davvero rotondo, fix trascinamento a dito, riduzione a soli numeri, suono din-don
+const CACHE_NAME = 'eduboard-v2-061'; // v2-061 — Timer: rosso lampeggiante negli ultimi 10s anche da ridotto a icona
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-060 — Il Timer/Cronometro ora è un vero orologio rotondo: si trascina bene anche col dito, "riduci" lo trasforma in soli numeri in sovraimpressione, e il suono di fine è un din-don più gradevole.';
+const CHANGELOG  = 'EduBoard V2-061 — Il Timer ridotto a icona diventa rosso lampeggiante negli ultimi 10 secondi, e rosso acceso a tempo scaduto — proprio come il quadrante normale.';
 
 const urlsToCache = [
   '.',

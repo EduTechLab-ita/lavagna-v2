@@ -2999,6 +2999,20 @@ body.has-page-bar #zoom-indicator {
 #timer-widget.timer-minimized .timer-controls,
 #timer-widget.timer-minimized #timer-presets { display: none; }
 
+/* Ultimi 10 secondi: rosso lampeggiante anche da ridotto */
+.timer-mini-readout.timer-mini-low {
+    color: #ef4444;
+    text-shadow: 0 0 10px rgba(239,68,68,0.7), 0 1px 4px rgba(0,0,0,0.55);
+    animation: timer-mini-pulse 1s ease-in-out infinite;
+}
+@keyframes timer-mini-pulse { 0%,100%{opacity:1} 50%{opacity:0.45} }
+/* Tempo scaduto: rosso più intenso, lampeggio secco */
+#timer-widget.timer-finished .timer-mini-readout {
+    color: #ff3b3b;
+    text-shadow: 0 0 16px rgba(255,59,59,0.9), 0 1px 4px rgba(0,0,0,0.6);
+    animation: timer-blink 0.5s step-end 6;
+}
+
 /* --- Spotlight --- */
 #spotlight-canvas {
     position: fixed;

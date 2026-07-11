@@ -6660,7 +6660,10 @@ class TimerWidget {
         if (minEl) minEl.textContent = String(m).padStart(2, '0');
         if (secEl) secEl.textContent = String(s).padStart(2, '0');
         const miniEl = this.el.querySelector('#timer-mini-readout');
-        if (miniEl) miniEl.textContent = txt;
+        if (miniEl) {
+            miniEl.textContent = txt;
+            miniEl.classList.toggle('timer-mini-low', this._mode === 'countdown' && this._seconds <= 10 && this._seconds > 0);
+        }
 
         // Anello: countdown = si svuota verso lo scadere; cronometro = si riempie ad ogni giro di minuto
         const ring = this.el.querySelector('#timer-ring-progress');
