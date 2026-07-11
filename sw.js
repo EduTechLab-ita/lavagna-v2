@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-061'; // v2-061 — Timer: rosso lampeggiante negli ultimi 10s anche da ridotto a icona
+const CACHE_NAME = 'eduboard-v2-062'; // v2-062 — Riordino pagine drag, Duplica lezione, Sposta/copia pagina tra lezioni
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-061 — Il Timer ridotto a icona diventa rosso lampeggiante negli ultimi 10 secondi, e rosso acceso a tempo scaduto — proprio come il quadrante normale.';
+const CHANGELOG  = 'EduBoard V2-062 — Ora puoi trascinare le pagine per riordinarle, duplicare un\'intera lezione con un tocco, e spostare o copiare una pagina in un\'altra lezione.';
 
 const urlsToCache = [
   '.',

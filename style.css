@@ -2430,6 +2430,72 @@ body.fullscreen-mode #fullscreen-lesson-name {
 }
 .page-del-btn:hover { background: #dc2626; }
 
+/* Pulsante "sposta/copia pagina in un'altra lezione" — angolo opposto al pulsante elimina */
+.page-move-btn {
+    position: absolute;
+    top: -6px;
+    left: -6px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #3b82f6;
+    color: white;
+    border: none;
+    font-size: 10px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    padding: 0;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+.page-container:hover .page-move-btn,
+.page-container:focus-within .page-move-btn { opacity: 1; }
+.page-move-btn:hover { background: #1d4ed8; }
+
+/* Righe del picker "Sposta/copia pagina in un'altra lezione" */
+.move-page-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    background: var(--bg-elevated);
+    font-size: 0.85rem;
+}
+.move-page-row-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.move-page-row button {
+    flex-shrink: 0;
+    padding: 4px 9px;
+    font-size: 0.76rem;
+    border-radius: 5px;
+    border: 1px solid var(--border);
+    background: #fff;
+    color: #334155;
+    cursor: pointer;
+    font-family: inherit;
+}
+.move-page-row button:hover { background: #f1f5f9; }
+.move-page-row button[data-action="move"]:hover { border-color: #3b82f6; color: #1d4ed8; }
+.move-page-row button[data-action="copy"]:hover { border-color: #16a34a; color: #15803d; }
+
+/* Riordino pagine trascinando (Pointer Events, vedi PageManager._attachPageDragHandle).
+   touch-action:none impostato via JS solo DURANTE il drag effettivo — di default resta
+   auto, altrimenti lo swipe di scorrimento orizzontale della barra pagine si romperebbe. */
+.page-container.page-dragging { opacity: 0.45; }
+.page-container.page-drag-over-before { box-shadow: -2px 0 0 var(--accent); }
+.page-container.page-drag-over-after  { box-shadow: 2px 0 0 var(--accent); }
+
 /* Toolbar allineata con la barra pagine — stesso livello dei numeri pagina e zoom */
 body.has-page-bar #toolbar-wrapper {
     bottom: 0;

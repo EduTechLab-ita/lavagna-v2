@@ -2779,6 +2779,29 @@ function showConfirmModal(message, onConfirm, title = 'Conferma') {
     };
 }
 
+// Prompt interno all'app — sostituisce window.prompt(), stesso rischio di blocco di confirm()
+// su alcune LIM/tablet/webview. Riusa lo stesso modal DOM di ProjectManager.save() (#rename-modal),
+// impostando titolo/placeholder/valore di volta in volta.
+function showPromptModal(title, defaultValue, onConfirm, placeholder = '') {
+    const modal = document.getElementById('rename-modal');
+    const input = document.getElementById('rename-modal-input');
+    document.getElementById('rename-modal-title').textContent = title;
+    input.value = defaultValue || '';
+    input.placeholder = placeholder;
+    modal.style.display = 'flex';
+    input.focus();
+    input.select();
+    const doConfirm = () => {
+        const val = input.value.trim();
+        if (!val) return;
+        modal.style.display = 'none';
+        onConfirm(val);
+    };
+    document.getElementById('rename-modal-ok-btn').onclick = doConfirm;
+    document.getElementById('rename-modal-cancel-btn').onclick = () => { modal.style.display = 'none'; };
+    input.onkeydown = (e) => { if (e.key === 'Enter') doConfirm(); };
+}
+
 // =============================================================================
 // SEZIONE 10 — PWAManager
 // Gestisce registrazione Service Worker e banner aggiornamento.
@@ -6242,6 +6265,127 @@ class PageManager {
         window.autoSaveMgr?.onDirty();
     }
 
+    // Rimuove una pagina senza modal di conferma (già confermata a monte, es. dopo
+    // "Sposta pagina in un'altra lezione" — la pagina è già stata copiata altrove).
+    removePageSilently(index) {
+        if (this.pages.length <= 1) {
+            toast('Non puoi spostare l\'unica pagina della lezione: creane prima una nuova.', 'error');
+            return false;
+        }
+        this.pages.splice(index, 1);
+        this.currentIndex = Math.min(this.currentIndex, this.pages.length - 1);
+        this._restorePage(this.pages[this.currentIndex]);
+        this._updatePageBar();
+        this._syncLastPage();
+        CONFIG.isDirty = true;
+        window.autoSaveMgr?.onDirty();
+        return true;
+    }
+
+    // Riordina le pagine trascinando: fromIndex = pagina spostata, targetIndex = pagina
+    // di riferimento nell'array PRIMA della rimozione, insertBefore = se va inserita
+    // prima o dopo quella di riferimento. Usa il riferimento oggetto (non l'indice
+    // numerico) per ritrovare la nuova posizione della pagina corrente dopo lo spostamento
+    // — più robusto di un calcolo aritmetico su prima/dopo/currentIndex spostato o no.
+    reorderPages(fromIndex, targetIndex, insertBefore) {
+        if (fromIndex === targetIndex || fromIndex < 0 || targetIndex < 0 ||
+            fromIndex >= this.pages.length || targetIndex >= this.pages.length) return;
+        if (!this._restoring) this.pages[this.currentIndex] = this._captureCurrentPage();
+        const currentPageObj = this.pages[this.currentIndex];
+        const movedObj = this.pages[fromIndex];
+        const targetObj = this.pages[targetIndex];
+        const rest = this.pages.filter((_, i) => i !== fromIndex);
+        let insertAt = rest.indexOf(targetObj);
+        if (!insertBefore) insertAt += 1;
+        rest.splice(insertAt, 0, movedObj);
+        this.pages = rest;
+        this.currentIndex = this.pages.indexOf(currentPageObj);
+        this._updatePageBar();
+        this._syncLastPage();
+        CONFIG.isDirty = true;
+        window.autoSaveMgr?.onDirty();
+    }
+
+    // Handle di trascinamento per riordinare le pagine nella barra in basso.
+    // Pointer Events da zero (non draggable HTML5 nativo, inaffidabile su touch/LIM).
+    // Su touch richiede una breve pressione prolungata (350ms) prima di attivare il drag,
+    // per non rubare lo swipe di scorrimento orizzontale della barra pagine (fix già fatto
+    // in v2-031/033 — un drag "a scatto" romperebbe di nuovo quello scroll). Su mouse/pen
+    // il drag scatta subito al superamento di una piccola soglia, come per il riordino lezioni.
+    _attachPageDragHandle(pageContainer, index, bar) {
+        let dragging = false, moved = false, startX = 0, startY = 0, pointerId = null, longPressTimer = null, isTouch = false;
+
+        const clearHoverMarks = () => {
+            bar.querySelectorAll('.page-drag-over-before, .page-drag-over-after')
+                .forEach(el => el.classList.remove('page-drag-over-before', 'page-drag-over-after'));
+        };
+        const cancelLongPress = () => { if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; } };
+        const engageDrag = () => {
+            dragging = true;
+            pageContainer.classList.add('page-dragging');
+            pageContainer.style.touchAction = 'none';
+            try { pageContainer.setPointerCapture(pointerId); } catch (_) {}
+        };
+        const cleanup = () => {
+            dragging = false;
+            pageContainer.classList.remove('page-dragging');
+            pageContainer.style.touchAction = '';
+            clearHoverMarks();
+        };
+
+        pageContainer.addEventListener('pointerdown', (e) => {
+            if (e.target.closest('.page-del-btn, .page-move-btn')) return;
+            startX = e.clientX; startY = e.clientY; pointerId = e.pointerId; moved = false;
+            isTouch = e.pointerType === 'touch';
+            cancelLongPress();
+            if (isTouch) longPressTimer = setTimeout(() => { if (pointerId !== null) engageDrag(); }, 350);
+        });
+
+        pageContainer.addEventListener('pointermove', (e) => {
+            if (pointerId === null || e.pointerId !== pointerId) return;
+            const dx = e.clientX - startX, dy = e.clientY - startY;
+            if (!dragging) {
+                if (isTouch) {
+                    // Movimento prima che scatti il long-press → è uno scroll: annulla il drag imminente
+                    if (Math.abs(dx) > 8 || Math.abs(dy) > 8) cancelLongPress();
+                    return;
+                }
+                if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+                engageDrag();
+            }
+            moved = true;
+            e.preventDefault();
+            clearHoverMarks();
+            const below = document.elementFromPoint(e.clientX, e.clientY);
+            const target = below?.closest('.page-container');
+            if (!target || target === pageContainer) return;
+            const rect = target.getBoundingClientRect();
+            if (e.clientX < rect.left + rect.width / 2) target.classList.add('page-drag-over-before');
+            else target.classList.add('page-drag-over-after');
+        });
+
+        pageContainer.addEventListener('pointerup', (e) => {
+            cancelLongPress();
+            if (pointerId === null || e.pointerId !== pointerId) return;
+            try { pageContainer.releasePointerCapture(e.pointerId); } catch (_) {}
+            const beforeT = bar.querySelector('.page-drag-over-before');
+            const afterT  = bar.querySelector('.page-drag-over-after');
+            const wasDragging = dragging;
+            cleanup();
+            pointerId = null;
+            if (moved) {
+                // Impedisce che il rilascio generi anche il click di navigazione pagina
+                pageContainer.addEventListener('click', ev => ev.stopPropagation(), { once: true, capture: true });
+            }
+            if (!wasDragging) return;
+            const target = beforeT || afterT;
+            if (!target) return;
+            this.reorderPages(index, parseInt(target.dataset.pageIndex, 10), !!beforeT);
+        });
+
+        pageContainer.addEventListener('pointercancel', () => { cancelLongPress(); cleanup(); pointerId = null; });
+    }
+
     serialize() {
         this.pages[this.currentIndex] = this._captureCurrentPage();
         return this.pages;
@@ -6297,6 +6441,7 @@ class PageManager {
             // FIX PAGINE B: container con pulsante X visibile (touch-friendly, niente contextmenu)
             const pageContainer = document.createElement('div');
             pageContainer.className = 'page-container';
+            pageContainer.dataset.pageIndex = i;
 
             const btn = document.createElement('button');
             btn.className = 'page-btn' + (i === this.currentIndex ? ' page-btn--active' : '');
@@ -6313,7 +6458,18 @@ class PageManager {
                 pageContainer.appendChild(delBtn);
             }
 
+            const moveBtn = document.createElement('button');
+            moveBtn.className = 'page-move-btn';
+            moveBtn.innerHTML = '⇄';
+            moveBtn.title = `Sposta/copia pagina ${i + 1} in un'altra lezione`;
+            moveBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                window.libraryMgr?.openMovePageModal(i);
+            });
+            pageContainer.appendChild(moveBtn);
+
             pageContainer.appendChild(btn);
+            this._attachPageDragHandle(pageContainer, i, bar);
             bar.appendChild(pageContainer);
         });
         const addBtn = document.createElement('button');

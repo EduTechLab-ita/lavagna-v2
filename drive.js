@@ -1405,19 +1405,19 @@ class LibraryManager {
     // ──────────────────────────────────────────────────────────────────────────
 
     /** Apre dialog per creare nuova cartella nella posizione selezionata. */
-    async createFolder(parentId) {
+    createFolder(parentId) {
         if (!this.drive.isConnected()) {
             toast('Connetti Drive prima.', 'error'); return;
         }
-        const name = prompt('Nome nuova cartella:');
-        if (!name || !name.trim()) return;
-        try {
-            await this.drive.createFolder(name.trim(), parentId || this.drive.lessonsFolderId);
-            toast('Cartella creata!', 'success');
-            this._forceRefresh();
-        } catch (err) {
-            toast('Errore creazione cartella: ' + err.message, 'error');
-        }
+        showPromptModal('Nome nuova cartella', '', async (name) => {
+            try {
+                await this.drive.createFolder(name, parentId || this.drive.lessonsFolderId);
+                toast('Cartella creata!', 'success');
+                this._forceRefresh();
+            } catch (err) {
+                toast('Errore creazione cartella: ' + err.message, 'error');
+            }
+        });
     }
 
     /**
@@ -1671,29 +1671,159 @@ class LibraryManager {
     }
 
     /** Rinomina un elemento (file o cartella). */
-    async rename(fileId, currentName) {
+    rename(fileId, currentName) {
         if (!this.drive.isConnected()) { toast('Connetti Drive prima.', 'error'); return; }
-        const newName = prompt('Nuovo nome:', currentName);
-        if (!newName || !newName.trim() || newName.trim() === currentName) return;
+        showPromptModal('Nuovo nome', currentName, async (newName) => {
+            if (newName === currentName) return;
+            try {
+                await this.drive.renameItem(fileId, newName);
+                toast('Rinominato!', 'success');
+                this._forceRefresh();
+            } catch (err) {
+                toast('Errore rinomina: ' + err.message, 'error');
+            }
+        });
+    }
+
+    /** Duplica una lezione nella stessa cartella, con nome univoco "(copia)"/"(copia N)". */
+    async duplicate(fileId, name, folderId) {
+        if (!this.drive.isConnected()) { toast('Connetti Drive prima.', 'error'); return; }
         try {
-            await this.drive.renameItem(fileId, newName.trim());
-            toast('Rinominato!', 'success');
+            toast('Duplicazione in corso...', 'info');
+            const lesson = JSON.parse(JSON.stringify(await this.drive.loadLesson(fileId)));
+            const siblings = await this.drive.listLessons(folderId);
+            const existingNames = new Set(siblings.map(f => f.name.replace(/\.json$/, '')));
+            let copyName = `${name} (copia)`;
+            for (let n = 2; existingNames.has(copyName); n++) copyName = `${name} (copia ${n})`;
+            const now = new Date().toISOString();
+            lesson.name = copyName;
+            lesson.createdAt = now;
+            lesson.modifiedAt = now;
+            await this.drive._uploadMultipart(copyName + '.json', lesson, null, folderId);
+            toast(`"${copyName}" creata!`, 'success');
             this._forceRefresh();
         } catch (err) {
-            toast('Errore rinomina: ' + err.message, 'error');
+            toast('Errore duplicazione: ' + err.message, 'error');
         }
     }
 
     /** Elimina un elemento con conferma. */
-    async delete(fileId, name) {
+    delete(fileId, name) {
         if (!this.drive.isConnected()) { toast('Connetti Drive prima.', 'error'); return; }
-        if (!confirm(`Eliminare "${name}"? L'operazione non è reversibile.`)) return;
+        showConfirmModal(`Eliminare "${name}"? L'operazione non è reversibile.`, async () => {
+            try {
+                await this.drive.deleteItem(fileId);
+                toast('"' + name + '" eliminato.', 'success');
+                this._forceRefresh();
+            } catch (err) {
+                toast('Errore eliminazione: ' + err.message, 'error');
+            }
+        });
+    }
+
+    /**
+     * Elenco piatto ricorsivo di tutte le lezioni sotto una cartella (con percorso).
+     * Usato dal picker "Sposta/copia pagina in un'altra lezione".
+     */
+    async _flatListLessons(folderId, pathPrefix = '') {
+        const [folders, files] = await Promise.all([
+            this.drive.listFolders(folderId),
+            this.drive.listLessons(folderId)
+        ]);
+        let result = files
+            .filter(f => f.name !== '_order.json')
+            .map(f => ({ id: f.id, name: f.name.replace(/\.json$/, ''), rawName: f.name, folderId, path: pathPrefix }));
+        for (const folder of folders) {
+            const childPath = pathPrefix ? `${pathPrefix} / ${folder.name}` : folder.name;
+            result = result.concat(await this._flatListLessons(folder.id, childPath));
+        }
+        return result;
+    }
+
+    /** Apre il picker per scegliere la lezione destinazione di Sposta/copia pagina. */
+    async openMovePageModal(pageIndex) {
+        if (!this.drive.isConnected()) { toast('Connetti Drive prima.', 'error'); return; }
+        if (!this.currentFileId) { toast('Apri prima una lezione salvata su Drive.', 'error'); return; }
+
+        const modal    = document.getElementById('move-page-modal');
+        const listEl   = document.getElementById('move-page-list');
+        const searchEl = document.getElementById('move-page-search');
+        document.getElementById('move-page-modal-title').textContent = `Sposta o copia pagina ${pageIndex + 1}`;
+        listEl.innerHTML = `<div class="tree-loading">⏳ Caricamento lezioni...</div>`;
+        searchEl.value = '';
+        modal.style.display = 'flex';
+        document.getElementById('move-page-cancel-btn').onclick = () => { modal.style.display = 'none'; };
+
+        let lessons;
         try {
-            await this.drive.deleteItem(fileId);
-            toast('"' + name + '" eliminato.', 'success');
-            this._forceRefresh();
+            lessons = (await this._flatListLessons(this.drive.lessonsFolderId))
+                .filter(l => l.id !== this.currentFileId); // non ha senso spostare/copiare nella lezione stessa
         } catch (err) {
-            toast('Errore eliminazione: ' + err.message, 'error');
+            listEl.innerHTML = `<div class="tree-empty" style="color:#ef4444">Errore: ${err.message}</div>`;
+            return;
+        }
+
+        const renderList = (filterText) => {
+            const q = (filterText || '').trim().toLowerCase();
+            const filtered = q
+                ? lessons.filter(l => (l.path + ' ' + l.name).toLowerCase().includes(q))
+                : lessons;
+            if (!filtered.length) {
+                listEl.innerHTML = `<div class="tree-empty">Nessuna altra lezione trovata.</div>`;
+                return;
+            }
+            listEl.innerHTML = '';
+            filtered.forEach(l => {
+                const row = document.createElement('div');
+                row.className = 'move-page-row';
+                const label = l.path ? `${l.path} / ${l.name}` : l.name;
+                row.innerHTML = `
+                    <span class="move-page-row-name">${this._esc(label)}</span>
+                    <button data-action="move">Sposta</button>
+                    <button data-action="copy">Copia</button>`;
+                row.querySelector('[data-action="move"]').addEventListener('click', () => {
+                    modal.style.display = 'none';
+                    this.movePageToLesson(pageIndex, l.id, l.rawName, 'move');
+                });
+                row.querySelector('[data-action="copy"]').addEventListener('click', () => {
+                    modal.style.display = 'none';
+                    this.movePageToLesson(pageIndex, l.id, l.rawName, 'copy');
+                });
+                listEl.appendChild(row);
+            });
+        };
+        renderList('');
+        searchEl.oninput = () => renderList(searchEl.value);
+    }
+
+    /** Sposta o copia una pagina della lezione aperta in un'altra lezione già salvata su Drive. */
+    async movePageToLesson(pageIndex, targetFileId, targetFileName, mode) {
+        if (!window.pageManager) return;
+        try {
+            toast(mode === 'move' ? 'Spostamento pagina in corso...' : 'Copia pagina in corso...', 'info');
+
+            // Se è la pagina attualmente aperta, cattura lo stato più recente prima di leggerla
+            if (pageIndex === window.pageManager.currentIndex && !window.pageManager._restoring) {
+                window.pageManager.pages[pageIndex] = window.pageManager._captureCurrentPage();
+            }
+            const pageSnapshot = JSON.parse(JSON.stringify(window.pageManager.pages[pageIndex]));
+
+            const targetLesson = await this.drive.loadLesson(targetFileId);
+            if (!Array.isArray(targetLesson.pages)) targetLesson.pages = [];
+            targetLesson.pages.push(pageSnapshot);
+            targetLesson.modifiedAt = new Date().toISOString();
+            await this.drive._uploadMultipart(targetFileName, targetLesson, targetFileId);
+
+            const targetLabel = targetFileName.replace(/\.json$/, '');
+            if (mode === 'move') {
+                const removed = window.pageManager.removePageSilently(pageIndex);
+                if (!removed) { toast(`Pagina copiata in "${targetLabel}" (non rimossa: era l'unica pagina).`, 'info'); return; }
+                toast(`Pagina spostata in "${targetLabel}"!`, 'success');
+            } else {
+                toast(`Pagina copiata in "${targetLabel}"!`, 'success');
+            }
+        } catch (err) {
+            toast('Errore: ' + err.message, 'error');
         }
     }
 
@@ -1723,10 +1853,11 @@ class LibraryManager {
         return item;
     }
 
-    /** Aggiunge pulsanti Rinomina/Elimina a un tree-item. */
+    /** Aggiunge pulsanti Rinomina/Elimina (+ Duplica per le lezioni) a un tree-item. */
     _addContextButtons(item, entry, type) {
         const actionsEl = item.querySelector('.tree-actions');
         actionsEl.innerHTML = `
+            ${type === 'lesson' ? '<button class="tree-btn" title="Duplica" data-action="duplicate">📋</button>' : ''}
             <button class="tree-btn" title="Rinomina" data-action="rename">✏️</button>
             <button class="tree-btn" title="Elimina"  data-action="delete">🗑️</button>`;
 
@@ -1738,6 +1869,12 @@ class LibraryManager {
             e.stopPropagation();
             this.delete(entry.id, entry.name);
         });
+        if (type === 'lesson') {
+            actionsEl.querySelector('[data-action="duplicate"]').addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.duplicate(entry.id, entry.name, item.dataset.folderId);
+            });
+        }
     }
 
     /** Seleziona una cartella come destinazione corrente. */
