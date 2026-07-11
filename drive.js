@@ -1839,6 +1839,21 @@ class LibraryManager {
             if (mode === 'move') {
                 const removed = window.pageManager.removePageSilently(pageIndex);
                 if (!removed) { toast(`Pagina copiata in "${targetLabel}" (non rimossa: era l'unica pagina).`, 'info'); return; }
+                // Salva SUBITO la lezione di origine, senza aspettare i 3s di debounce
+                // dell'autosave: altrimenti, se l'utente naviga via prima che scada, la
+                // rimozione non è ancora su Drive e la pagina risulta ancora presente
+                // nella lezione di origine — "Sposta" sembra un "Copia" (bug segnalato
+                // da Fabio 11/07/2026).
+                if (window.autoSaveMgr?._timer) {
+                    clearTimeout(window.autoSaveMgr._timer);
+                    window.autoSaveMgr._timer = null;
+                }
+                try {
+                    await this.overwriteCurrentLesson(true);
+                } catch (err) {
+                    toast(`Pagina copiata in "${targetLabel}", ma il salvataggio della lezione di origine è fallito — riprova a salvare manualmente.`, 'error');
+                    return;
+                }
                 toast(`Pagina spostata in "${targetLabel}"!`, 'success');
             } else {
                 toast(`Pagina copiata in "${targetLabel}"!`, 'success');

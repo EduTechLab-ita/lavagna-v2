@@ -2456,6 +2456,17 @@ body.fullscreen-mode #fullscreen-lesson-name {
 .page-container:focus-within .page-move-btn { opacity: 1; }
 .page-move-btn:hover { background: #1d4ed8; }
 
+/* Modal "Sposta/copia pagina": più largo di default e ridimensionabile a mano
+   (trascinando l'angolo in basso a destra) — nomi di lezioni/cartelle lunghi o
+   simili tra loro altrimenti restano tagliati (segnalato da Fabio 11/07/2026) */
+.move-page-modal-box {
+    width: 480px;
+    max-width: min(92vw, 640px);
+    min-width: 320px;
+    resize: horizontal;
+    overflow: auto;
+}
+
 /* Righe del picker "Sposta/copia pagina in un'altra lezione" */
 .move-page-row {
     display: flex;

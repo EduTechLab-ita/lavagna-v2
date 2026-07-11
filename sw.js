@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-063'; // v2-063 — Sposta/copia pagina: picker riscritto come albero cartelle (era elenco piatto poco chiaro)
+const CACHE_NAME = 'eduboard-v2-064'; // v2-064 — Fix: Sposta pagina ora salva subito la lezione di origine; modal picker piu largo e ridimensionabile
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-063 — Il picker di "Sposta/copia pagina" ora mostra un vero albero di cartelle come la libreria, invece di un elenco poco chiaro: carica solo quello che apri, più veloce anche con connessione debole.';
+const CHANGELOG  = 'EduBoard V2-064 — Corretto "Sposta pagina": ora rimuove davvero la pagina dalla lezione di origine subito, senza aspettare il salvataggio automatico. Il picker "Sposta/copia" e ora piu largo e puoi ridimensionarlo trascinando l\'angolo.';
 
 const urlsToCache = [
   '.',
