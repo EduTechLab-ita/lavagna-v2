@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-058'; // v2-058 — Flush auto-save immediato su tab nascosta/reload (non perde più modifiche recenti)
+const CACHE_NAME = 'eduboard-v2-059'; // v2-059 — Timer LIM: quadrante rotondo, cifre toccabili, schermo intero, riduci a icona
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-058 — Le modifiche appena fatte non si perdono più se ricarichi subito la pagina.';
+const CHANGELOG  = 'EduBoard V2-059 — Il Timer/Cronometro ha un nuovo quadrante rotondo: tocca sopra/sotto ai numeri per impostarlo, e ora puoi metterlo a schermo intero o ridurlo a icona in alto mentre continui a scrivere.';
 
 const urlsToCache = [
   '.',

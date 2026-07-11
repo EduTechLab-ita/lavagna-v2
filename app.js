@@ -6489,12 +6489,16 @@ class TimerWidget {
         this.el        = null;
         this.visible   = false;
         this._interval = null;
-        this._seconds  = 0;       // secondi rimasti (countdown) o trascorsi (stopwatch)
+        this._seconds      = 0;   // secondi rimasti (countdown) o trascorsi (stopwatch)
+        this._totalSeconds = 0;   // durata impostata (countdown) — riferimento per l'anello
         this._running  = false;
         this._mode     = 'countdown'; // 'countdown' | 'stopwatch'
+        this._state    = 'normal';    // 'normal' | 'fullscreen' | 'minimized'
         this._drag     = { on: false, startX: 0, startY: 0, origX: 0, origY: 0 };
         this._x        = 40;
         this._y        = 100;
+        this._ringR    = 70;
+        this._ringCircumference = 2 * Math.PI * this._ringR;
     }
 
     create() {
@@ -6502,17 +6506,31 @@ class TimerWidget {
         el.id = 'timer-widget';
         el.innerHTML = `
             <div class="timer-drag-bar" id="timer-drag-bar" title="Trascina">⠿</div>
-            <div class="timer-display" id="timer-display">00:00</div>
-            <div class="timer-custom-row" id="timer-custom-row" title="Imposta minuti e secondi">
-                <input class="timer-input" id="timer-input-min" type="number" min="0" max="99" value="0" placeholder="mm">
-                <span class="timer-colon">:</span>
-                <input class="timer-input" id="timer-input-sec" type="number" min="0" max="59" value="0" placeholder="ss">
-                <button class="timer-set-btn" id="timer-set-btn" title="Imposta tempo">✓</button>
+            <div class="timer-dial">
+                <svg class="timer-ring-svg" viewBox="0 0 160 160">
+                    <circle class="timer-ring-bg" cx="80" cy="80" r="${this._ringR}"></circle>
+                    <circle class="timer-ring-progress" id="timer-ring-progress" cx="80" cy="80" r="${this._ringR}"></circle>
+                </svg>
+                <div class="timer-dial-center">
+                    <div class="timer-digit-tap" id="timer-min-tap" data-part="min" title="Tocca sopra/sotto per cambiare i minuti">
+                        <span class="timer-digit-arrow">▴</span>
+                        <span class="timer-digit-value" id="timer-min-display">00</span>
+                        <span class="timer-digit-arrow down">▾</span>
+                    </div>
+                    <span class="timer-colon">:</span>
+                    <div class="timer-digit-tap" id="timer-sec-tap" data-part="sec" title="Tocca sopra/sotto per cambiare i secondi">
+                        <span class="timer-digit-arrow">▴</span>
+                        <span class="timer-digit-value" id="timer-sec-display">00</span>
+                        <span class="timer-digit-arrow down">▾</span>
+                    </div>
+                </div>
             </div>
             <div class="timer-controls">
                 <button class="timer-btn" id="timer-start" title="Avvia / Pausa">▶</button>
                 <button class="timer-btn" id="timer-reset" title="Reset">↺</button>
-                <button class="timer-mode" id="timer-mode-btn" title="Cambia modalità">⏱</button>
+                <button class="timer-mode" id="timer-mode-btn" title="Timer / Cronometro">⏱</button>
+                <button class="timer-btn timer-fullscreen-btn" id="timer-fullscreen-btn" title="Schermo intero">⛶</button>
+                <button class="timer-btn timer-minimize-btn" id="timer-minimize-btn" title="Riduci a icona">─</button>
             </div>
             <div class="timer-presets" id="timer-presets">
                 <button class="timer-preset" data-sec="60">1'</button>
@@ -6526,22 +6544,36 @@ class TimerWidget {
         document.body.appendChild(el);
         this.el = el;
 
+        this.el.querySelector('#timer-ring-progress').style.strokeDasharray = String(this._ringCircumference);
+
         this._setupDrag();
 
         el.querySelector('#timer-start').addEventListener('click', () => this._toggleRun());
         el.querySelector('#timer-reset').addEventListener('click', () => this._reset());
         el.querySelector('#timer-close').addEventListener('click', () => this.hide());
         el.querySelector('#timer-mode-btn').addEventListener('click', () => this._toggleMode());
+        el.querySelector('#timer-fullscreen-btn').addEventListener('click', () => this._toggleFullscreen());
+        el.querySelector('#timer-minimize-btn').addEventListener('click', () => this._toggleMinimize());
 
-        // Input manuale minuti:secondi
-        el.querySelector('#timer-set-btn').addEventListener('click', () => this._setCustomTime());
-        el.querySelector('#timer-input-min').addEventListener('keydown', e => { if (e.key === 'Enter') this._setCustomTime(); });
-        el.querySelector('#timer-input-sec').addEventListener('keydown', e => { if (e.key === 'Enter') this._setCustomTime(); });
+        // Tocca la cifra: metà superiore = +1, metà inferiore = -1 (sostituisce i vecchi campi numerici)
+        ['min', 'sec'].forEach(part => {
+            const zone = el.querySelector(`#timer-${part}-tap`);
+            zone.addEventListener('click', (e) => {
+                const rect = zone.getBoundingClientRect();
+                const delta = (e.clientY - rect.top) < rect.height / 2 ? 1 : -1;
+                this._adjustDigit(part, delta);
+            });
+        });
+
+        // Riduci a icona: un tocco sulla pillola la riporta normale
+        el.addEventListener('click', (e) => {
+            if (this._state === 'minimized') this._toggleMinimize();
+        });
 
         el.querySelectorAll('.timer-preset').forEach(btn => {
             btn.addEventListener('click', () => {
                 this._mode = 'countdown';
-                this._seconds = parseInt(btn.dataset.sec);
+                this._seconds = this._totalSeconds = parseInt(btn.dataset.sec);
                 this._running = false;
                 clearInterval(this._interval);
                 this._updateDisplay();
@@ -6551,21 +6583,29 @@ class TimerWidget {
         });
     }
 
-    _setCustomTime() {
-        const m = parseInt(this.el.querySelector('#timer-input-min').value) || 0;
-        const s = parseInt(this.el.querySelector('#timer-input-sec').value) || 0;
-        const total = m * 60 + Math.min(s, 59);
-        if (total <= 0) return;
-        clearInterval(this._interval);
-        this._running = false;
-        this._mode = 'countdown';
-        this._seconds = total;
+    // Tocco diretto sulla cifra (metà sopra/sotto) — in modalità cronometro non si tocca
+    // (parte sempre da zero), in countdown regola minuti/secondi anche mentre è in corsa.
+    _adjustDigit(part, delta) {
+        if (this._mode === 'stopwatch') return;
+        let m = Math.floor(this._seconds / 60);
+        let s = this._seconds % 60;
+        if (part === 'min') {
+            m = Math.max(0, Math.min(99, m + delta));
+        } else {
+            s += delta;
+            if (s < 0)  { s = 59; m = Math.max(0, m - 1); }
+            if (s > 59) { s = 0;  m = Math.min(99, m + 1); }
+        }
+        const newTotal = m * 60 + s;
+        if (this._running) {
+            // Sposta anche il riferimento dell'anello della stessa quantità, così non "salta"
+            this._totalSeconds += (newTotal - this._seconds);
+        } else {
+            this._totalSeconds = newTotal;
+        }
+        this._seconds = newTotal;
         this._updateDisplay();
-        this.el.querySelector('#timer-start').textContent = '▶';
-        this.el.querySelector('#timer-mode-btn').textContent = '⏱';
-        this.el.querySelector('#timer-presets').style.display = 'flex';
         this.el.classList.remove('timer-finished');
-        this.el.classList.remove('timer-low');
     }
 
     _toggleRun() {
@@ -6584,7 +6624,7 @@ class TimerWidget {
                         this.el.querySelector('#timer-start').textContent = '▶';
                         this.el.classList.remove('timer-low');
                         this.el.classList.add('timer-finished');
-                        this._playBeep();
+                        this._playChime();
                         setTimeout(() => this.el.classList.remove('timer-finished'), 3000);
                         return;
                     }
@@ -6606,6 +6646,7 @@ class TimerWidget {
         clearInterval(this._interval);
         this._running = false;
         this._seconds = 0;
+        this._totalSeconds = 0;
         this._updateDisplay();
         this.el.querySelector('#timer-start').textContent = '▶';
         this.el.classList.remove('timer-finished');
@@ -6619,24 +6660,39 @@ class TimerWidget {
             this._mode === 'countdown' ? '⏱' : '⏲';
         this.el.querySelector('#timer-presets').style.display =
             this._mode === 'countdown' ? 'flex' : 'none';
+        this.el.classList.toggle('timer-stopwatch-mode', this._mode === 'stopwatch');
     }
 
     _updateDisplay() {
         const m = Math.floor(this._seconds / 60);
         const s = this._seconds % 60;
-        const txt = String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
-        this.el.querySelector('#timer-display').textContent = txt;
+        const minEl = this.el.querySelector('#timer-min-display');
+        const secEl = this.el.querySelector('#timer-sec-display');
+        if (minEl) minEl.textContent = String(m).padStart(2, '0');
+        if (secEl) secEl.textContent = String(s).padStart(2, '0');
+
+        // Anello: countdown = si svuota verso lo scadere; cronometro = si riempie ad ogni giro di minuto
+        const ring = this.el.querySelector('#timer-ring-progress');
+        if (ring) {
+            const frac = this._mode === 'countdown'
+                ? (this._totalSeconds > 0 ? Math.max(0, this._seconds / this._totalSeconds) : 0)
+                : (this._seconds % 60) / 60;
+            ring.style.strokeDashoffset = String(this._ringCircumference * (1 - frac));
+        }
+
         // Cambia colore quando il tempo sta per scadere
+        const dial = this.el.querySelector('.timer-dial');
         if (this._mode === 'countdown' && this._seconds <= 10 && this._seconds > 0) {
-            this.el.querySelector('#timer-display').style.color = '#ef4444';
+            dial?.classList.add('timer-dial-low');
         } else {
-            this.el.querySelector('#timer-display').style.color = '';
+            dial?.classList.remove('timer-dial-low');
         }
     }
 
     _setupDrag() {
         const bar = this.el.querySelector('#timer-drag-bar');
         bar.addEventListener('pointerdown', (e) => {
+            if (this._state !== 'normal') return; // non trascinabile in fullscreen/minimizzato
             e.preventDefault();
             e.stopPropagation();
             bar.setPointerCapture(e.pointerId);
@@ -6653,29 +6709,60 @@ class TimerWidget {
         window.addEventListener('pointerup', () => { this._drag.on = false; });
     }
 
-    _playBeep() {
+    // Schermo intero: copre tutta la LIM, a scelta del docente — di default resta piccolo.
+    _toggleFullscreen() {
+        this._setState(this._state === 'fullscreen' ? 'normal' : 'fullscreen');
+    }
+
+    // Riduci a icona: pillola in alto, il conteggio continua e il docente può
+    // continuare a scrivere sulla lavagna sotto.
+    _toggleMinimize() {
+        this._setState(this._state === 'minimized' ? 'normal' : 'minimized');
+    }
+
+    _setState(state) {
+        this._state = state;
+        this.el.classList.toggle('timer-fullscreen', state === 'fullscreen');
+        this.el.classList.toggle('timer-minimized', state === 'minimized');
+        if (state === 'normal') {
+            this.el.style.left = this._x + 'px';
+            this.el.style.top  = this._y + 'px';
+        } else {
+            this.el.style.left = '';
+            this.el.style.top  = '';
+        }
+    }
+
+    // Onda triangolare + armonica di quinta (stesso timbro "campanella" usato per EduConnect).
+    _playChime() {
         try {
             const ac = new (window.AudioContext || window.webkitAudioContext)();
-            [0, 0.35, 0.7].forEach(t => {
+            const note = (freq, t, duration, volume) => {
+                const now  = ac.currentTime + t;
                 const osc  = ac.createOscillator();
                 const gain = ac.createGain();
+                osc.type = 'triangle';
                 osc.connect(gain);
                 gain.connect(ac.destination);
-                osc.type = 'sine';
-                osc.frequency.value = 880;
-                gain.gain.setValueAtTime(0.5, ac.currentTime + t);
-                gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + t + 0.3);
-                osc.start(ac.currentTime + t);
-                osc.stop(ac.currentTime + t + 0.3);
-            });
+                osc.frequency.value = freq;
+                gain.gain.setValueAtTime(0.0001, now);
+                gain.gain.exponentialRampToValueAtTime(volume, now + 0.015);
+                gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+                osc.start(now);
+                osc.stop(now + duration + 0.02);
+            };
+            const chime = (freq, t) => { note(freq, t, 0.5, 0.45); note(freq * 1.5, t, 0.4, 0.18); };
+            chime(783.99, 0);    // Sol5
+            chime(1046.5, 0.18); // Do6
+            chime(1318.5, 0.36); // Mi6
             setTimeout(() => ac.close(), 2500);
         } catch(e) { /* AudioContext non disponibile */ }
     }
 
     show() {
         this.el.style.display = 'flex';
-        this.el.style.left = this._x + 'px';
-        this.el.style.top  = this._y + 'px';
+        this._setState('normal');
+        this._updateDisplay();
         this.visible = true;
     }
 
