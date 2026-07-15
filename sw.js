@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-070'; // v2-070 — Fix cambio account multi-LIM: lavagna vuota per account senza lezioni, reset isDirty al disconnetti
+const CACHE_NAME = 'eduboard-v2-071'; // v2-071 — Fix avviso chiusura non salvata: mancava se il token Drive scadeva a metà sessione con lezione già aperta
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-070 — Corretto il cambio account: ora un account senza lezioni salvate vede subito una lavagna vuota invece del contenuto dell\'account precedente, e disconnettersi non blocca più l\'apertura automatica dell\'ultima lezione del prossimo account.';
+const CHANGELOG  = 'EduBoard V2-071 — Corretto un caso in cui l\'avviso "modifiche non salvate" alla chiusura non compariva: se il collegamento a Drive scadeva mentre si disegnava con una lezione già aperta.';
 
 const urlsToCache = [
   '.',

@@ -7355,8 +7355,10 @@ document.addEventListener('DOMContentLoaded', () => {
             e.returnValue = 'Salvataggio automatico in corso. Attendere qualche secondo prima di chiudere.';
             return e.returnValue;
         }
-        // Blocca chiusura solo se dirty E non connessi al Drive (nessun auto-save possibile)
-        if (CONFIG.isDirty && !libraryMgr?.currentFileId) {
+        // Blocca chiusura se dirty e l'auto-save non può (più) partire: nessun file Drive aperto,
+        // oppure file aperto ma token Drive scaduto/disconnesso a metà sessione (onDirty() in quel
+        // caso non arma il timer, quindi hasPending() sopra resta false pur essendoci lavoro perso).
+        if (CONFIG.isDirty && (!libraryMgr?.currentFileId || !window.driveMgr?.isConnected())) {
             e.preventDefault();
             e.returnValue = 'Hai modifiche non salvate. Vuoi davvero uscire?';
         }
