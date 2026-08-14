@@ -1538,7 +1538,9 @@
     const email = localStorage.getItem(STORAGE_EMAIL) || '';
     const subject = encodeURIComponent('EduBoard Connect - Assistenza');
     const body = encodeURIComponent(`Account: ${email}\nDescrivi qui il problema riscontrato:\n\n`);
-    location.href = `mailto:info@edutechlab.it?subject=${subject}&body=${body}`;
+    // Indirizzo corretto dal 14/08/2026: era info@edutechlab.it, casella che NON esiste
+    // — le richieste di assistenza inviate da qui non arrivavano a nessuno.
+    location.href = `mailto:edutechlab.ita@gmail.com?subject=${subject}&body=${body}`;
   });
 
   // Timer

@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-074'; // v2-074 — Trascinamento e ridimensionamento di immagini e PDF resi fluidi
+const CACHE_NAME = 'eduboard-v2-075'; // v2-075 — Corretto l'indirizzo della richiesta assistenza anche in EduConnect
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-074 — Spostare e ridimensionare immagini e PDF ora è fluido: prima ogni movimento ricalcolava da capo tutti gli oggetti della pagina, filtri compresi. Corretti anche i pulsanti di contatto nelle impostazioni.';
+const CHANGELOG  = 'EduBoard V2-075 — Corretta la richiesta di assistenza in EduConnect: la mail partiva verso una casella inesistente, quindi le segnalazioni non arrivavano a nessuno.';
 
 const urlsToCache = [
   '.',
