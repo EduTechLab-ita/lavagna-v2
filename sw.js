@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-073'; // v2-073 — Nessun contatto con domini esterni all'avvio: PDF.js, Google Identity e font Inter tutti locali o su richiesta
+const CACHE_NAME = 'eduboard-v2-074'; // v2-074 — Trascinamento e ridimensionamento di immagini e PDF resi fluidi
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-073 — L\'app non contatta più alcun sito esterno all\'avvio: PDF, caratteri e collegamento a Google sono ora dentro l\'app o caricati solo quando servono. Funziona meglio sulle reti scolastiche che filtrano internet e si avvia più leggera.';
+const CHANGELOG  = 'EduBoard V2-074 — Spostare e ridimensionare immagini e PDF ora è fluido: prima ogni movimento ricalcolava da capo tutti gli oggetti della pagina, filtri compresi. Corretti anche i pulsanti di contatto nelle impostazioni.';
 
 const urlsToCache = [
   '.',

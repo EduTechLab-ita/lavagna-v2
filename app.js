@@ -4783,7 +4783,7 @@ class SelectManager {
             }
         });
         if (typeof canvasMgr !== 'undefined') canvasMgr._redrawWithStaticBitmap(this._itemDragStart.strokeRefs);
-        if (typeof objectLayer !== 'undefined') objectLayer.render();
+        if (typeof objectLayer !== 'undefined') objectLayer.richiediRenderDrag();
         this._highlightSelectedItems();
     }
 
@@ -4884,6 +4884,9 @@ class SelectManager {
                         origX: obj.x, origY: obj.y,
                         origW: obj.w, origH: obj.h,
                     };
+                    // "Fotografa" gli altri oggetti: durante il ridimensionamento si
+                    // ridisegna solo questo, non l'intera pagina (vedi ObjectLayer.preparaDrag)
+                    objectLayer.preparaDrag(new Set([obj]));
                     return true;
                 }
             }
@@ -4975,6 +4978,9 @@ class SelectManager {
                         this.phase = 'items-resizing';
                         const resizeStrokeRefs = this._movingStrokeRefs();
                         if (typeof canvasMgr !== 'undefined') canvasMgr._buildDragStaticBitmap(resizeStrokeRefs);
+                        if (typeof objectLayer !== 'undefined' && objectLayer) {
+                            objectLayer.preparaDrag(new Set(this.selectedItems.filter(it => it.type === 'object').map(it => it.ref)));
+                        }
                         this._itemResizeHandle = {
                             corner: h.corner,
                             startX: x, startY: y,
@@ -5002,6 +5008,10 @@ class SelectManager {
             this.phase = 'items-dragging';
             const dragStrokeRefs = this._movingStrokeRefs();
             if (typeof canvasMgr !== 'undefined') canvasMgr._buildDragStaticBitmap(dragStrokeRefs);
+            // Stessa cosa per gli oggetti (immagini/PDF), che finora venivano ridisegnati tutti
+            if (typeof objectLayer !== 'undefined' && objectLayer) {
+                objectLayer.preparaDrag(new Set(this.selectedItems.filter(it => it.type === 'object').map(it => it.ref)));
+            }
             this._itemDragStart = {
                 x, y,
                 strokeRefs: dragStrokeRefs,
@@ -5027,6 +5037,7 @@ class SelectManager {
                     if (typeof canvasMgr !== 'undefined') canvasMgr._saveUndo();
                     this.phase = 'object-dragging';
                     this._objDragStart = { x, y, origX: hit.x, origY: hit.y };
+                    objectLayer.preparaDrag(new Set([hit]));   // vedi ObjectLayer.preparaDrag
                     return true;
                 }
                 // Seleziona nuovo oggetto
@@ -5114,7 +5125,7 @@ class SelectManager {
             obj.y = newY;
             obj.w = newW;
             obj.h = newW * ratio;
-            objectLayer.render();
+            objectLayer.richiediRenderDrag();   // un disegno per fotogramma, non uno per evento
             this._drawSelectionRect(obj.x, obj.y, obj.w, obj.h, true);
             return true;
         }
@@ -5165,7 +5176,7 @@ class SelectManager {
             });
 
             if (typeof canvasMgr !== 'undefined') canvasMgr._redrawWithStaticBitmap(rh.strokeRefs);
-            if (typeof objectLayer !== 'undefined') objectLayer.render();
+            if (typeof objectLayer !== 'undefined') objectLayer.richiediRenderDrag();
             this._highlightSelectedItems();
             return true;
         }
@@ -5225,7 +5236,7 @@ class SelectManager {
             const newY = this._objDragStart.origY + dy;
             this.selectedObject.x = newX;
             this.selectedObject.y = newY;
-            objectLayer.render();
+            objectLayer.richiediRenderDrag();   // un disegno per fotogramma, non uno per evento
             this._drawSelectionRect(newX, newY, this.selectedObject.w, this.selectedObject.h, true);
             this._showContextPanel(this.selectedObject);
             return true;
@@ -5333,6 +5344,7 @@ class SelectManager {
         if (this.phase === 'object-resizing') {
             this.phase = 'object-selected';
             this._resizeHandle = null;
+            if (typeof objectLayer !== 'undefined' && objectLayer) objectLayer.fineDrag();
             CONFIG.isDirty = true;
             window.autoSaveMgr?.onDirty();
             // Aggiorna il campo larghezza nel pannello
@@ -5348,6 +5360,7 @@ class SelectManager {
         if (this.phase === 'object-dragging' && this.selectedObject) {
             this.phase = 'object-selected';
             this._objDragStart = null;
+            if (typeof objectLayer !== 'undefined' && objectLayer) objectLayer.fineDrag();
             CONFIG.isDirty = true;
             window.autoSaveMgr?.onDirty();
             this._drawSelectionRect(this.selectedObject.x, this.selectedObject.y,
@@ -5400,6 +5413,7 @@ class SelectManager {
         if (this.phase === 'items-resizing') {
             this.phase = 'items-selected';
             this._itemResizeHandle = null;
+            if (typeof objectLayer !== 'undefined' && objectLayer) objectLayer.fineDrag();
             CONFIG.isDirty = true;
             window.autoSaveMgr?.onDirty();
             this._highlightSelectedItems();
@@ -5413,6 +5427,7 @@ class SelectManager {
         if (this.phase === 'items-dragging') {
             this.phase = 'items-selected';
             this._itemDragStart = null;
+            if (typeof objectLayer !== 'undefined' && objectLayer) objectLayer.fineDrag();
             CONFIG.isDirty = true;
             window.autoSaveMgr?.onDirty();
             this._highlightSelectedItems();
@@ -5649,34 +5664,121 @@ class ObjectLayer {
         this.render();
     }
 
+    // ─── PRESTAZIONI DEL DISEGNO (rifatto 14/08/2026) ────────────────────────────
+    // Misurato dal vivo su canvas 4320x2205 (schermo a densità doppia), 10 immagini:
+    //   ridisegno senza filtro ....... 81 ms/frame
+    //   ridisegno CON ctx.filter .... 1278 ms/frame  ← trascinamento impossibile
+    // E il filtro era attivo SEMPRE: addObject() assegna {100,100,100} a ogni oggetto,
+    // cioè un filtro che non cambia nulla ma che il browser ricalcolava su ogni pixel
+    // a ogni movimento del dito. Da qui i tre accorgimenti qui sotto.
+
+    /** True solo se il filtro altera davvero l'immagine (100/100/100 = nessun effetto). */
+    _filtroAttivo(obj) {
+        const f = obj.filter;
+        if (!f) return false;
+        return (f.brightness ?? 100) !== 100 || (f.contrast ?? 100) !== 100 || (f.saturation ?? 100) !== 100;
+    }
+
+    /**
+     * Immagine da disegnare per un oggetto. Se ha un filtro reale, lo applica UNA VOLTA
+     * su un canvas di appoggio e riusa quello finché i valori non cambiano: così il costo
+     * del filtro si paga una volta sola invece che a ogni fotogramma.
+     */
+    _sorgente(obj) {
+        if (!this._filtroAttivo(obj)) return obj.img;
+
+        const f = obj.filter;
+        const chiave = `${f.brightness ?? 100}|${f.contrast ?? 100}|${f.saturation ?? 100}`;
+        if (obj._cacheFiltro && obj._cacheFiltroChiave === chiave) return obj._cacheFiltro;
+
+        const w = obj.originalW || obj.img.naturalWidth  || obj.img.width;
+        const h = obj.originalH || obj.img.naturalHeight || obj.img.height;
+        const c = document.createElement('canvas');
+        c.width = w; c.height = h;
+        const cx = c.getContext('2d');
+        cx.filter = `brightness(${f.brightness ?? 100}%) contrast(${f.contrast ?? 100}%) saturate(${f.saturation ?? 100}%)`;
+        cx.drawImage(obj.img, 0, 0, w, h);
+        obj._cacheFiltro = c;
+        obj._cacheFiltroChiave = chiave;
+        return c;
+    }
+
+    /** Disegna un singolo oggetto sul contesto indicato. */
+    _disegnaOggetto(ctx, obj) {
+        ctx.save();
+        ctx.globalAlpha = obj.opacity !== undefined ? obj.opacity : 1;
+        // ctx.filter NON viene più impostato qui: l'eventuale filtro è già "cotto"
+        // dentro la sorgente restituita da _sorgente().
+        const cx = obj.x + obj.w / 2;
+        const cy = obj.y + obj.h / 2;
+        ctx.translate(cx, cy);
+        if (obj.rotation) ctx.rotate(obj.rotation * Math.PI / 180);
+        if (obj.flipH || obj.flipV) ctx.scale(obj.flipH ? -1 : 1, obj.flipV ? -1 : 1);
+        ctx.drawImage(this._sorgente(obj), -obj.w / 2, -obj.h / 2, obj.w, obj.h);
+        if (obj.borderWidth > 0) {
+            ctx.strokeStyle = obj.borderColor || '#3b82f6';
+            ctx.lineWidth = obj.borderWidth;
+            ctx.strokeRect(-obj.w / 2, -obj.h / 2, obj.w, obj.h);
+        }
+        ctx.restore();
+    }
+
+    /** Invalida la cache del filtro di un oggetto (da chiamare quando i valori cambiano). */
+    invalidaCacheFiltro(obj) {
+        if (obj) { obj._cacheFiltro = null; obj._cacheFiltroChiave = null; }
+    }
+
     render() {
         const ctx = this.ctx;
         ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        for (const obj of this.objects) {
-            ctx.save();
-            // Opacità
-            ctx.globalAlpha = obj.opacity !== undefined ? obj.opacity : 1;
-            // Applica filtri CSS canvas
-            if (obj.filter) {
-                ctx.filter = `brightness(${obj.filter.brightness || 100}%) contrast(${obj.filter.contrast || 100}%) saturate(${obj.filter.saturation || 100}%)`;
-            } else {
-                ctx.filter = 'none';
-            }
-            const cx = obj.x + obj.w / 2;
-            const cy = obj.y + obj.h / 2;
-            ctx.translate(cx, cy);
-            if (obj.rotation) ctx.rotate(obj.rotation * Math.PI / 180);
-            if (obj.flipH || obj.flipV) ctx.scale(obj.flipH ? -1 : 1, obj.flipV ? -1 : 1);
-            ctx.drawImage(obj.img, -obj.w / 2, -obj.h / 2, obj.w, obj.h);
-            // Bordo
-            if (obj.borderWidth > 0) {
-                ctx.filter = 'none';
-                ctx.strokeStyle = obj.borderColor || '#3b82f6';
-                ctx.lineWidth = obj.borderWidth;
-                ctx.strokeRect(-obj.w / 2, -obj.h / 2, obj.w, obj.h);
-            }
-            ctx.restore();
+        for (const obj of this.objects) this._disegnaOggetto(ctx, obj);
+    }
+
+    // ─── Trascinamento: si ridisegna solo ciò che si muove ───────────────────────
+    // Stessa tecnica già usata per i tratti (vedi CanvasManager._buildDragStaticBitmap):
+    // gli oggetti fermi vengono "fotografati" una volta sola all'inizio del trascinamento,
+    // poi ogni fotogramma incolla quella fotografia e ridisegna solo l'oggetto in mano.
+
+    /** Da chiamare all'inizio di un trascinamento. `inMovimento` = Set degli oggetti trascinati. */
+    preparaDrag(inMovimento) {
+        this._dragInMovimento = inMovimento instanceof Set ? inMovimento : new Set(inMovimento || []);
+        if (!this._dragStatico) {
+            this._dragStatico = document.createElement('canvas');
+            this._dragStaticoCtx = this._dragStatico.getContext('2d');
         }
+        this._dragStatico.width  = this.canvas.width;
+        this._dragStatico.height = this.canvas.height;
+        for (const obj of this.objects) {
+            if (!this._dragInMovimento.has(obj)) this._disegnaOggetto(this._dragStaticoCtx, obj);
+        }
+    }
+
+    /** Ridisegno durante il trascinamento: fotografia + soli oggetti in movimento. */
+    renderDrag() {
+        if (!this._dragInMovimento) return this.render();
+        const ctx = this.ctx;
+        ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        ctx.drawImage(this._dragStatico, 0, 0);
+        for (const obj of this.objects) {
+            if (this._dragInMovimento.has(obj)) this._disegnaOggetto(ctx, obj);
+        }
+    }
+
+    /** Ridisegno accodato al fotogramma successivo: più eventi del dito nello stesso
+     *  fotogramma producono un solo disegno, invece di uno per evento. */
+    richiediRenderDrag() {
+        if (this._dragRafPendente) return;
+        this._dragRafPendente = requestAnimationFrame(() => {
+            this._dragRafPendente = null;
+            this.renderDrag();
+        });
+    }
+
+    /** Da chiamare alla fine del trascinamento. */
+    fineDrag() {
+        if (this._dragRafPendente) { cancelAnimationFrame(this._dragRafPendente); this._dragRafPendente = null; }
+        this._dragInMovimento = null;
+        this.render();
     }
 
     // Hit test: restituisce l'oggetto sotto (x,y) o null. Cerca dall'alto (ultimo prima)
@@ -5712,6 +5814,7 @@ class ObjectLayer {
         const obj = this.objects.find(o => o.id === id);
         if (!obj) return;
         obj.filter = { brightness, contrast, saturation };
+        this.invalidaCacheFiltro(obj);   // i valori sono cambiati: la copia filtrata va rifatta
         this.render();
     }
 
