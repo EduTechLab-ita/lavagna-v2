@@ -5933,19 +5933,49 @@ async function importImageFile(file, clientX, clientY) {
 }
 
 /**
+ * Carica PDF.js dalla copia locale, una sola volta e solo quando serve davvero.
+ * Prima la libreria (313 KB) veniva scaricata da cdnjs all'avvio da chiunque aprisse
+ * la lavagna, anche senza mai importare un PDF: caricarla su richiesta alleggerisce
+ * l'avvio, e la copia locale la rende utilizzabile dietro i firewall scolastici e offline.
+ * @returns {Promise<void>} risolve quando `pdfjsLib` è disponibile
+ */
+let _pdfJsPromise = null;
+function _ensurePdfJs() {
+    if (typeof pdfjsLib !== 'undefined') return Promise.resolve();
+    if (_pdfJsPromise) return _pdfJsPromise;   // richieste ravvicinate condividono lo stesso caricamento
+
+    _pdfJsPromise = new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = './pdf.min.js';
+        s.onload = () => (typeof pdfjsLib !== 'undefined')
+            ? resolve()
+            : reject(new Error('pdf.min.js caricato ma pdfjsLib non definito'));
+        s.onerror = () => {
+            _pdfJsPromise = null;              // così un nuovo tentativo è possibile
+            reject(new Error('Caricamento di pdf.min.js fallito'));
+        };
+        document.head.appendChild(s);
+    });
+    return _pdfJsPromise;
+}
+
+/**
  * Importa un PDF (tutte le pagine) come oggetti sul canvas tramite PDF.js.
  * @param {File} file
  * @param {number} [clientX]
  * @param {number} [clientY]
  */
 async function importPdfFile(file, clientX, clientY) {
-    if (typeof pdfjsLib === 'undefined') {
-        toast('PDF.js non disponibile — riprova tra un momento', 'error');
-        return;
-    }
     toast('Conversione PDF in corso...', 'info');
     try {
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        await _ensurePdfJs();
+    } catch (_) {
+        toast('Impossibile caricare il componente per i PDF. Verifica la connessione.', 'error');
+        return;
+    }
+    try {
+        // Worker in locale come la libreria: da CDN falliva dietro i firewall scolastici e offline.
+        pdfjsLib.GlobalWorkerOptions.workerSrc = './pdf.worker.min.js';
         const arrayBuffer = await file.arrayBuffer();
         const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
         const numPages = pdf.numPages;

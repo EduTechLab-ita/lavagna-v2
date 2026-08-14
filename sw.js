@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-071'; // v2-071 — Fix avviso chiusura non salvata: mancava se il token Drive scadeva a metà sessione con lezione già aperta
+const CACHE_NAME = 'eduboard-v2-072'; // v2-072 — PDF.js in locale e caricato su richiesta, Google Identity solo dopo scelta dell'utente
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-071 — Corretto un caso in cui l\'avviso "modifiche non salvate" alla chiusura non compariva: se il collegamento a Drive scadeva mentre si disegnava con una lezione già aperta.';
+const CHANGELOG  = 'EduBoard V2-072 — L\'importazione dei PDF ora funziona anche offline e sulle reti scolastiche che bloccano i siti esterni. L\'app si avvia più leggera: i componenti per i PDF e per il collegamento a Google vengono caricati solo quando servono davvero.';
 
 const urlsToCache = [
   '.',
@@ -15,7 +15,11 @@ const urlsToCache = [
   './connect.html',
   './connect-manifest.json',
   './jsqr.min.js',
-  './qrcode.min.js'
+  './qrcode.min.js',
+  // PDF.js in locale: caricata su richiesta da _ensurePdfJs(), ma messa in cache subito,
+  // così l'import PDF funziona anche offline e dove il firewall blocca i CDN esterni.
+  './pdf.min.js',
+  './pdf.worker.min.js'
 ];
 
 // Installazione del Service Worker

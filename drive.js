@@ -143,16 +143,55 @@ class DriveManager {
         this.lessonsFolderId = null;   // "EduBoard/Lezioni"
         this.bgFolderId      = null;   // "EduBoard/Sfondi"
         this._folderColorsId = null;   // "_folder_colors.json" in EduBoard
+        this._gisPromise     = null;   // caricamento pigro di Google Identity, vedi _ensureGis()
     }
 
     // ──────────────────────────────────────────────────────────────────────────
     // AUTENTICAZIONE
     // ──────────────────────────────────────────────────────────────────────────
 
+    /**
+     * Carica Google Identity Services su richiesta, una sola volta.
+     * Prima lo script stava in index.html e veniva scaricato all'avvio da CHIUNQUE aprisse
+     * la lavagna, contattando i server Google anche per chi non avrebbe mai collegato Drive.
+     * Caricandolo solo qui, il contatto con Google avviene dopo una scelta esplicita
+     * dell'utente — e l'avvio dell'app resta più leggero.
+     * @returns {Promise<void>} risolve quando `google.accounts` è utilizzabile
+     */
+    _ensureGis() {
+        if (typeof google !== 'undefined' && google.accounts) return Promise.resolve();
+        if (this._gisPromise) return this._gisPromise;
+
+        this._gisPromise = new Promise((resolve, reject) => {
+            const s = document.createElement('script');
+            s.src = 'https://accounts.google.com/gsi/client';
+            s.async = true;
+            s.defer = true;
+            s.onload = () => {
+                // onload scatta appena lo script è eseguito: google.accounts può comparire
+                // un istante dopo, quindi si attende che sia davvero pronto.
+                const inizio = Date.now();
+                (function attendi() {
+                    if (typeof google !== 'undefined' && google.accounts) return resolve();
+                    if (Date.now() - inizio > 10000) return reject(new Error('Google Identity non inizializzato'));
+                    setTimeout(attendi, 100);
+                })();
+            };
+            s.onerror = () => {
+                this._gisPromise = null;   // permette un nuovo tentativo
+                reject(new Error('Caricamento di Google Identity fallito'));
+            };
+            document.head.appendChild(s);
+        });
+        return this._gisPromise;
+    }
+
     /** Apre il popup OAuth2 e acquisisce il token. */
     async connect() {
-        if (typeof google === 'undefined' || !google.accounts) {
-            toast('Librerie Google non ancora caricate. Riprova tra un secondo.', 'error');
+        try {
+            await this._ensureGis();
+        } catch (_) {
+            toast('Impossibile contattare Google. Verifica la connessione e riprova.', 'error');
             return;
         }
 
@@ -202,6 +241,16 @@ class DriveManager {
      * Utile al caricamento della pagina se si era già connessi.
      */
     async trySilentConnect(retries = 6) {
+        // Il rinnovo silenzioso ha senso solo per chi si era già collegato: se non c'è
+        // traccia di una sessione precedente non si carica Google Identity per niente.
+        if (!this.userEmail && !localStorage.getItem('eduboard_user_email')) return false;
+
+        try {
+            await this._ensureGis();
+        } catch (_) {
+            return false;
+        }
+
         if (typeof google === 'undefined' || !google.accounts) {
             if (retries > 0) {
                 await new Promise(r => setTimeout(r, 1500));
