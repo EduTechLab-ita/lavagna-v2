@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-072'; // v2-072 — PDF.js in locale e caricato su richiesta, Google Identity solo dopo scelta dell'utente
+const CACHE_NAME = 'eduboard-v2-073'; // v2-073 — Nessun contatto con domini esterni all'avvio: PDF.js, Google Identity e font Inter tutti locali o su richiesta
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-072 — L\'importazione dei PDF ora funziona anche offline e sulle reti scolastiche che bloccano i siti esterni. L\'app si avvia più leggera: i componenti per i PDF e per il collegamento a Google vengono caricati solo quando servono davvero.';
+const CHANGELOG  = 'EduBoard V2-073 — L\'app non contatta più alcun sito esterno all\'avvio: PDF, caratteri e collegamento a Google sono ora dentro l\'app o caricati solo quando servono. Funziona meglio sulle reti scolastiche che filtrano internet e si avvia più leggera.';
 
 const urlsToCache = [
   '.',
@@ -19,7 +19,15 @@ const urlsToCache = [
   // PDF.js in locale: caricata su richiesta da _ensurePdfJs(), ma messa in cache subito,
   // così l'import PDF funziona anche offline e dove il firewall blocca i CDN esterni.
   './pdf.min.js',
-  './pdf.worker.min.js'
+  './pdf.worker.min.js',
+  // Font Inter, solo il subset "latin": copre l'italiano per intero (~47 KB a peso).
+  // I file "latin-ext" sono nel repo ma NON qui: servono solo per caratteri di altre
+  // lingue e sarebbero 400 KB di cache in più scaricati da tutti per niente.
+  './fonts/inter-400-latin.woff2',
+  './fonts/inter-500-latin.woff2',
+  './fonts/inter-600-latin.woff2',
+  './fonts/inter-700-latin.woff2',
+  './fonts/inter-800-latin.woff2'
 ];
 
 // Installazione del Service Worker
