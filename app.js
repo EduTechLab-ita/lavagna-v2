@@ -2973,6 +2973,13 @@ function setupKeyboard() {
         if (textMgr.editing) return;
         // Non interferire con il project-name in modifica
         if (document.getElementById('project-name').contentEditable === 'true') return;
+        // Non rubare Ctrl+C/V/X (e le altre scorciatoie qui sotto) a un campo di testo
+        // vero come quello dei modali (nome lezione, URL di Incorpora/Link): altrimenti
+        // "Seleziona" attivo intercetta Ctrl+V per incollare un oggetto copiato dalla
+        // lavagna invece di lasciar incollare il testo nel campo (segnalato da Fabio,
+        // 19/09/2026 — "non riesco a incollare con Ctrl+V nel campo del link").
+        const tag = e.target.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target.isContentEditable) return;
 
         if (e.ctrlKey || e.metaKey) {
             if (e.key === 'z') {
@@ -6019,7 +6026,7 @@ class EmbedManager {
 
     _createElement(embed) {
         const el = document.createElement('div');
-        el.className = 'embed-object mode-interact' + (embed.type === 'link' ? ' embed-type-link' : '');
+        el.className = 'embed-object mode-interact';
 
         const header = document.createElement('div');
         header.className = 'embed-header';
@@ -6029,16 +6036,22 @@ class EmbedManager {
         urlLabel.textContent = embed.url;
         urlLabel.title = embed.url;
 
-        const modeBtn = document.createElement('button');
-        modeBtn.className = 'embed-btn mode-btn';
-        modeBtn.type = 'button';
-        modeBtn.textContent = '🖱️';
-        modeBtn.title = 'Modalità Interagisci — tocca ✏️ per scriverci sopra';
-        modeBtn.addEventListener('pointerdown', e => e.stopPropagation()); // non avviare il drag
-        modeBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            this._setMode(embed, !embed.interactive);
-        });
+        // Il link è solo una scheda cliccabile, non una pagina viva dentro cui "entrare":
+        // il concetto Interagisci/Annota non si applica, tolto su richiesta di Fabio
+        // (19/09/2026) perché per i link non serviva a niente.
+        let modeBtn = null;
+        if (embed.type !== 'link') {
+            modeBtn = document.createElement('button');
+            modeBtn.className = 'embed-btn mode-btn';
+            modeBtn.type = 'button';
+            modeBtn.textContent = '🖱️';
+            modeBtn.title = 'Modalità Interagisci — tocca ✏️ per scriverci sopra';
+            modeBtn.addEventListener('pointerdown', e => e.stopPropagation()); // non avviare il drag
+            modeBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this._setMode(embed, !embed.interactive);
+            });
+        }
 
         // Se il sito blocca l'incorporamento (molti lo fanno, per scelta loro) il riquadro
         // resta bianco: questo pulsante lo rende comunque utile, aprendo la pagina vera in
@@ -6068,7 +6081,7 @@ class EmbedManager {
         });
 
         header.appendChild(urlLabel);
-        header.appendChild(modeBtn);
+        if (modeBtn) header.appendChild(modeBtn);
         header.appendChild(openBtn);
         header.appendChild(delBtn);
 

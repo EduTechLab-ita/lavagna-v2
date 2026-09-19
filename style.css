@@ -348,25 +348,26 @@ button {
 }
 .embed-object {
     position: absolute;
-    border-radius: 8px;
-    overflow: hidden;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
     display: flex;
     flex-direction: column;
-    background: #1e293b;
     pointer-events: auto; /* il layer padre (#embed-layer) è none: qui va riattivato */
+    /* NIENTE z-index qui, di proposito. Se lo mettessimo, questo div creerebbe un
+       proprio contesto di stacking e "intrappolerebbe" l'header al suo interno:
+       in modalità Annota l'intero riquadro (header compreso) scendeva sotto la
+       canvas di disegno, e il pulsante ✏️ per tornare a Interagisci smetteva di
+       ricevere i click (li intercettava la penna, che continuava solo a scrivere
+       — bug reale segnalato da Fabio il 19/09/2026). Ora header, corpo e maniglia
+       hanno ciascuno il proprio z-index qui sotto, e competono direttamente con
+       le canvas grazie al transform su #canvas-area che li mette tutti sullo
+       stesso livello: l'header resta sempre sopra, solo il corpo scende sotto. */
 }
-/* "Interagisci": sopra tutto, riceve i click — si può giocare/cliccare dentro.
-   "Annota": sotto il layer del disegno (z-index 3), non riceve click — la penna
-   scrive sopra come su un'immagine ferma (vedi CanvasManager, draw-canvas z-index 3). */
-.embed-object.mode-interact { z-index: 410; }
-.embed-object.mode-annotate { z-index: 2; }
 .embed-header {
     flex-shrink: 0;
     /* Alta e con bottoni grandi: su LIM/touch le dita non sono un mouse — pulsanti
        piccoli si mancano di continuo (segnalato da Fabio dopo il primo test, 19/09/2026) */
     height: 44px;
     background: rgba(15, 23, 42, 0.92);
+    border-radius: 8px 8px 0 0;
     display: flex;
     align-items: center;
     gap: 4px;
@@ -374,6 +375,8 @@ button {
     cursor: move;
     pointer-events: auto; /* sempre cliccabile, in entrambe le modalità */
     touch-action: none;
+    position: relative;
+    z-index: 410; /* sempre sopra la canvas di disegno (z-index 3/4), qualunque sia la modalità */
 }
 .embed-header-url {
     flex: 1;
@@ -405,7 +408,17 @@ button {
     position: relative;
     flex: 1;
     min-height: 0;
+    background: #1e293b;
+    border-radius: 0 0 8px 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+    z-index: 410; /* Interagisci: sopra tutto, riceve i click — si può cliccare/giocare dentro */
 }
+/* Annota: il corpo scende sotto la canvas di disegno (z-index 3) — la penna
+   scrive sopra come su un'immagine ferma. L'header resta z-index 410 sempre:
+   così il pulsante per tornare a Interagisci non si blocca mai (vedi nota
+   sopra su .embed-object). */
+.embed-object.mode-annotate .embed-iframe-wrap { z-index: 2; }
 .embed-iframe {
     width: 100%;
     height: 100%;
@@ -465,6 +478,7 @@ button {
     height: 30px;
     cursor: nwse-resize;
     pointer-events: auto;
+    z-index: 410; /* sempre sopra, per poter ridimensionare in entrambe le modalità */
     background:
         linear-gradient(135deg, transparent 0 45%, rgba(255,255,255,0.85) 45% 55%, transparent 55% 100%),
         linear-gradient(135deg, transparent 0 65%, rgba(255,255,255,0.85) 65% 75%, transparent 75% 100%);

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'eduboard-v2-085'; // v2-085 — Bottoni incorpora più grandi, link cliccabile, YouTube auto-embed, cattura ritagliata
+const CACHE_NAME = 'eduboard-v2-086'; // v2-086 — Fix critico: bottone Annota/Interagisci bloccato dallo z-index, tolto toggle inutile dai Link
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
 const CHANGELOG  = 'EduBoard V2-083 — Corretto un difetto serio: il primo salvataggio di una lezione nuova poteva perdere le immagini/PDF importati (la pagina restava vuota alla riapertura). Aggiunta anche la dimensione tratto predefinita nelle Impostazioni.';
 
