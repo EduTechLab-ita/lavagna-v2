@@ -662,6 +662,15 @@ class DriveManager {
                 imageBase64: lesson.bgImageBase64 || ''
             },
             drawing:     lesson.drawingDataURL || '',
+            // BUG SERIO chiuso il 19/09/2026: `pages` (dove vivono gli oggetti — immagini e
+            // PDF importati) arrivava come parametro ma non veniva mai scritto nel JSON salvato
+            // su Drive. overwriteCurrentLesson() (ogni salvataggio DOPO il primo) lo scrive
+            // correttamente nel suo payload separato — solo il PRIMISSIMO salvataggio di una
+            // lezione nuova (che passa da qui) lo perdeva. Restava nascosto perché i tratti a
+            // penna vivono in `drawing` (sempre salvato): il difetto emergeva solo importando
+            // un'immagine/PDF come primissima cosa su una lezione mai salvata prima — esattamente
+            // il percorso reso comune dalla rinomina automatica (v2-081). Segnalato da Fabio.
+            pages:       lesson.pages ?? null,
             canvasWidth: lesson.canvasWidth || 0,
             pagePx:      lesson.pagePx ?? null,
             pagePy:      lesson.pagePy ?? null,
