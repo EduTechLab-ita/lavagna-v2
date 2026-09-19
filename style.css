@@ -363,7 +363,9 @@ button {
 .embed-object.mode-annotate { z-index: 2; }
 .embed-header {
     flex-shrink: 0;
-    height: 30px;
+    /* Alta e con bottoni grandi: su LIM/touch le dita non sono un mouse — pulsanti
+       piccoli si mancano di continuo (segnalato da Fabio dopo il primo test, 19/09/2026) */
+    height: 44px;
     background: rgba(15, 23, 42, 0.92);
     display: flex;
     align-items: center;
@@ -379,19 +381,19 @@ button {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 0.7rem;
+    font-size: 0.78rem;
     color: var(--text-muted, #94a3b8);
-    padding: 0 4px;
+    padding: 0 6px;
 }
 .embed-btn {
     flex-shrink: 0;
-    width: 24px;
-    height: 24px;
+    width: 38px;
+    height: 38px;
     border: none;
-    border-radius: 5px;
+    border-radius: 8px;
     background: transparent;
     color: #cbd5e1;
-    font-size: 0.85rem;
+    font-size: 1.25rem;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -413,6 +415,38 @@ button {
 }
 /* In modalità Annota l'iframe non deve ricevere click (passano alla penna sopra) */
 .embed-object.mode-annotate .embed-iframe { pointer-events: none; }
+/* Scheda "Link": niente iframe, solo un riquadro cliccabile che apre la pagina vera
+   in un'altra scheda — per i siti che rifiutano di essere incorporati (es. molti
+   video YouTube). Stesso concetto Interagisci/Annota dell'incorporamento. */
+.embed-link-body {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 16px;
+    background: #f8fafc;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+.embed-link-body:hover { background: #eef2f7; }
+.embed-link-icon { font-size: 1.8rem; flex-shrink: 0; }
+.embed-link-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+.embed-link-host {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #0f172a;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.embed-link-cta { font-size: 0.8rem; color: #3b82f6; font-weight: 500; }
+.embed-object.mode-annotate .embed-link-body { pointer-events: none; }
 /* Overlay semitrasparente in modalità Annota — fa capire a colpo d'occhio che il
    riquadro è "congelato" e si può scrivere sopra (richiesto per chiarezza in classe) */
 .embed-annotate-hint {
@@ -425,10 +459,10 @@ button {
 .embed-object.mode-annotate .embed-annotate-hint { display: block; }
 .embed-resize-handle {
     position: absolute;
-    right: 2px;
-    bottom: 2px;
-    width: 18px;
-    height: 18px;
+    right: 0;
+    bottom: 0;
+    width: 30px;
+    height: 30px;
     cursor: nwse-resize;
     pointer-events: auto;
     background:

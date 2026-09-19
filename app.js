@@ -1863,9 +1863,26 @@ class ToolbarManager {
                 (url) => {
                     let full = url.trim();
                     if (!/^https?:\/\//i.test(full)) full = 'https://' + full;
+                    full = _toEmbeddableUrl(full);
                     const center = (typeof _getPageCenter === 'function') ? _getPageCenter() : getViewportCenter();
-                    embedMgr.addEmbed(full, center.x, center.y);
+                    embedMgr.addEmbed(full, center.x, center.y, 640, 420, 'iframe');
                     toast('Pagina incorporata — funziona solo se il sito permette di essere incorporato', 'info');
+                },
+                'https://…'
+            );
+            return;
+        }
+        if (tool === 'embed-link') {
+            selectMgr?.deactivate();
+            showPromptModal(
+                'Aggiungi link cliccabile',
+                '',
+                (url) => {
+                    let full = url.trim();
+                    if (!/^https?:\/\//i.test(full)) full = 'https://' + full;
+                    const center = (typeof _getPageCenter === 'function') ? _getPageCenter() : getViewportCenter();
+                    embedMgr.addEmbed(full, center.x, center.y, 300, 110, 'link');
+                    toast('Link aggiunto — un tocco lo apre in una scheda nuova', 'info');
                 },
                 'https://…'
             );
@@ -5914,10 +5931,29 @@ class ObjectLayer {
 // modalità insieme: è una regola di sicurezza del browser, non una scelta del codice.
 // =============================================================================
 
+// YouTube blocca l'incorporamento del normale link "watch"/"youtu.be" (X-Frame-Options),
+// ma permette sempre quello in formato /embed/VIDEO_ID: riscriviamo in automatico così
+// "Incorpora" funziona anche incollando un link YouTube preso dalla barra indirizzi.
+function _toEmbeddableUrl(url) {
+    try {
+        const u = new URL(url);
+        const host = u.hostname.replace(/^www\./, '').replace(/^m\./, '');
+        if (host === 'youtube.com') {
+            const id = u.searchParams.get('v');
+            if (id) return `https://www.youtube.com/embed/${id}`;
+        }
+        if (host === 'youtu.be') {
+            const id = u.pathname.slice(1);
+            if (id) return `https://www.youtube.com/embed/${id}`;
+        }
+    } catch (_) { /* URL non valido: lasciata invariata, fallirà più avanti con un riquadro vuoto */ }
+    return url;
+}
+
 class EmbedManager {
     constructor() {
         this.layer = document.getElementById('embed-layer');
-        this.embeds = []; // { id, url, x, y, w, h, interactive, el }
+        this.embeds = []; // { id, url, x, y, w, h, interactive, type, el }
         this._nextId = 1;
     }
 
@@ -5931,12 +5967,13 @@ class EmbedManager {
      * Aggiunge una pagina incorporata, centrata su (x,y) — stessa convenzione di
      * importImageFile/_importPdfPages (centro, non angolo in alto a sinistra).
      */
-    addEmbed(url, x, y, w = 640, h = 420) {
+    addEmbed(url, x, y, w = 640, h = 420, type = 'iframe') {
         const embed = {
             id: this._nextId++,
             url,
             x: x - w / 2, y: y - h / 2, w, h,
             interactive: true,
+            type,
         };
         this.embeds.push(embed);
         embed.el = this._createElement(embed);
@@ -5982,7 +6019,7 @@ class EmbedManager {
 
     _createElement(embed) {
         const el = document.createElement('div');
-        el.className = 'embed-object mode-interact';
+        el.className = 'embed-object mode-interact' + (embed.type === 'link' ? ' embed-type-link' : '');
 
         const header = document.createElement('div');
         header.className = 'embed-header';
@@ -6010,7 +6047,9 @@ class EmbedManager {
         openBtn.className = 'embed-btn';
         openBtn.type = 'button';
         openBtn.textContent = '↗';
-        openBtn.title = 'Apri in una scheda esterna (utile se il riquadro resta vuoto)';
+        openBtn.title = embed.type === 'link'
+            ? 'Apri il link in una scheda esterna'
+            : 'Apri in una scheda esterna (utile se il riquadro resta vuoto)';
         openBtn.addEventListener('pointerdown', e => e.stopPropagation());
         openBtn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -6035,15 +6074,36 @@ class EmbedManager {
 
         const iframeWrap = document.createElement('div');
         iframeWrap.className = 'embed-iframe-wrap';
-        const iframe = document.createElement('iframe');
-        iframe.className = 'embed-iframe';
-        iframe.src = embed.url;
-        iframe.allow = 'autoplay; fullscreen; clipboard-write';
-        iframe.referrerPolicy = 'no-referrer-when-downgrade';
-        const hint = document.createElement('div');
-        hint.className = 'embed-annotate-hint';
-        iframeWrap.appendChild(iframe);
-        iframeWrap.appendChild(hint);
+        if (embed.type === 'link') {
+            // Un link non si può "incorporare": è solo una scheda cliccabile che apre
+            // la pagina vera in un'altra tab — utile quando il sito rifiuta l'iframe.
+            let hostname = embed.url;
+            try { hostname = new URL(embed.url).hostname.replace(/^www\./, ''); } catch (_) {}
+            const linkBody = document.createElement('div');
+            linkBody.className = 'embed-link-body';
+            linkBody.innerHTML = `
+                <span class="embed-link-icon">🔗</span>
+                <span class="embed-link-text">
+                    <span class="embed-link-host">${hostname}</span>
+                    <span class="embed-link-cta">Tocca per aprire ↗</span>
+                </span>`;
+            linkBody.addEventListener('pointerdown', e => e.stopPropagation());
+            linkBody.addEventListener('click', (e) => {
+                e.stopPropagation();
+                window.open(embed.url, '_blank', 'noopener');
+            });
+            iframeWrap.appendChild(linkBody);
+        } else {
+            const iframe = document.createElement('iframe');
+            iframe.className = 'embed-iframe';
+            iframe.src = embed.url;
+            iframe.allow = 'autoplay; fullscreen; clipboard-write';
+            iframe.referrerPolicy = 'no-referrer-when-downgrade';
+            const hint = document.createElement('div');
+            hint.className = 'embed-annotate-hint';
+            iframeWrap.appendChild(iframe);
+            iframeWrap.appendChild(hint);
+        }
 
         const resizeHandle = document.createElement('div');
         resizeHandle.className = 'embed-resize-handle';
@@ -6085,9 +6145,11 @@ class EmbedManager {
             const startX = e.clientX, startY = e.clientY;
             const origW = embed.w, origH = embed.h;
             const scale = (typeof panMgr !== 'undefined' && panMgr) ? panMgr.scale : 1;
+            const minW = embed.type === 'link' ? 220 : 200;
+            const minH = embed.type === 'link' ? 90 : 140;
             const onMove = (ev) => {
-                embed.w = Math.max(200, origW + (ev.clientX - startX) / scale);
-                embed.h = Math.max(140, origH + (ev.clientY - startY) / scale);
+                embed.w = Math.max(minW, origW + (ev.clientX - startX) / scale);
+                embed.h = Math.max(minH, origH + (ev.clientY - startY) / scale);
                 this._applyPosition(embed);
             };
             const onUp = () => {
@@ -6105,7 +6167,7 @@ class EmbedManager {
 
     /** Dati semplici da salvare nella pagina — niente riferimenti DOM. */
     serialize() {
-        return this.embeds.map(e => ({ url: e.url, x: e.x, y: e.y, w: e.w, h: e.h, interactive: e.interactive }));
+        return this.embeds.map(e => ({ url: e.url, x: e.x, y: e.y, w: e.w, h: e.h, interactive: e.interactive, type: e.type || 'iframe' }));
     }
 
     /** Ricostruisce gli embed salvati (cambio pagina, riapertura lezione). */
@@ -6116,6 +6178,7 @@ class EmbedManager {
                 id: this._nextId++,
                 url: data.url, x: data.x, y: data.y, w: data.w, h: data.h,
                 interactive: data.interactive !== false,
+                type: data.type || 'iframe',
             };
             this.embeds.push(embed);
             embed.el = this._createElement(embed);
@@ -6721,6 +6784,21 @@ async function captureBoardScreenshot() {
     const toHide = ['app-header', 'toolbar-wrapper', 'page-bar', 'bottom-right-bar']
         .map(id => document.getElementById(id)).filter(Boolean);
     const prevVisibility = toHide.map(el => el.style.visibility);
+
+    // Fascia "pulita" della lavagna: tutto lo schermo TRA il fondo dell'header e il
+    // bordo più alto tra i vari pulsanti in basso (barra pagine, salva/zoom, toolbar).
+    // Senza questo ritaglio la cattura restituisce l'intera scheda con grandi margini
+    // vuoti dove i menù sono stati nascosti, e l'immagine importata risulta piccola e
+    // "tagliata" quando viene adattata alla pagina (segnalato da Fabio, 19/09/2026).
+    const headerEl = document.getElementById('app-header');
+    const cropTop = headerEl ? headerEl.getBoundingClientRect().bottom : 0;
+    const bottomEdges = ['toolbar-wrapper', 'page-bar', 'bottom-right-bar']
+        .map(id => document.getElementById(id))
+        .filter(Boolean)
+        .map(el => el.getBoundingClientRect().top)
+        .filter(top => top > cropTop && top <= window.innerHeight);
+    const cropBottom = bottomEdges.length ? Math.min(...bottomEdges) : window.innerHeight;
+
     toHide.forEach(el => { el.style.visibility = 'hidden'; });
 
     const video = document.createElement('video');
@@ -6733,9 +6811,15 @@ async function captureBoardScreenshot() {
         await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
 
         const vw = video.videoWidth, vh = video.videoHeight;
+        // Il video catturato può avere una risoluzione diversa dai px CSS della pagina
+        // (densità schermo, scala del browser): riportiamo il ritaglio in proporzione.
+        const vScaleY = vh / window.innerHeight;
+        const sy = Math.max(0, Math.min(vh, cropTop * vScaleY));
+        const sh = Math.max(1, Math.min(vh - sy, (cropBottom - cropTop) * vScaleY));
+
         const shot = document.createElement('canvas');
-        shot.width = vw; shot.height = vh;
-        shot.getContext('2d').drawImage(video, 0, 0, vw, vh);
+        shot.width = vw; shot.height = Math.round(sh);
+        shot.getContext('2d').drawImage(video, 0, sy, vw, sh, 0, 0, vw, shot.height);
 
         const blob = await new Promise(r => shot.toBlob(r, 'image/png'));
         const file = new File([blob], 'cattura-lavagna.png', { type: 'image/png' });

@@ -26,7 +26,7 @@
                 <img src="./icon-192x192.png" alt="EduBoard" class="logo-icon">
                 <div class="logo-info">
                     <span class="logo-text"><span class="logo-edu">Edu</span><span class="logo-board">Board</span></span>
-                    <span class="logo-sub">v2-084 &nbsp;&nbsp; © EduTechLab di Rizzotto Fabio</span>
+                    <span class="logo-sub">v2-085 &nbsp;&nbsp; © EduTechLab di Rizzotto Fabio</span>
                 </div>
             </div>
             <div class="project-badge" id="project-name">Nuova Lavagna</div>
@@ -299,12 +299,18 @@
                         </svg>
                         <span>Importa</span>
                     </button>
-                    <button class="tool-btn" data-tool="embed-web" title="Incorpora una pagina web (video, link, giochi interattivi)" id="embed-web-btn">
+                    <button class="tool-btn" data-tool="embed-web" title="Incorpora una pagina web (video, giochi interattivi) dentro alla lavagna" id="embed-web-btn">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                             <circle cx="12" cy="12" r="9"/>
                             <path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>
                         </svg>
                         <span>Incorpora</span>
+                    </button>
+                    <button class="tool-btn" data-tool="embed-link" title="Aggiungi un link cliccabile (utile se una pagina non si lascia incorporare, es. molti video YouTube)" id="embed-link-btn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                            <path d="M9.5 14.5l5-5M8 15.5l-1.5 1.5a3.2 3.2 0 0 1-4.5-4.5L5.5 9M16 8.5L17.5 7a3.2 3.2 0 0 1 4.5 4.5L18.5 15"/>
+                        </svg>
+                        <span>Link</span>
                     </button>
                     <button class="tool-btn action-btn" id="btn-capture-board" title="Cattura la lavagna come immagine (chiede il permesso di condividere lo schermo)">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
@@ -881,7 +887,7 @@
                     <img src="./icon-192x192.png" alt="EduBoard" width="64" height="64" style="border-radius:14px">
                     <div>
                         <div class="settings-info-appname"><span style="color:#3b82f6">Edu</span>Board</div>
-                        <div class="settings-info-version" id="info-version-text">v2-084</div>
+                        <div class="settings-info-version" id="info-version-text">v2-085</div>
                     </div>
                 </div>
                 <div class="settings-section">
@@ -970,6 +976,10 @@
             </div>
             <div class="settings-panel" id="tab-novita">
                 <div class="settings-section">
+                    <div class="settings-changelog-item">
+                        <div class="settings-changelog-ver">v2-085 — Settembre 2026</div>
+                        <div class="settings-changelog-desc">🔎 Pulsanti sulle pagine incorporate ingranditi (erano troppo piccoli per toccarli con precisione) · 🔗 Nuovo pulsante "Link" per aggiungere un collegamento cliccabile, utile quando un sito rifiuta di essere incorporato · ▶️ I link YouTube vengono ora convertiti in automatico nel formato che permette l'incorporamento · 📸 La cattura schermata ora ritaglia solo l'area della lavagna, senza i margini vuoti dove stavano i menù</div>
+                    </div>
                     <div class="settings-changelog-item">
                         <div class="settings-changelog-ver">v2-084 — Settembre 2026</div>
                         <div class="settings-changelog-desc">🌐 Nuovo: si possono incorporare pagine web nella lavagna (video, link, giochi interattivi) con il pulsante "Incorpora" — si trascinano, si ridimensionano e si passa tra modalità Interagisci (ci si clicca dentro) e Annota (ci si scrive sopra con la penna) · 📸 Nuovo strumento "Cattura" per fotografare la lavagna (senza i menù) e incollarla automaticamente come immagine nella lezione</div>
