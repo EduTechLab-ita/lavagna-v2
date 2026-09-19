@@ -26,7 +26,7 @@
                 <img src="./icon-192x192.png" alt="EduBoard" class="logo-icon">
                 <div class="logo-info">
                     <span class="logo-text"><span class="logo-edu">Edu</span><span class="logo-board">Board</span></span>
-                    <span class="logo-sub">v2-083 &nbsp;&nbsp; © EduTechLab di Rizzotto Fabio</span>
+                    <span class="logo-sub">v2-084 &nbsp;&nbsp; © EduTechLab di Rizzotto Fabio</span>
                 </div>
             </div>
             <div class="project-badge" id="project-name">Nuova Lavagna</div>
@@ -120,6 +120,11 @@
         <canvas id="overlay-canvas"></canvas>
         <!-- Layer 4: Input testo inline -->
         <div id="text-cursor" contenteditable="true" spellcheck="false" style="display:none"></div>
+        <!-- Layer 5: Pagine web incorporate (video, link, contenuti interattivi) — elementi DOM
+             veri, non canvas: un iframe non può essere "disegnato" dentro un canvas. Vive come
+             figlio di #canvas-area così eredita automaticamente lo stesso transform pan/zoom
+             delle altre layer, e le sue coordinate x/y/w/h usano le stesse unità canvas. -->
+        <div id="embed-layer"></div>
     </main>
 
     <!-- ===== TOOLBAR WRAPPER ===== -->
@@ -294,6 +299,20 @@
                         </svg>
                         <span>Importa</span>
                     </button>
+                    <button class="tool-btn" data-tool="embed-web" title="Incorpora una pagina web (video, link, giochi interattivi)" id="embed-web-btn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                            <circle cx="12" cy="12" r="9"/>
+                            <path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>
+                        </svg>
+                        <span>Incorpora</span>
+                    </button>
+                    <button class="tool-btn action-btn" id="btn-capture-board" title="Cattura la lavagna come immagine (chiede il permesso di condividere lo schermo)">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                            <path d="M4 8V6a2 2 0 0 1 2-2h2M4 16v2a2 2 0 0 0 2 2h2M20 8V6a2 2 0 0 0-2-2h-2M20 16v2a2 2 0 0 1-2 2h-2"/>
+                            <circle cx="12" cy="12" r="3.2"/>
+                        </svg>
+                        <span>Cattura</span>
+                    </button>
                 </div>
 
                 <div class="tool-separator"></div>
@@ -339,6 +358,7 @@
 
     <!-- Popup: Strumenti geometrici -->
     <div id="geo-popup" class="popup-panel" style="display:none">
+        <button class="popup-close-btn" title="Chiudi">&times;</button>
         <div class="popup-title">Strumenti geometrici</div>
         <div class="shape-grid">
             <button class="shape-opt" id="btn-geo-ruler" title="Righello draggabile e ruotabile">
@@ -368,6 +388,7 @@
 
     <!-- Popup: Selezione forme -->
     <div id="shape-popup" class="popup-panel" style="display:none">
+        <button class="popup-close-btn" title="Chiudi">&times;</button>
         <div class="popup-title">Forme</div>
         <div class="shape-grid">
             <button class="shape-opt active" data-shape="line" title="Linea retta">
@@ -446,6 +467,7 @@
 
     <!-- Popup: Selezione sfondo -->
     <div id="bg-popup" class="popup-panel" style="display:none">
+        <button class="popup-close-btn" title="Chiudi">&times;</button>
         <div class="popup-title">Sfondo</div>
         <!-- Orientamento e colore pagina -->
         <div class="bg-orient-row">
@@ -492,6 +514,7 @@
 
     <!-- Feature 2: Popup tavolozza 80 colori -->
     <div id="color-palette-popup" class="popup-panel" style="display:none">
+        <button class="popup-close-btn" title="Chiudi">&times;</button>
         <div class="popup-title">Scegli colore</div>
         <div id="color-palette-grid" class="color-palette-grid"></div>
         <div class="palette-custom-row">
@@ -858,7 +881,7 @@
                     <img src="./icon-192x192.png" alt="EduBoard" width="64" height="64" style="border-radius:14px">
                     <div>
                         <div class="settings-info-appname"><span style="color:#3b82f6">Edu</span>Board</div>
-                        <div class="settings-info-version" id="info-version-text">v2-083</div>
+                        <div class="settings-info-version" id="info-version-text">v2-084</div>
                     </div>
                 </div>
                 <div class="settings-section">
@@ -947,6 +970,10 @@
             </div>
             <div class="settings-panel" id="tab-novita">
                 <div class="settings-section">
+                    <div class="settings-changelog-item">
+                        <div class="settings-changelog-ver">v2-084 — Settembre 2026</div>
+                        <div class="settings-changelog-desc">🌐 Nuovo: si possono incorporare pagine web nella lavagna (video, link, giochi interattivi) con il pulsante "Incorpora" — si trascinano, si ridimensionano e si passa tra modalità Interagisci (ci si clicca dentro) e Annota (ci si scrive sopra con la penna) · 📸 Nuovo strumento "Cattura" per fotografare la lavagna (senza i menù) e incollarla automaticamente come immagine nella lezione</div>
+                    </div>
                     <div class="settings-changelog-item">
                         <div class="settings-changelog-ver">v2-083 — Settembre 2026</div>
                         <div class="settings-changelog-desc">🛠️ Corretto un difetto serio: il primo salvataggio di una lezione nuova poteva perdere le immagini/PDF importati, lasciando la pagina vuota alla riapertura · 🖊️ Aggiunta la dimensione tratto predefinita nelle Impostazioni, accanto a sfondo/strumento/colore</div>

@@ -1027,6 +1027,7 @@ class CanvasManager {
             if (objCvs) { objCvs.width = W; objCvs.height = H;
                           objCvs.style.width = W + 'px'; objCvs.style.height = H + 'px'; }
         }
+        if (typeof embedMgr !== 'undefined' && embedMgr) embedMgr.resize(W, H);
         this.bgMgr.resize(W, H);
         if (this.laser) this.laser.resize(W, H);
 
@@ -1713,6 +1714,7 @@ class ToolbarManager {
         this._setupColorPalettePopup(); // Feature 2
         this._setupEraserMode();        // Gomma tratti
         this._setupWheelScroll();       // Rotellina mouse -> scroll orizzontale (senza Shift)
+        this._setupPopupCloseButtons(); // × su ogni popup (Sfondo/Forme/Geometria/Colore)
 
         // Mostra la riga opzioni subito (penna selezionata di default)
         this._updateOptionsRow();
@@ -1851,6 +1853,22 @@ class ToolbarManager {
         if (tool === 'import-media') {
             selectMgr?.deactivate();
             document.getElementById('file-import-input').click();
+            return;
+        }
+        if (tool === 'embed-web') {
+            selectMgr?.deactivate();
+            showPromptModal(
+                'Incorpora pagina web',
+                '',
+                (url) => {
+                    let full = url.trim();
+                    if (!/^https?:\/\//i.test(full)) full = 'https://' + full;
+                    const center = (typeof _getPageCenter === 'function') ? _getPageCenter() : getViewportCenter();
+                    embedMgr.addEmbed(full, center.x, center.y);
+                    toast('Pagina incorporata — funziona solo se il sito permette di essere incorporato', 'info');
+                },
+                'https://…'
+            );
             return;
         }
         if (tool === 'select') {
@@ -2274,6 +2292,13 @@ class ToolbarManager {
             if (id === 'bg-popup') {
                 loadDriveBackgrounds();
             }
+            // L'overlay-canvas (surface di disegno) ha pointer-events:auto e cattura i click
+            // per COORDINATE, senza rispettare quale elemento sta visivamente sopra — con un
+            // popup aperto, un tocco sul suo sfondo (o sulla sua × di chiusura) arrivava
+            // comunque al canvas e disegnava un segno (segnalato da Fabio il 19/09/2026).
+            // Disattivandolo mentre un popup è aperto, i click tornano a seguire il DOM normale.
+            const overlay = document.getElementById('overlay-canvas');
+            if (overlay) overlay.style.pointerEvents = 'none';
         }
     }
 
@@ -2281,6 +2306,20 @@ class ToolbarManager {
         ['shape-popup', 'bg-popup', 'color-palette-popup', 'geo-popup'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.style.display = 'none';
+        });
+        const overlay = document.getElementById('overlay-canvas');
+        if (overlay) overlay.style.pointerEvents = 'auto';
+    }
+
+    // Prima l'unico modo per chiudere un popup (Sfondo/Forme/Geometria/Colore) era cliccare
+    // fuori, sul canvas — con la penna attiva questo lasciava un segno indesiderato
+    // (segnalato da Fabio il 19/09/2026). Ogni popup ha ora un × in alto a destra.
+    _setupPopupCloseButtons() {
+        document.querySelectorAll('.popup-close-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this._closeAllPopups();
+            });
         });
     }
 }
@@ -2640,6 +2679,7 @@ class ProjectManager {
 
         canvasMgr.clear();
         if (typeof objectLayer !== 'undefined' && objectLayer) objectLayer.clear();
+        if (typeof embedMgr !== 'undefined' && embedMgr) embedMgr.clear();
         // Reset PageManager → pagine vecchie non restano in memoria. Il nome globale
         // corretto è window.pageManager (non window.pageMgr, che non esiste mai — bug
         // per cui questo reset non scattava mai prima di questa correzione).
@@ -5864,6 +5904,228 @@ class ObjectLayer {
 }
 
 // =============================================================================
+// SEZIONE 13b3 — EmbedManager
+// Pagine web incorporate (video, link, contenuti interattivi) come elementi DOM veri
+// (iframe), non canvas — vivono in #embed-layer, figlio di #canvas-area, così ereditano
+// lo stesso transform pan/zoom e usano le stesse unità di coordinate degli altri oggetti.
+// Ogni embed ha due modalità: "interact" (riceve i click, si può usare/giocare) e
+// "annotate" (non riceve click, resta sotto il layer del disegno — la penna scrive
+// sopra come su un'immagine ferma). Non si può ricevere lo stesso tocco in entrambe le
+// modalità insieme: è una regola di sicurezza del browser, non una scelta del codice.
+// =============================================================================
+
+class EmbedManager {
+    constructor() {
+        this.layer = document.getElementById('embed-layer');
+        this.embeds = []; // { id, url, x, y, w, h, interactive, el }
+        this._nextId = 1;
+    }
+
+    resize(w, h) {
+        if (!this.layer) return;
+        this.layer.style.width  = w + 'px';
+        this.layer.style.height = h + 'px';
+    }
+
+    /**
+     * Aggiunge una pagina incorporata, centrata su (x,y) — stessa convenzione di
+     * importImageFile/_importPdfPages (centro, non angolo in alto a sinistra).
+     */
+    addEmbed(url, x, y, w = 640, h = 420) {
+        const embed = {
+            id: this._nextId++,
+            url,
+            x: x - w / 2, y: y - h / 2, w, h,
+            interactive: true,
+        };
+        this.embeds.push(embed);
+        embed.el = this._createElement(embed);
+        this.layer.appendChild(embed.el);
+        CONFIG.isDirty = true;
+        window.autoSaveMgr?.onDirty();
+        return embed;
+    }
+
+    removeEmbed(id) {
+        const idx = this.embeds.findIndex(e => e.id === id);
+        if (idx < 0) return;
+        this.embeds[idx].el?.remove();
+        this.embeds.splice(idx, 1);
+        CONFIG.isDirty = true;
+        window.autoSaveMgr?.onDirty();
+    }
+
+    clear() {
+        this.embeds.forEach(e => e.el?.remove());
+        this.embeds = [];
+    }
+
+    _applyPosition(embed) {
+        embed.el.style.left   = embed.x + 'px';
+        embed.el.style.top    = embed.y + 'px';
+        embed.el.style.width  = embed.w + 'px';
+        embed.el.style.height = embed.h + 'px';
+    }
+
+    _setMode(embed, interactive) {
+        embed.interactive = interactive;
+        embed.el.classList.toggle('mode-interact', interactive);
+        embed.el.classList.toggle('mode-annotate', !interactive);
+        const modeBtn = embed.el.querySelector('.mode-btn');
+        if (modeBtn) {
+            modeBtn.textContent = interactive ? '🖱️' : '✏️';
+            modeBtn.title = interactive
+                ? 'Modalità Interagisci — tocca ✏️ per scriverci sopra'
+                : 'Modalità Annota — tocca 🖱️ per usarla di nuovo';
+        }
+    }
+
+    _createElement(embed) {
+        const el = document.createElement('div');
+        el.className = 'embed-object mode-interact';
+
+        const header = document.createElement('div');
+        header.className = 'embed-header';
+
+        const urlLabel = document.createElement('span');
+        urlLabel.className = 'embed-header-url';
+        urlLabel.textContent = embed.url;
+        urlLabel.title = embed.url;
+
+        const modeBtn = document.createElement('button');
+        modeBtn.className = 'embed-btn mode-btn';
+        modeBtn.type = 'button';
+        modeBtn.textContent = '🖱️';
+        modeBtn.title = 'Modalità Interagisci — tocca ✏️ per scriverci sopra';
+        modeBtn.addEventListener('pointerdown', e => e.stopPropagation()); // non avviare il drag
+        modeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this._setMode(embed, !embed.interactive);
+        });
+
+        // Se il sito blocca l'incorporamento (molti lo fanno, per scelta loro) il riquadro
+        // resta bianco: questo pulsante lo rende comunque utile, aprendo la pagina vera in
+        // una scheda a parte — non un vicolo cieco (idea di Fabio, 19/09/2026).
+        const openBtn = document.createElement('button');
+        openBtn.className = 'embed-btn';
+        openBtn.type = 'button';
+        openBtn.textContent = '↗';
+        openBtn.title = 'Apri in una scheda esterna (utile se il riquadro resta vuoto)';
+        openBtn.addEventListener('pointerdown', e => e.stopPropagation());
+        openBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            window.open(embed.url, '_blank', 'noopener');
+        });
+
+        const delBtn = document.createElement('button');
+        delBtn.className = 'embed-btn';
+        delBtn.type = 'button';
+        delBtn.textContent = '×';
+        delBtn.title = 'Rimuovi';
+        delBtn.addEventListener('pointerdown', e => e.stopPropagation());
+        delBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.removeEmbed(embed.id);
+        });
+
+        header.appendChild(urlLabel);
+        header.appendChild(modeBtn);
+        header.appendChild(openBtn);
+        header.appendChild(delBtn);
+
+        const iframeWrap = document.createElement('div');
+        iframeWrap.className = 'embed-iframe-wrap';
+        const iframe = document.createElement('iframe');
+        iframe.className = 'embed-iframe';
+        iframe.src = embed.url;
+        iframe.allow = 'autoplay; fullscreen; clipboard-write';
+        iframe.referrerPolicy = 'no-referrer-when-downgrade';
+        const hint = document.createElement('div');
+        hint.className = 'embed-annotate-hint';
+        iframeWrap.appendChild(iframe);
+        iframeWrap.appendChild(hint);
+
+        const resizeHandle = document.createElement('div');
+        resizeHandle.className = 'embed-resize-handle';
+
+        el.appendChild(header);
+        el.appendChild(iframeWrap);
+        el.appendChild(resizeHandle);
+
+        embed.el = el; // va assegnato PRIMA di _applyPosition, che legge embed.el.style
+        this._applyPosition(embed);
+
+        // Trascinamento dalla barra header. I delta dello schermo si dividono per lo zoom
+        // corrente: il layer eredita il transform di #canvas-area, quindi 1px sullo schermo
+        // corrisponde a 1/scale unità canvas.
+        header.addEventListener('pointerdown', (e) => {
+            if (e.target !== header && e.target !== urlLabel) return;
+            e.preventDefault();
+            const startX = e.clientX, startY = e.clientY;
+            const origX = embed.x, origY = embed.y;
+            const scale = (typeof panMgr !== 'undefined' && panMgr) ? panMgr.scale : 1;
+            const onMove = (ev) => {
+                embed.x = origX + (ev.clientX - startX) / scale;
+                embed.y = origY + (ev.clientY - startY) / scale;
+                this._applyPosition(embed);
+            };
+            const onUp = () => {
+                document.removeEventListener('pointermove', onMove);
+                document.removeEventListener('pointerup', onUp);
+                CONFIG.isDirty = true;
+                window.autoSaveMgr?.onDirty();
+            };
+            document.addEventListener('pointermove', onMove);
+            document.addEventListener('pointerup', onUp);
+        });
+
+        resizeHandle.addEventListener('pointerdown', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const startX = e.clientX, startY = e.clientY;
+            const origW = embed.w, origH = embed.h;
+            const scale = (typeof panMgr !== 'undefined' && panMgr) ? panMgr.scale : 1;
+            const onMove = (ev) => {
+                embed.w = Math.max(200, origW + (ev.clientX - startX) / scale);
+                embed.h = Math.max(140, origH + (ev.clientY - startY) / scale);
+                this._applyPosition(embed);
+            };
+            const onUp = () => {
+                document.removeEventListener('pointermove', onMove);
+                document.removeEventListener('pointerup', onUp);
+                CONFIG.isDirty = true;
+                window.autoSaveMgr?.onDirty();
+            };
+            document.addEventListener('pointermove', onMove);
+            document.addEventListener('pointerup', onUp);
+        });
+
+        return el;
+    }
+
+    /** Dati semplici da salvare nella pagina — niente riferimenti DOM. */
+    serialize() {
+        return this.embeds.map(e => ({ url: e.url, x: e.x, y: e.y, w: e.w, h: e.h, interactive: e.interactive }));
+    }
+
+    /** Ricostruisce gli embed salvati (cambio pagina, riapertura lezione). */
+    restore(list) {
+        this.clear();
+        (list || []).forEach(data => {
+            const embed = {
+                id: this._nextId++,
+                url: data.url, x: data.x, y: data.y, w: data.w, h: data.h,
+                interactive: data.interactive !== false,
+            };
+            this.embeds.push(embed);
+            embed.el = this._createElement(embed);
+            this.layer.appendChild(embed.el);
+            this._setMode(embed, embed.interactive);
+        });
+    }
+}
+
+// =============================================================================
 // SEZIONE 13c — Sfondi da Google Drive
 // Carica e mostra le miniature della cartella "Sfondi" nel bg-popup.
 // =============================================================================
@@ -6428,6 +6690,66 @@ function showPdfPagePickerModal(pdf, numPages, onConfirm) {
     };
 }
 
+/**
+ * Cattura la lavagna come immagine e la incolla come nuovo oggetto nella pagina corrente.
+ * Usa l'API di condivisione schermo del browser (stesso permesso di una videochiamata):
+ * l'utente sceglie "Questa scheda" nella richiesta nativa, poi un solo fotogramma viene
+ * catturato e lo stream chiuso subito — non resta nessuna condivisione attiva.
+ * Necessario per "vedere" cosa mostra un contenuto incorporato (SEZIONE 13b3): i suoi pixel
+ * non sono leggibili in altro modo per via delle stesse regole di sicurezza che riguardano
+ * l'interattività (vedi EmbedManager). Nasconde temporaneamente header/toolbar/barra pagine
+ * così la foto mostra solo la lavagna, come richiesto da Fabio il 19/09/2026.
+ */
+async function captureBoardScreenshot() {
+    if (!navigator.mediaDevices?.getDisplayMedia) {
+        toast('Il tuo browser non supporta la cattura dello schermo', 'error');
+        return;
+    }
+    let stream;
+    try {
+        toast('Scegli "Questa scheda" nella richiesta del browser…', 'info');
+        stream = await navigator.mediaDevices.getDisplayMedia({
+            video: { displaySurface: 'browser' },
+            preferCurrentTab: true,      // Chrome: precompila "Questa scheda" nella richiesta
+            selfBrowserSurface: 'include',
+            audio: false
+        });
+    } catch (_) {
+        return; // annullato dall'utente — nessun errore da mostrare, era una sua scelta
+    }
+
+    const toHide = ['app-header', 'toolbar-wrapper', 'page-bar', 'bottom-right-bar']
+        .map(id => document.getElementById(id)).filter(Boolean);
+    const prevVisibility = toHide.map(el => el.style.visibility);
+    toHide.forEach(el => { el.style.visibility = 'hidden'; });
+
+    const video = document.createElement('video');
+    try {
+        video.muted = true;
+        video.srcObject = stream;
+        document.body.appendChild(video);
+        await video.play();
+        // Aspetta un fotogramma vero, con i menù già nascosti dal browser
+        await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+        const vw = video.videoWidth, vh = video.videoHeight;
+        const shot = document.createElement('canvas');
+        shot.width = vw; shot.height = vh;
+        shot.getContext('2d').drawImage(video, 0, 0, vw, vh);
+
+        const blob = await new Promise(r => shot.toBlob(r, 'image/png'));
+        const file = new File([blob], 'cattura-lavagna.png', { type: 'image/png' });
+        await importFilesBatch([file]);
+    } catch (err) {
+        console.error('Cattura schermo error:', err);
+        toast('Errore nella cattura: ' + err.message, 'error');
+    } finally {
+        stream.getTracks().forEach(t => t.stop());
+        video.remove();
+        toHide.forEach((el, i) => { el.style.visibility = prevVisibility[i] || ''; });
+    }
+}
+
 // =============================================================================
 // SEZIONE 13e — PageManager
 // Gestisce più pagine (slide) nella lavagna.
@@ -6505,7 +6827,10 @@ class PageManager {
                 type: this.backgroundManager.currentBg,
                 color: this.backgroundManager.bgColor,
                 orientation: this.backgroundManager.orientation
-            }
+            },
+            // Pagine web incorporate: solo dati semplici (url/posizione), niente da
+            // rasterizzare — vedi EmbedManager
+            embeds: (typeof embedMgr !== 'undefined' && embedMgr) ? embedMgr.serialize() : []
         };
     }
 
@@ -6626,6 +6951,9 @@ class PageManager {
             this.objectLayerRef.render();
             this._restoring = false;
         });
+
+        // Pagine web incorporate — nessuna immagine da attendere, si ricostruiscono subito
+        if (typeof embedMgr !== 'undefined' && embedMgr) embedMgr.restore(pageData.embeds);
 
         // Ripristina sfondo (orientamento già impostato sopra — aggiorna solo il resto dell'UI)
         if (pageData.background) {
@@ -7728,7 +8056,7 @@ function setupOverlayTools() {
 // Istanziazione globale dei manager e avvio dell'applicazione.
 // =============================================================================
 
-let bgMgr, brush, laserMgr, canvasMgr, toolbarMgr, textMgr, projectMgr, selectMgr, panMgr, objectLayer, pageManager;
+let bgMgr, brush, laserMgr, canvasMgr, toolbarMgr, textMgr, projectMgr, selectMgr, panMgr, objectLayer, pageManager, embedMgr;
 
 document.addEventListener('DOMContentLoaded', () => {
     // 1. Inizializza i manager nell'ordine corretto (le dipendenze prima)
@@ -7738,6 +8066,8 @@ document.addEventListener('DOMContentLoaded', () => {
     canvasMgr  = new CanvasManager(bgMgr, brush, laserMgr);
     objectLayer = new ObjectLayer();
     window.objectLayer = objectLayer; // esposto per drive.js (EduBoardConnect._addPhotoToCanvas)
+    embedMgr = new EmbedManager();
+    window.embedMgr = embedMgr;
     selectMgr  = new SelectManager(
         document.getElementById('draw-canvas'),
         document.getElementById('bg-canvas')
@@ -7764,6 +8094,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-save').addEventListener('click',   () => projectMgr.save());
     document.getElementById('btn-export').addEventListener('click', () => handlePrint());
     document.getElementById('btn-new-board-header')?.addEventListener('click', () => projectMgr.newBoard());
+    document.getElementById('btn-capture-board')?.addEventListener('click', () => captureBoardScreenshot());
 
     // Installa EduBoard come PWA sul PC
     document.getElementById('btn-install-pwa')?.addEventListener('click', async () => {
