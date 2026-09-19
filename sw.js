@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-080'; // v2-080 — Fix: import PDF/immagini multiple finivano fuori dall'area di stampa
+const CACHE_NAME = 'eduboard-v2-081'; // v2-081 — Rinomina automatica lezione dal file importato
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-080 — Corretto l\'import di più pagine PDF o immagini insieme: ora restano centrate dentro l\'area di stampa, quasi sovrapposte con solo un piccolo scarto, invece di finire fuori dal foglio.';
+const CHANGELOG  = 'EduBoard V2-081 — Importando un file in una lezione ancora "Nuova Lavagna" mai salvata, il nome della lezione diventa quello del file (come faceva OneNote). Non succede con più file insieme, né su una lezione già nominata.';
 
 const urlsToCache = [
   '.',

@@ -6194,11 +6194,32 @@ async function importPdfFile(file, clientX, clientY, opts = {}) {
 }
 
 /**
+ * Rinomina la lezione col nome del file appena importato (tolta l'estensione), MA solo al
+ * primo import dentro una lezione ancora "Nuova Lavagna" mai salvata — mai su una lezione già
+ * nominata/aperta da Drive, altrimenti importando in una pagina già in corso perderebbe il nome
+ * vero. Come faceva OneNote: se la pagina di partenza è vuota, il nome del file diventa il nome
+ * della lezione. Richiesto da Fabio il 19/09/2026, per la programmazione settimanale (foto di
+ * pagine di libro già nominate col nome giusto — es. "storia-cap4.jpg" → lezione "storia-cap4").
+ * @param {string} fileName
+ */
+function _maybeAutoNameFromImport(fileName) {
+    if (typeof libraryMgr !== 'undefined' && libraryMgr?.currentFileId) return;
+    if (CONFIG.projectName !== 'Nuova Lavagna') return;
+    const name = fileName.replace(/\.[^./\\]+$/, '').trim();
+    if (!name) return;
+    CONFIG.projectName = name;
+    const el = document.getElementById('project-name');
+    if (el) el.textContent = name;
+}
+
+/**
  * Importa una lista di file (immagini e/o PDF) uno dopo l'altro. Con un solo file si comporta
- * esattamente come prima (stesso punto, stesso toast); con più file insieme li dispone in una
- * cascata (ognuno un po' più in basso a destra del precedente) invece di impilarli tutti nello
- * stesso punto — difetto segnalato da Fabio il 19/09/2026, capitava già col drag&drop di più
- * immagini insieme — e mostra UN riepilogo finale invece di un toast per ciascuno.
+ * esattamente come prima (stesso punto, stesso toast, e rinomina la lezione — vedi
+ * _maybeAutoNameFromImport); con più file insieme li dispone in una cascata (ognuno un po' più
+ * in basso a destra del precedente) invece di impilarli tutti nello stesso punto — difetto
+ * segnalato da Fabio il 19/09/2026, capitava già col drag&drop di più immagini insieme — mostra
+ * UN riepilogo finale invece di un toast per ciascuno, e NON rinomina la lezione (con più file
+ * non c'è un nome solo da usare — deciso esplicitamente con Fabio).
  * @param {FileList|File[]} files
  * @param {number} [clientX] posizione X del drop (client); omessa per il centro della vista
  * @param {number} [clientY]
@@ -6222,16 +6243,17 @@ async function importFilesBatch(files, clientX, clientY) {
         : _getPageCenter();
 
     const STACK_OFFSET = 16; // stesso scarto minimo usato da _importPdfPages, per coerenza in un batch misto
-    let images = 0, pdfs = 0, pdfPages = 0;
+    let images = 0, pdfs = 0, pdfPages = 0, singleFileOk = false;
     for (let i = 0; i < list.length; i++) {
         const file = list[i];
         const canvasPos = { x: base.x + i * STACK_OFFSET, y: base.y + i * STACK_OFFSET };
         if (file.type.startsWith('image/')) {
-            await importImageFile(file, undefined, undefined, { silent: batch, canvasPos });
+            const h = await importImageFile(file, undefined, undefined, { silent: batch, canvasPos });
             images++;
+            if (h) singleFileOk = true;
         } else if (file.type === 'application/pdf') {
             const pages = await importPdfFile(file, undefined, undefined, { silent: batch, canvasPos });
-            if (pages) { pdfs++; pdfPages += pages; }
+            if (pages) { pdfs++; pdfPages += pages; singleFileOk = true; }
         }
     }
 
@@ -6240,6 +6262,8 @@ async function importFilesBatch(files, clientX, clientY) {
         if (images) parts.push(`${images} ${images > 1 ? 'immagini' : 'immagine'}`);
         if (pdfs) parts.push(`${pdfs} PDF (${pdfPages} pagina${pdfPages > 1 ? 'e' : ''})`);
         toast(parts.length ? `Importati: ${parts.join(', ')}` : 'Importazione annullata', parts.length ? 'success' : 'info');
+    } else if (singleFileOk) {
+        _maybeAutoNameFromImport(list[0].name);
     }
 }
 
