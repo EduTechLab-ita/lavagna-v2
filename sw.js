@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-082'; // v2-082 — Fix definitivo dimensione/posizione import multiplo immagini
+const CACHE_NAME = 'eduboard-v2-083'; // v2-083 — Fix critico: pagina salvata senza le immagini + dimensione tratto predefinita
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-082 — Corretto per davvero l\'import di più immagini insieme: restano tutte della stessa dimensione, centrate dentro l\'area di stampa, senza più sconfinare dal bordo. Corretta anche la dimensione delle foto ricevute dal telefono via EduConnect.';
+const CHANGELOG  = 'EduBoard V2-083 — Corretto un difetto serio: il primo salvataggio di una lezione nuova poteva perdere le immagini/PDF importati (la pagina restava vuota alla riapertura). Aggiunta anche la dimensione tratto predefinita nelle Impostazioni.';
 
 const urlsToCache = [
   '.',

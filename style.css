@@ -3981,6 +3981,31 @@ body.has-page-bar #zoom-indicator {
 .pref-color-btn:hover { transform: scale(1.15); }
 .pref-color-btn.active { border-color: var(--accent, #3b82f6); transform: scale(1.15); }
 
+/* Dimensione tratto predefinita — stessa riga di bottoni del color picker sopra */
+.pref-size-row {
+    display: flex;
+    gap: 6px;
+}
+.pref-size-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    background: var(--bg-app, #f1f5f9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.1s, border-color 0.1s;
+}
+.pref-size-btn:hover { transform: scale(1.1); }
+.pref-size-btn.active { border-color: var(--accent, #3b82f6); transform: scale(1.1); }
+.pref-size-dot {
+    display: block;
+    border-radius: 50%;
+    background: #334155;
+}
+
 /* Save button */
 .settings-actions {
     display: flex;

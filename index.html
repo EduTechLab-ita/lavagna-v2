@@ -26,7 +26,7 @@
                 <img src="./icon-192x192.png" alt="EduBoard" class="logo-icon">
                 <div class="logo-info">
                     <span class="logo-text"><span class="logo-edu">Edu</span><span class="logo-board">Board</span></span>
-                    <span class="logo-sub">v2-082 &nbsp;&nbsp; © EduTechLab di Rizzotto Fabio</span>
+                    <span class="logo-sub">v2-083 &nbsp;&nbsp; © EduTechLab di Rizzotto Fabio</span>
                 </div>
             </div>
             <div class="project-badge" id="project-name">Nuova Lavagna</div>
@@ -834,6 +834,20 @@
                         </div>
                     </div>
                 </div>
+                <div class="settings-section">
+                    <div class="settings-section-title">Dimensione tratto predefinita</div>
+                    <div class="settings-row">
+                        <span class="settings-label">Dimensione iniziale</span>
+                        <div class="pref-size-row" id="pref-size-row">
+                            <button class="pref-size-btn" data-size="1" title="1"><span class="pref-size-dot" style="width:3px;height:3px"></span></button>
+                            <button class="pref-size-btn active" data-size="3" title="3"><span class="pref-size-dot" style="width:5px;height:5px"></span></button>
+                            <button class="pref-size-btn" data-size="6" title="6"><span class="pref-size-dot" style="width:8px;height:8px"></span></button>
+                            <button class="pref-size-btn" data-size="10" title="10"><span class="pref-size-dot" style="width:12px;height:12px"></span></button>
+                            <button class="pref-size-btn" data-size="16" title="16"><span class="pref-size-dot" style="width:17px;height:17px"></span></button>
+                            <button class="pref-size-btn" data-size="24" title="24"><span class="pref-size-dot" style="width:22px;height:22px"></span></button>
+                        </div>
+                    </div>
+                </div>
                 <div class="settings-actions">
                     <button class="settings-btn-save" id="pref-save-btn">💾 Salva preferenze</button>
                     <span class="settings-save-feedback" id="pref-save-feedback" style="display:none">✅ Salvato!</span>
@@ -844,7 +858,7 @@
                     <img src="./icon-192x192.png" alt="EduBoard" width="64" height="64" style="border-radius:14px">
                     <div>
                         <div class="settings-info-appname"><span style="color:#3b82f6">Edu</span>Board</div>
-                        <div class="settings-info-version" id="info-version-text">v2-082</div>
+                        <div class="settings-info-version" id="info-version-text">v2-083</div>
                     </div>
                 </div>
                 <div class="settings-section">
@@ -933,6 +947,10 @@
             </div>
             <div class="settings-panel" id="tab-novita">
                 <div class="settings-section">
+                    <div class="settings-changelog-item">
+                        <div class="settings-changelog-ver">v2-083 — Settembre 2026</div>
+                        <div class="settings-changelog-desc">🛠️ Corretto un difetto serio: il primo salvataggio di una lezione nuova poteva perdere le immagini/PDF importati, lasciando la pagina vuota alla riapertura · 🖊️ Aggiunta la dimensione tratto predefinita nelle Impostazioni, accanto a sfondo/strumento/colore</div>
+                    </div>
                     <div class="settings-changelog-item">
                         <div class="settings-changelog-ver">v2-082 — Settembre 2026</div>
                         <div class="settings-changelog-desc">📐 Corretto per davvero l'import di più immagini insieme: restano tutte della stessa dimensione, centrate dentro l'area di stampa, senza sconfinare dal bordo. Corretta anche la dimensione delle foto ricevute dal telefono via EduConnect</div>

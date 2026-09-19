@@ -2632,6 +2632,7 @@ class ProjectManager {
         const defBg    = _prefs.defaultBg    || 'white';
         const defTool  = _prefs.defaultTool  || 'pen';
         const defColor = _prefs.defaultColor || '#000000';
+        const defSize  = _prefs.defaultSize  || 3;
         // Uno sfondo personale (Drive) è "custom:<fileId>", non una delle chiavi di serie —
         // si applica in un secondo momento (richiede uno scaricamento), qui si parte da bianco.
         const isCustomBg = defBg.startsWith('custom:');
@@ -2656,11 +2657,15 @@ class ProjectManager {
         document.querySelectorAll('.bg-opt').forEach(b => b.classList.remove('active'));
         const defBgBtn = document.querySelector(`.bg-opt[data-bg="${presetBg}"]`);
         if (defBgBtn) defBgBtn.classList.add('active');
-        // Applica strumento e colore di default
+        // Applica strumento, colore e dimensione tratto di default
         document.querySelector(`.tool-btn[data-tool="${defTool}"]`)?.click();
         CONFIG.currentColor = defColor;
         if (typeof brush !== 'undefined' && brush) brush.color = defColor;
         document.dispatchEvent(new CustomEvent('minicolor:update', { detail: { color: defColor } }));
+        CONFIG.currentSize = defSize;
+        document.querySelectorAll('.size-btn').forEach(b => {
+            b.classList.toggle('active', parseInt(b.dataset.size) === defSize);
+        });
 
         // Sfondo personale: scaricato da Drive in background, non blocca l'apertura della
         // lavagna nuova (resta il bianco impostato sopra finché non arriva, o per sempre se
@@ -8081,6 +8086,14 @@ window.addEventListener('load', function() {
                 btn.classList.add('active');
             };
         });
+        const savedSize = String(prefs.defaultSize || 3);
+        modal.querySelectorAll('.pref-size-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.size === savedSize);
+            btn.onclick = () => {
+                modal.querySelectorAll('.pref-size-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            };
+        });
         _loadPersonalBgOptions(prefs.defaultBg);
     }
 
@@ -8120,9 +8133,11 @@ window.addEventListener('load', function() {
             const bgSel = document.getElementById('pref-default-bg');
             const toolSel = document.getElementById('pref-default-tool');
             const activeColor = modal.querySelector('.pref-color-btn.active');
+            const activeSize = modal.querySelector('.pref-size-btn.active');
             if (bgSel) prefs.defaultBg = bgSel.value;
             if (toolSel) prefs.defaultTool = toolSel.value;
             if (activeColor) prefs.defaultColor = activeColor.dataset.color;
+            if (activeSize) prefs.defaultSize = parseInt(activeSize.dataset.size);
             savePrefs(prefs);
             if (saveFeedback) {
                 saveFeedback.style.display = 'inline';
