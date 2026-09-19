@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-079'; // v2-079 — Sfondi personali selezionabili come default nuova lavagna
+const CACHE_NAME = 'eduboard-v2-080'; // v2-080 — Fix: import PDF/immagini multiple finivano fuori dall'area di stampa
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-079 — Nelle Impostazioni, lo sfondo di default per le nuove lavagne ora può essere anche uno dei tuoi sfondi personali caricati su Drive, non solo i pattern di serie.';
+const CHANGELOG  = 'EduBoard V2-080 — Corretto l\'import di più pagine PDF o immagini insieme: ora restano centrate dentro l\'area di stampa, quasi sovrapposte con solo un piccolo scarto, invece di finire fuori dal foglio.';
 
 const urlsToCache = [
   '.',

@@ -6013,6 +6013,23 @@ function _fitSizeToPage(w, h) {
 }
 
 /**
+ * Centro dell'area di stampa corrente, in coordinate canvas — usato come punto di partenza
+ * per un import senza posizione esplicita (bottone "Importa", non un drop). A differenza di
+ * getViewportCenter() (centro della VISTA visibile, che può non coincidere con la pagina se lo
+ * schermo non è invecchiato esattamente al foglio), questo centra sempre sul foglio vero,
+ * indipendentemente da pan/zoom (segnalato da Fabio il 19/09/2026: gli import finivano "sempre
+ * un po' fuori" dall'area di stampa). Torna al centro-vista se bgMgr/canvasMgr non sono pronti.
+ * @returns {{x:number,y:number}}
+ */
+function _getPageCenter() {
+    if (typeof bgMgr === 'undefined' || !bgMgr || typeof canvasMgr === 'undefined' || !canvasMgr?.canvas) {
+        return getViewportCenter();
+    }
+    const { px, py, pw, ph } = bgMgr._getPageRect(canvasMgr.canvas.width, canvasMgr.canvas.height);
+    return { x: px + pw / 2, y: py + ph / 2 };
+}
+
+/**
  * Importa un file immagine come oggetto sul canvas.
  * @param {File} file
  * @param {number} [clientX] - posizione X del drop (opzionale, usa centro se omesso)
@@ -6049,7 +6066,7 @@ async function importImageFile(file, clientX, clientY, opts = {}) {
                 x = coords.x - w / 2;
                 y = coords.y - h / 2;
             } else {
-                const center = getViewportCenter();
+                const center = _getPageCenter();
                 x = center.x - w / 2;
                 y = center.y - h / 2;
             }
@@ -6141,7 +6158,7 @@ async function importPdfFile(file, clientX, clientY, opts = {}) {
             baseX = coords.x;
             baseY = coords.y;
         } else {
-            const center = getViewportCenter();
+            const center = _getPageCenter();
             baseX = center.x;
             baseY = center.y;
         }
@@ -6192,7 +6209,8 @@ async function importFilesBatch(files, clientX, clientY) {
     const batch = list.length > 1;
 
     // Punto di partenza in coordinate canvas, calcolato una sola volta — stessa conversione
-    // già usata da importImageFile/importPdfFile per il caso a un file solo.
+    // già usata da importImageFile/importPdfFile per il caso a un file solo. Senza posizione
+    // esplicita (bottone Importa, non un drop) si centra sull'area di stampa, non sulla vista.
     const base = (clientX !== undefined && clientY !== undefined)
         ? ((typeof panMgr !== 'undefined' && panMgr)
             ? panMgr.getCanvasCoords(clientX, clientY)
@@ -6201,12 +6219,13 @@ async function importFilesBatch(files, clientX, clientY) {
                 const rect = area.getBoundingClientRect();
                 return { x: clientX - rect.left, y: clientY - rect.top };
             })())
-        : getViewportCenter();
+        : _getPageCenter();
 
+    const STACK_OFFSET = 16; // stesso scarto minimo usato da _importPdfPages, per coerenza in un batch misto
     let images = 0, pdfs = 0, pdfPages = 0;
     for (let i = 0; i < list.length; i++) {
         const file = list[i];
-        const canvasPos = { x: base.x + i * 32, y: base.y + i * 32 };
+        const canvasPos = { x: base.x + i * STACK_OFFSET, y: base.y + i * STACK_OFFSET };
         if (file.type.startsWith('image/')) {
             await importImageFile(file, undefined, undefined, { silent: batch, canvasPos });
             images++;
@@ -6226,17 +6245,21 @@ async function importFilesBatch(files, clientX, clientY) {
 
 /**
  * Renderizza le pagine scelte a piena risoluzione e le aggiunge come oggetti sul canvas,
- * una sotto l'altra nell'ordine di selezione (non nel numero di pagina originale: con pagine
- * non consecutive — es. 1 e 5 — l'offset segue la posizione nell'elenco, non il gap fra i numeri).
+ * quasi sovrapposte l'una all'altra (scarto minimo, solo per far capire che sono più di una)
+ * e CENTRATE su (baseX, baseY) — non con l'angolo in alto a sinistra su quel punto, altrimenti
+ * una pagina grande quanto il foglio finisce mezza fuori dall'area di stampa. Segnalato da
+ * Fabio il 19/09/2026: con più pagine ne restavano visibili/utilizzabili solo 1 o 2, le altre
+ * uscivano fuori — causato da entrambi i difetti insieme (angolo anziché centro, e scarto pari
+ * a un'intera altezza pagina anziché pochi pixel).
  * @param {*} pdf documento PDF.js già caricato
  * @param {File} file file originale (per il download successivo)
  * @param {number[]} pageNumbers pagine da importare, 1-based
- * @param {number} baseX
- * @param {number} baseY
+ * @param {number} baseX centro X (coordinate canvas)
+ * @param {number} baseY centro Y (coordinate canvas)
  */
 async function _importPdfPages(pdf, file, pageNumbers, baseX, baseY) {
     const scale = 1.5; // buona risoluzione (150% DPI), stessa usata prima del selettore
-    let yCursor = baseY; // avanza in base all'altezza REALE di ogni pagina già piazzata
+    const STACK_OFFSET = 16; // scarto fisso fra una pagina e l'altra dello stesso import
     for (let i = 0; i < pageNumbers.length; i++) {
         const pageNum = pageNumbers[i];
         const page = await pdf.getPage(pageNum);
@@ -6259,10 +6282,12 @@ async function _importPdfPages(pdf, file, pageNumbers, baseX, baseY) {
         // se serve): un PDF a piena risoluzione arriverebbe altrimenti enorme sul canvas.
         const { w, h } = _fitSizeToPage(viewport.width / scale, viewport.height / scale);
 
-        // Aggiungi come oggetto (una pagina sotto l'altra, offset di 20px)
-        // Non clampare a 0: il canvas è 3× il viewport, il centro visibile non è all'origine
-        objectLayer.addObject('pdf-page', imgEl, baseX, yCursor, w, h);
-        yCursor += h + 20;
+        // Centrata su (baseX,baseY) + un piccolo scarto crescente, non impilata per l'intera
+        // altezza pagina. Non clampare a 0: il canvas è 3× il viewport, il centro visibile
+        // non è all'origine.
+        const cx = baseX + i * STACK_OFFSET;
+        const cy = baseY + i * STACK_OFFSET;
+        objectLayer.addObject('pdf-page', imgEl, cx - w / 2, cy - h / 2, w, h);
     }
 }
 
