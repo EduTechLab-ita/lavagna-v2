@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-081'; // v2-081 — Rinomina automatica lezione dal file importato
+const CACHE_NAME = 'eduboard-v2-082'; // v2-082 — Fix definitivo dimensione/posizione import multiplo immagini
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-081 — Importando un file in una lezione ancora "Nuova Lavagna" mai salvata, il nome della lezione diventa quello del file (come faceva OneNote). Non succede con più file insieme, né su una lezione già nominata.';
+const CHANGELOG  = 'EduBoard V2-082 — Corretto per davvero l\'import di più immagini insieme: restano tutte della stessa dimensione, centrate dentro l\'area di stampa, senza più sconfinare dal bordo. Corretta anche la dimensione delle foto ricevute dal telefono via EduConnect.';
 
 const urlsToCache = [
   '.',

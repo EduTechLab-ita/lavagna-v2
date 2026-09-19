@@ -3281,33 +3281,20 @@ class EduBoardConnect {
         const img = new Image();
         img.onload = () => {
             if (window.objectLayer?.addObject) {
-                // Calcola il centro dell'area visibile in coordinate canvas,
-                // tenendo conto di pan (_dx/_dy) e zoom (_scale) del PanManager.
-                const viewportW = window.innerWidth;
-                const viewportH = window.innerHeight;
-                let centerX, centerY, maxW, maxH;
-                if (typeof panMgr !== 'undefined' && panMgr) {
-                    const _dx    = panMgr.dx;
-                    const _dy    = panMgr.dy;
-                    const _scale = panMgr.scale;
-                    centerX = (viewportW / 2 - _dx) / _scale;
-                    centerY = (viewportH / 2 - _dy) / _scale;
-                    // Dimensioni massime in coordinate canvas (60% dell'area visibile)
-                    maxW = (viewportW * 0.6) / _scale;
-                    maxH = (viewportH * 0.6) / _scale;
-                } else {
-                    // Fallback: usa le dimensioni del canvas element
-                    const drawCanvas = document.getElementById('draw-canvas');
-                    centerX = drawCanvas ? drawCanvas.width  / 2 : 640;
-                    centerY = drawCanvas ? drawCanvas.height / 2 : 360;
-                    maxW = (drawCanvas ? drawCanvas.width  : 1280) * 0.6;
-                    maxH = (drawCanvas ? drawCanvas.height : 720)  * 0.6;
-                }
-                const scale = Math.min(1, maxW / img.naturalWidth, maxH / img.naturalHeight);
-                const W = Math.round(img.naturalWidth  * scale);
-                const H = Math.round(img.naturalHeight * scale);
-                const x = centerX - W / 2;
-                const y = centerY - H / 2;
+                // Stessa regola dell'import da file (app.js: _fitSizeToPage/_getPageCenter):
+                // dentro l'area di stampa, mai a piena risoluzione, centrata sul FOGLIO e non
+                // sulla vista — prima questa funzione aveva una logica tutta sua (60% della
+                // finestra visibile), e le foto dal telefono restavano troppo grandi e fuori
+                // dal foglio mentre i PDF, già corretti altrove, andavano bene (segnalato da
+                // Fabio il 19/09/2026).
+                const { w: W, h: H } = (typeof _fitSizeToPage === 'function')
+                    ? _fitSizeToPage(img.naturalWidth, img.naturalHeight)
+                    : { w: img.naturalWidth, h: img.naturalHeight };
+                const center = (typeof _getPageCenter === 'function')
+                    ? _getPageCenter()
+                    : { x: img.naturalWidth / 2, y: img.naturalHeight / 2 };
+                const x = center.x - W / 2;
+                const y = center.y - H / 2;
                 const obj = window.objectLayer.addObject('image', img, x, y, W, H);
                 if (obj) window.objectLayer.bringToFront(obj.id);
                 if (typeof toast === 'function') toast('Foto aggiunta alla lavagna', 'success');

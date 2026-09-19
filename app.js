@@ -6000,13 +6000,20 @@ function getViewportCenter() {
  * dimensione originale senza toccarla.
  * @param {number} w larghezza naturale
  * @param {number} h altezza naturale
+ * @param {number} [margin] spazio da riservare su entrambe le dimensioni (in unità canvas) —
+ *   usato da importFilesBatch per far stare DENTRO l'area di stampa anche lo scarto della
+ *   cascata: senza margine, la prima immagine di un batch può già riempire un lato dell'area
+ *   di stampa esattamente, e ogni immagine successiva (spostata di qualche pixel) sconfina
+ *   oltre il bordo di quel poco (segnalato da Fabio il 19/09/2026).
  * @returns {{w:number,h:number}}
  */
-function _fitSizeToPage(w, h) {
+function _fitSizeToPage(w, h, margin = 0) {
     if (typeof bgMgr === 'undefined' || !bgMgr || typeof canvasMgr === 'undefined' || !canvasMgr?.canvas) {
         return { w, h };
     }
-    const { pw, ph } = bgMgr._getPageRect(canvasMgr.canvas.width, canvasMgr.canvas.height);
+    const { pw: pwFull, ph: phFull } = bgMgr._getPageRect(canvasMgr.canvas.width, canvasMgr.canvas.height);
+    const pw = Math.max(1, pwFull - margin);
+    const ph = Math.max(1, phFull - margin);
     if (w <= pw && h <= ph) return { w, h };
     const scale = Math.min(pw / w, ph / h);
     return { w: w * scale, h: h * scale };
@@ -6034,10 +6041,12 @@ function _getPageCenter() {
  * @param {File} file
  * @param {number} [clientX] - posizione X del drop (opzionale, usa centro se omesso)
  * @param {number} [clientY] - posizione Y del drop (opzionale, usa centro se omesso)
- * @param {{silent?: boolean, canvasPos?: {x:number,y:number}}} [opts] - `canvasPos` (coordinate
- *   canvas già calcolate) ha priorità su clientX/clientY: usato da importFilesBatch per
- *   piazzare più file in cascata senza ricalcolare la conversione client→canvas per ciascuno.
- *   `silent` sopprime il toast individuale (usato per un riepilogo unico su più file insieme).
+ * @param {{silent?: boolean, canvasPos?: {x:number,y:number}, fitMargin?: number}} [opts] -
+ *   `canvasPos` (coordinate canvas già calcolate) ha priorità su clientX/clientY: usato da
+ *   importFilesBatch per piazzare più file in cascata senza ricalcolare la conversione
+ *   client→canvas per ciascuno. `silent` sopprime il toast individuale (usato per un riepilogo
+ *   unico su più file insieme). `fitMargin` riserva spazio extra nel ridimensionamento (vedi
+ *   _fitSizeToPage) per lo scarto della cascata in un import multiplo.
  * @returns {Promise<number>} l'altezza reale dell'immagine importata, 0 in caso di errore
  */
 async function importImageFile(file, clientX, clientY, opts = {}) {
@@ -6049,7 +6058,7 @@ async function importImageFile(file, clientX, clientY, opts = {}) {
             // rimpicciolita se serve) — una foto di libro a piena risoluzione fotocamera
             // arriverebbe altrimenti enorme sul canvas, e andrebbe ridimensionata a mano
             // ad ogni importazione (segnalato da Fabio il 19/09/2026).
-            const { w, h } = _fitSizeToPage(img.naturalWidth, img.naturalHeight);
+            const { w, h } = _fitSizeToPage(img.naturalWidth, img.naturalHeight, opts.fitMargin || 0);
             let x, y;
             if (opts.canvasPos) {
                 x = opts.canvasPos.x - w / 2;
@@ -6122,8 +6131,9 @@ function _ensurePdfJs() {
  * @param {File} file
  * @param {number} [clientX]
  * @param {number} [clientY]
- * @param {{silent?: boolean, canvasPos?: {x:number,y:number}}} [opts] - vedi importImageFile:
- *   stessa convenzione per `canvasPos` (priorità su clientX/clientY) e `silent`.
+ * @param {{silent?: boolean, canvasPos?: {x:number,y:number}, fitMargin?: number}} [opts] - vedi
+ *   importImageFile: stessa convenzione per `canvasPos` (priorità su clientX/clientY), `silent`
+ *   e `fitMargin` (spazio riservato per lo scarto della cascata in un import multiplo).
  * @returns {Promise<number>} numero di pagine effettivamente importate (0 se annullato o in errore)
  */
 async function importPdfFile(file, clientX, clientY, opts = {}) {
@@ -6165,7 +6175,7 @@ async function importPdfFile(file, clientX, clientY, opts = {}) {
 
         if (numPages === 1) {
             // Una sola pagina: nessuna scelta da fare, si importa e basta.
-            await _importPdfPages(pdf, file, [1], baseX, baseY);
+            await _importPdfPages(pdf, file, [1], baseX, baseY, opts.fitMargin || 0);
             if (!opts.silent) toast('PDF importato! — usa Seleziona per spostarlo', 'success');
             return 1;
         }
@@ -6179,7 +6189,7 @@ async function importPdfFile(file, clientX, clientY, opts = {}) {
             return 0;
         }
         if (!opts.silent) toast('Importazione pagine in corso...', 'info');
-        await _importPdfPages(pdf, file, selectedPages, baseX, baseY);
+        await _importPdfPages(pdf, file, selectedPages, baseX, baseY, opts.fitMargin || 0);
         if (!opts.silent) toast(`PDF importato! ${selectedPages.length} pagina${selectedPages.length > 1 ? 'e' : ''} — usa Seleziona per spostarle`, 'success');
         return selectedPages.length;
     } catch (err) {
@@ -6247,12 +6257,20 @@ async function importFilesBatch(files, clientX, clientY) {
     for (let i = 0; i < list.length; i++) {
         const file = list[i];
         const canvasPos = { x: base.x + i * STACK_OFFSET, y: base.y + i * STACK_OFFSET };
+        // Riserva spazio per il proprio scarto: la prima immagine (i=0) può riempire l'area di
+        // stampa per intero, ma la seconda (centro spostato di 16px) deve essere più piccola per
+        // restarci dentro comunque. Il ×2 non è un margine di sicurezza arbitrario: il centro si
+        // sposta di i*STACK_OFFSET ma il bordo opposto (es. in alto/a sinistra) guadagna spazio,
+        // mentre quello nella direzione dello scarto (es. in basso/a destra) somma SIA lo
+        // spostamento del centro SIA metà della riduzione — senza il raddoppio l'ultima immagine
+        // della pila sconfina comunque di i*STACK_OFFSET/2 (verificato dal vivo il 19/09/2026).
+        const fitMargin = i * STACK_OFFSET * 2;
         if (file.type.startsWith('image/')) {
-            const h = await importImageFile(file, undefined, undefined, { silent: batch, canvasPos });
+            const h = await importImageFile(file, undefined, undefined, { silent: batch, canvasPos, fitMargin });
             images++;
             if (h) singleFileOk = true;
         } else if (file.type === 'application/pdf') {
-            const pages = await importPdfFile(file, undefined, undefined, { silent: batch, canvasPos });
+            const pages = await importPdfFile(file, undefined, undefined, { silent: batch, canvasPos, fitMargin });
             if (pages) { pdfs++; pdfPages += pages; singleFileOk = true; }
         }
     }
@@ -6280,8 +6298,10 @@ async function importFilesBatch(files, clientX, clientY) {
  * @param {number[]} pageNumbers pagine da importare, 1-based
  * @param {number} baseX centro X (coordinate canvas)
  * @param {number} baseY centro Y (coordinate canvas)
+ * @param {number} [baseMargin] margine già riservato da chi chiama (es. lo scarto di un file
+ *   dentro un import multiplo) — si somma allo scarto interno fra le pagine di QUESTO PDF.
  */
-async function _importPdfPages(pdf, file, pageNumbers, baseX, baseY) {
+async function _importPdfPages(pdf, file, pageNumbers, baseX, baseY, baseMargin = 0) {
     const scale = 1.5; // buona risoluzione (150% DPI), stessa usata prima del selettore
     const STACK_OFFSET = 16; // scarto fisso fra una pagina e l'altra dello stesso import
     for (let i = 0; i < pageNumbers.length; i++) {
@@ -6304,7 +6324,9 @@ async function _importPdfPages(pdf, file, pageNumbers, baseX, baseY) {
 
         // Entra già dimensionata dentro l'area di stampa (mai ingrandita, solo rimpicciolita
         // se serve): un PDF a piena risoluzione arriverebbe altrimenti enorme sul canvas.
-        const { w, h } = _fitSizeToPage(viewport.width / scale, viewport.height / scale);
+        // Margine riservato per il proprio scarto (vedi importFilesBatch, stesso ×2): la pagina
+        // i-esima è centrata a i*STACK_OFFSET dal centro pagina, quindi va rimpicciolita del doppio.
+        const { w, h } = _fitSizeToPage(viewport.width / scale, viewport.height / scale, baseMargin + i * STACK_OFFSET * 2);
 
         // Centrata su (baseX,baseY) + un piccolo scarto crescente, non impilata per l'intera
         // altezza pagina. Non clampare a 0: il canvas è 3× il viewport, il centro visibile
