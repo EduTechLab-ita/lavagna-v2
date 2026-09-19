@@ -26,7 +26,7 @@
                 <img src="./icon-192x192.png" alt="EduBoard" class="logo-icon">
                 <div class="logo-info">
                     <span class="logo-text"><span class="logo-edu">Edu</span><span class="logo-board">Board</span></span>
-                    <span class="logo-sub">v2-075 &nbsp;&nbsp; © EduTechLab di Rizzotto Fabio</span>
+                    <span class="logo-sub">v2-079 &nbsp;&nbsp; © EduTechLab di Rizzotto Fabio</span>
                 </div>
             </div>
             <div class="project-badge" id="project-name">Nuova Lavagna</div>
@@ -501,7 +501,7 @@
 
     <!-- Input file nascosti -->
     <input type="file" id="file-bg-input" accept="image/*" style="display:none">
-    <input type="file" id="file-import-input" accept="image/*,application/pdf" style="display:none">
+    <input type="file" id="file-import-input" accept="image/*,application/pdf" multiple style="display:none">
     <input type="color" id="color-picker-input" style="display:none">
 
     <!-- Toast container -->
@@ -675,6 +675,28 @@
         </div>
     </div>
 
+    <!-- Modal: selezione pagine da importare da un PDF (miniature con spunte, idea di Fabio
+         14/08/2026 — meglio di un intervallo "da X a Y" perché non serve sapere in anticipo
+         cosa c'è dentro il PDF) -->
+    <div id="pdf-page-picker-modal" class="modal-overlay" style="display:none">
+        <div class="modal-box pdf-page-picker-box">
+            <h3>Importa da PDF</h3>
+            <p style="font-size:0.85rem;color:var(--text-muted)">Scegli quali pagine importare:</p>
+            <div class="pdf-page-picker-toolbar">
+                <span id="pdf-page-picker-count"></span>
+                <span class="pdf-page-picker-toolbar-btns">
+                    <button type="button" id="pdf-page-picker-all-btn" class="btn-link">Tutte</button>
+                    <button type="button" id="pdf-page-picker-none-btn" class="btn-link">Nessuna</button>
+                </span>
+            </div>
+            <div id="pdf-page-picker-grid" class="pdf-page-picker-grid"></div>
+            <div class="modal-actions">
+                <button id="pdf-page-picker-ok-btn" class="btn-primary">Importa</button>
+                <button id="pdf-page-picker-cancel-btn" class="btn-secondary">Annulla</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal: conferma generica (sostituisce window.confirm — che su alcune LIM/tablet/webview
          può bloccare l'app senza modo di chiuderlo) -->
     <div id="confirm-modal" class="modal-overlay" style="display:none">
@@ -784,6 +806,7 @@
                             <option value="grid-10">Quadretti 10mm</option>
                             <option value="grid-5">Quadretti 5mm</option>
                             <option value="dots">Puntini</option>
+                            <optgroup id="pref-bg-personal-group" label="I tuoi sfondi personali" style="display:none"></optgroup>
                         </select>
                     </div>
                 </div>
@@ -821,7 +844,7 @@
                     <img src="./icon-192x192.png" alt="EduBoard" width="64" height="64" style="border-radius:14px">
                     <div>
                         <div class="settings-info-appname"><span style="color:#3b82f6">Edu</span>Board</div>
-                        <div class="settings-info-version" id="info-version-text">v2-075</div>
+                        <div class="settings-info-version" id="info-version-text">v2-079</div>
                     </div>
                 </div>
                 <div class="settings-section">
@@ -910,6 +933,26 @@
             </div>
             <div class="settings-panel" id="tab-novita">
                 <div class="settings-section">
+                    <div class="settings-changelog-item">
+                        <div class="settings-changelog-ver">v2-079 — Settembre 2026</div>
+                        <div class="settings-changelog-desc">🎨 Nelle Impostazioni, lo sfondo di default per una nuova lavagna ora può essere anche uno dei tuoi sfondi personali su Drive, non solo i pattern di serie (righe, quadretti...)</div>
+                    </div>
+                    <div class="settings-changelog-item">
+                        <div class="settings-changelog-ver">v2-078 — Settembre 2026</div>
+                        <div class="settings-changelog-desc">🖊️ La gomma non cancella più la foto di sfondo insieme ai tratti scritti sopra (utile scrivendo su una pagina di libro incollata): per cancellare un'immagine ora serve sempre selezionarla · 📐 Immagini e PDF importati entrano già ridimensionati dentro il foglio invece che a piena risoluzione: più veloce quando prepari tante lezioni di seguito · 🔄 Un aggiornamento dell'app non ricarica più la pagina se hai appena fatto una modifica non ancora salvata — entrerà alla prossima apertura</div>
+                    </div>
+                    <div class="settings-changelog-item">
+                        <div class="settings-changelog-ver">v2-077 — Settembre 2026</div>
+                        <div class="settings-changelog-desc">🖼️ Si possono importare più immagini o PDF insieme in un colpo solo (dal pulsante Importa o trascinandoli tutti insieme), invece che uno alla volta: vengono disposte leggermente sfalsate, non più impilate esattamente nello stesso punto</div>
+                    </div>
+                    <div class="settings-changelog-item">
+                        <div class="settings-changelog-ver">v2-076 — Settembre 2026</div>
+                        <div class="settings-changelog-desc">📄 Importando un PDF ora si apre un popup con le miniature di tutte le pagine e una spunta su ciascuna: scegli quali importare invece di ritrovartele tutte sul canvas. Utile con PDF lunghi — meno oggetti pesanti da spostare</div>
+                    </div>
+                    <div class="settings-changelog-item">
+                        <div class="settings-changelog-ver">v2-075 — Agosto 2026</div>
+                        <div class="settings-changelog-desc">✉️ Corretta la richiesta di assistenza in EduConnect: la mail partiva verso una casella inesistente, quindi le segnalazioni non arrivavano a nessuno</div>
+                    </div>
                     <div class="settings-changelog-item">
                         <div class="settings-changelog-ver">v2-074 — Agosto 2026</div>
                         <div class="settings-changelog-desc">🚀 <strong>Spostare e ridimensionare immagini e PDF ora &egrave; fluido.</strong> Prima ogni piccolo movimento del dito faceva ridisegnare da capo tutti gli oggetti della pagina, riapplicando ogni volta i filtri di luminosit&agrave; e contrasto: con qualche pagina di PDF importata il trascinamento andava a scatti. Ora si ridisegna solo ci&ograve; che stai muovendo. Corretti anche i pulsanti di contatto nelle impostazioni, che portavano a un indirizzo email inesistente</div>

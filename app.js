@@ -1108,7 +1108,7 @@ class CanvasManager {
         const { x, y } = this.getCoords(e);
 
         // Modalità gomma-tratto: premi e scorri per cancellare (stile OneNote)
-        // Cancella in un tocco solo QUALSIASI oggetto: tratti, forme, immagini, PDF
+        // Cancella in un tocco solo un tratto/forma intera — MAI un oggetto importato
         if (CONFIG.currentTool === 'eraser' && CONFIG.eraserMode === 'stroke') {
             this._erasingStrokes = true;
             const target = this._findEraseTarget(x, y);
@@ -1156,7 +1156,6 @@ class CanvasManager {
         // Disegna il punto iniziale (dot)
         if (CONFIG.currentTool === 'eraser') {
             this.brush.eraser(this.ctx, x, y, CONFIG.currentSize * 2);
-            this._eraseObjectsNear(x, y);
         } else {
             if (CONFIG.currentTool === 'marker') {
                 // Nuovo tratto: ripulisce la maschera opaca dal tratto precedente e resetta
@@ -1218,7 +1217,6 @@ class CanvasManager {
 
         if (CONFIG.currentTool === 'eraser') {
             this.brush.eraser(this.ctx, x, y, CONFIG.currentSize * 2);
-            this._eraseObjectsNear(x, y);
         } else {
             // Bézier smoothing: usa il midpoint come endpoint e il punto corrente come controllo
             // Questo elimina gli spigoli vivi tra segmenti su PC lenti (pochi eventi pointer)
@@ -1598,58 +1596,32 @@ class CanvasManager {
         return bestIdx;
     }
 
-    // Trova il "bersaglio" da cancellare in un tocco solo: oggetti (immagini/PDF) hanno
-    // priorità perché visivamente sopra il disegno; altrimenti cerca tratti/forme.
+    // Trova il tratto/forma da cancellare in un tocco solo. La gomma NON tocca MAI gli
+    // oggetti importati (immagini/PDF): quando si scrive sopra una pagina di libro incollata,
+    // cancellare l'annotazione non deve mai portarsi via lo sfondo sotto — anche se
+    // quell'immagine sta visivamente "sopra" il disegno nell'ordine dei layer del canvas.
+    // Un'immagine si cancella SOLO selezionandola (Seleziona + Canc), mai con la gomma
+    // (segnalato da Fabio il 19/09/2026, dopo una settimana d'uso reale in classe).
     _findEraseTarget(x, y) {
-        if (typeof objectLayer !== 'undefined' && objectLayer) {
-            const obj = objectLayer.hitTest(x, y);
-            if (obj) return { type: 'object', obj };
-        }
         const idx = this.findNearestStroke(x, y);
         if (idx >= 0) return { type: 'stroke', index: idx };
         return null;
     }
 
-    // Cancella il bersaglio individuato da _findEraseTarget (oggetto intero o tratto/forma intera)
+    // Cancella il bersaglio individuato da _findEraseTarget (tratto o forma intera)
     _eraseTarget(target) {
-        if (target.type === 'object') {
-            this._saveUndo();
-            objectLayer.removeObject(target.obj.id);
-            this.overlayCtx.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height);
-        } else if (target.type === 'stroke') {
+        if (target.type === 'stroke') {
             this.eraseStrokeDirect(target.index);
         }
     }
 
-    // Evidenzia il bersaglio sotto il cursore prima di cancellarlo (hover, modalità gomma-tratto)
+    // Evidenzia il tratto sotto il cursore prima di cancellarlo (hover, modalità gomma-tratto)
     _highlightEraseTarget(target) {
         if (!target) {
             this.overlayCtx.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height);
             return;
         }
-        if (target.type === 'object') {
-            this.overlayCtx.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height);
-            const o = target.obj;
-            this.overlayCtx.save();
-            this.overlayCtx.strokeStyle = 'rgba(239,68,68,0.75)';
-            this.overlayCtx.lineWidth = 3;
-            this.overlayCtx.setLineDash([6, 4]);
-            this.overlayCtx.strokeRect(o.x - 4, o.y - 4, o.w + 8, o.h + 8);
-            this.overlayCtx.restore();
-        } else {
-            this._highlightStroke(target.index);
-        }
-    }
-
-    // Modalità Area: se la gomma tocca un'immagine/PDF, cancella l'intero oggetto —
-    // non ha senso "bucare" parzialmente un'immagine come un tratto a mano libera.
-    _eraseObjectsNear(x, y) {
-        if (typeof objectLayer === 'undefined' || !objectLayer) return;
-        const obj = objectLayer.hitTest(x, y);
-        if (obj) {
-            this._saveUndo();
-            objectLayer.removeObject(obj.id);
-        }
+        this._highlightStroke(target.index);
     }
 
     // Evidenzia il tratto/forma sotto il cursore (overlay canvas rosso semitrasparente)
@@ -2261,17 +2233,12 @@ class ToolbarManager {
             e.target.value = ''; // reset per consentire ri-selezione stessa immagine
         });
 
-        // Import media (immagini/PDF) come oggetti sul canvas
+        // Import media (immagini/PDF) come oggetti sul canvas — input multiplo: si possono
+        // scegliere più file insieme (Ctrl/Shift-click nel selettore), non solo uno alla volta
         const importInput = document.getElementById('file-import-input');
         if (importInput) {
             importInput.addEventListener('change', async (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-                if (file.type.startsWith('image/')) {
-                    await importImageFile(file);
-                } else if (file.type === 'application/pdf') {
-                    await importPdfFile(file);
-                }
+                await importFilesBatch(e.target.files);
                 e.target.value = '';
             });
         }
@@ -2285,15 +2252,7 @@ class ToolbarManager {
             });
             area.addEventListener('drop', async e => {
                 e.preventDefault();
-                const files = e.dataTransfer.files;
-                if (!files.length) return;
-                for (const file of files) {
-                    if (file.type.startsWith('image/')) {
-                        await importImageFile(file, e.clientX, e.clientY);
-                    } else if (file.type === 'application/pdf') {
-                        await importPdfFile(file, e.clientX, e.clientY);
-                    }
-                }
+                await importFilesBatch(e.dataTransfer.files, e.clientX, e.clientY);
             });
         }
     }
@@ -2667,12 +2626,16 @@ class ProjectManager {
      * una lavagna vuota (bug segnalato da Fabio 11/07/2026 testando il cambio account
      * multi-LIM: suo figlio si connetteva e vedeva ancora la lezione del padre).
      */
-    resetToBlank() {
+    async resetToBlank() {
         // Leggi preferenze utente salvate nelle Impostazioni
         const _prefs = (() => { try { return JSON.parse(localStorage.getItem('eduboard-prefs-v1') || '{}'); } catch(e) { return {}; } })();
         const defBg    = _prefs.defaultBg    || 'white';
         const defTool  = _prefs.defaultTool  || 'pen';
         const defColor = _prefs.defaultColor || '#000000';
+        // Uno sfondo personale (Drive) è "custom:<fileId>", non una delle chiavi di serie —
+        // si applica in un secondo momento (richiede uno scaricamento), qui si parte da bianco.
+        const isCustomBg = defBg.startsWith('custom:');
+        const presetBg = isCustomBg ? 'white' : defBg;
 
         canvasMgr.clear();
         if (typeof objectLayer !== 'undefined' && objectLayer) objectLayer.clear();
@@ -2680,24 +2643,53 @@ class ProjectManager {
         // corretto è window.pageManager (non window.pageMgr, che non esiste mai — bug
         // per cui questo reset non scattava mai prima di questa correzione).
         if (window.pageManager) {
-            window.pageManager.pages = [{ drawImageData: null, objects: [], background: { type: defBg, color: '#ffffff', orientation: 'landscape' } }];
+            window.pageManager.pages = [{ drawImageData: null, objects: [], background: { type: presetBg, color: '#ffffff', orientation: 'landscape' } }];
             window.pageManager.currentIndex = 0;
             window.pageManager._renderPageBar();
         }
-        bgMgr.setBackground(defBg);
+        bgMgr.setBackground(presetBg);
         CONFIG.projectName = 'Nuova Lavagna';
         CONFIG.isDirty = false;
         window.autoSaveMgr?.reset();
         if (typeof libraryMgr !== 'undefined' && libraryMgr) libraryMgr.currentFileId = null;
         document.getElementById('project-name').textContent = CONFIG.projectName;
         document.querySelectorAll('.bg-opt').forEach(b => b.classList.remove('active'));
-        const defBgBtn = document.querySelector(`.bg-opt[data-bg="${defBg}"]`);
+        const defBgBtn = document.querySelector(`.bg-opt[data-bg="${presetBg}"]`);
         if (defBgBtn) defBgBtn.classList.add('active');
         // Applica strumento e colore di default
         document.querySelector(`.tool-btn[data-tool="${defTool}"]`)?.click();
         CONFIG.currentColor = defColor;
         if (typeof brush !== 'undefined' && brush) brush.color = defColor;
         document.dispatchEvent(new CustomEvent('minicolor:update', { detail: { color: defColor } }));
+
+        // Sfondo personale: scaricato da Drive in background, non blocca l'apertura della
+        // lavagna nuova (resta il bianco impostato sopra finché non arriva, o per sempre se
+        // Drive non è connesso o il file non c'è più — nessun errore mostrato, è solo un default).
+        if (isCustomBg && typeof driveMgr !== 'undefined' && driveMgr?.isConnected()) {
+            const fileId = defBg.slice('custom:'.length);
+            try {
+                const token = driveMgr.accessToken;
+                if (!token) return;
+                const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+                    headers: { Authorization: 'Bearer ' + token }
+                });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const img = await new Promise((resolve, reject) => {
+                    const el = new Image();
+                    el.onload = () => resolve(el);
+                    el.onerror = reject;
+                    el.src = url;
+                });
+                bgMgr.setImage(img);
+                URL.revokeObjectURL(url);
+                CONFIG.isDirty = false;
+                window.autoSaveMgr?.reset();
+            } catch (_) {
+                // Silenzioso: resta il bianco già impostato sopra
+            }
+        }
     }
 }
 
@@ -2840,6 +2832,17 @@ class PWAManager {
                 // Forza controllo aggiornamenti ad ogni apertura (bypassa cache HTTP di GitHub Pages)
                 reg.update();
                 navigator.serviceWorker.addEventListener('controllerchange', () => {
+                    // NON ricaricare se c'è lavoro non ancora salvato (o un salvataggio già in
+                    // corso): un aggiornamento pubblicato mentre un docente sta scrivendo o ha
+                    // appena importato un'immagine butterebbe via l'ultima modifica senza
+                    // preavviso, proprio come un file picker o un dialogo nativo che blocca a
+                    // metà un'operazione. La versione nuova entrerà comunque alla prossima
+                    // apertura dell'app — con SW network-first i file sono già freschi.
+                    // (segnalato da Fabio il 19/09/2026, dopo una settimana d'uso reale in classe)
+                    if ((typeof CONFIG !== 'undefined' && CONFIG.isDirty) ||
+                        window.autoSaveMgr?.isSaving() || window.autoSaveMgr?.hasPending()) {
+                        return;
+                    }
                     window.location.reload();
                 });
             });
@@ -5990,18 +5993,51 @@ function getViewportCenter() {
 }
 
 /**
+ * Scala (solo in riduzione, mai in ingrandimento) una dimensione naturale in modo che stia
+ * dentro l'area di stampa corrente (bgMgr._getPageRect), mantenendo le proporzioni. Usata da
+ * importImageFile e _importPdfPages così un import parte già a una taglia sensata invece che
+ * a piena risoluzione nativa. Se bgMgr/canvasMgr non sono ancora pronti, restituisce la
+ * dimensione originale senza toccarla.
+ * @param {number} w larghezza naturale
+ * @param {number} h altezza naturale
+ * @returns {{w:number,h:number}}
+ */
+function _fitSizeToPage(w, h) {
+    if (typeof bgMgr === 'undefined' || !bgMgr || typeof canvasMgr === 'undefined' || !canvasMgr?.canvas) {
+        return { w, h };
+    }
+    const { pw, ph } = bgMgr._getPageRect(canvasMgr.canvas.width, canvasMgr.canvas.height);
+    if (w <= pw && h <= ph) return { w, h };
+    const scale = Math.min(pw / w, ph / h);
+    return { w: w * scale, h: h * scale };
+}
+
+/**
  * Importa un file immagine come oggetto sul canvas.
  * @param {File} file
  * @param {number} [clientX] - posizione X del drop (opzionale, usa centro se omesso)
  * @param {number} [clientY] - posizione Y del drop (opzionale, usa centro se omesso)
+ * @param {{silent?: boolean, canvasPos?: {x:number,y:number}}} [opts] - `canvasPos` (coordinate
+ *   canvas già calcolate) ha priorità su clientX/clientY: usato da importFilesBatch per
+ *   piazzare più file in cascata senza ricalcolare la conversione client→canvas per ciascuno.
+ *   `silent` sopprime il toast individuale (usato per un riepilogo unico su più file insieme).
+ * @returns {Promise<number>} l'altezza reale dell'immagine importata, 0 in caso di errore
  */
-async function importImageFile(file, clientX, clientY) {
+async function importImageFile(file, clientX, clientY, opts = {}) {
     const url = URL.createObjectURL(file);
     const img = new Image();
     return new Promise((resolve) => {
         img.onload = () => {
+            // Entra già dimensionata dentro l'area di stampa (mai ingrandita, solo
+            // rimpicciolita se serve) — una foto di libro a piena risoluzione fotocamera
+            // arriverebbe altrimenti enorme sul canvas, e andrebbe ridimensionata a mano
+            // ad ogni importazione (segnalato da Fabio il 19/09/2026).
+            const { w, h } = _fitSizeToPage(img.naturalWidth, img.naturalHeight);
             let x, y;
-            if (clientX !== undefined && clientY !== undefined) {
+            if (opts.canvasPos) {
+                x = opts.canvasPos.x - w / 2;
+                y = opts.canvasPos.y - h / 2;
+            } else if (clientX !== undefined && clientY !== undefined) {
                 // Drop position: usa la stessa funzione di conversione usata dal resto del codice
                 const coords = (typeof panMgr !== 'undefined' && panMgr)
                     ? panMgr.getCanvasCoords(clientX, clientY)
@@ -6010,26 +6046,25 @@ async function importImageFile(file, clientX, clientY) {
                         const rect = area.getBoundingClientRect();
                         return { x: clientX - rect.left, y: clientY - rect.top };
                     })();
-                x = coords.x - img.naturalWidth / 2;
-                y = coords.y - img.naturalHeight / 2;
+                x = coords.x - w / 2;
+                y = coords.y - h / 2;
             } else {
                 const center = getViewportCenter();
-                x = center.x - img.naturalWidth / 2;
-                y = center.y - img.naturalHeight / 2;
+                x = center.x - w / 2;
+                y = center.y - h / 2;
             }
             // Non clampare a 0: il canvas è 3× il viewport e il centro visibile è a (W/2, H/2),
             // non all'origine. Il clamp a 0 sposterebbe le immagini grandi fuori dal foglio A4.
             img._sourceFile = file; // salva file originale per download
-            objectLayer.addObject('image', img, x, y,
-                img.naturalWidth, img.naturalHeight);
+            objectLayer.addObject('image', img, x, y, w, h);
             URL.revokeObjectURL(url);
-            toast('Immagine importata! Usa Seleziona per spostarla.', 'success');
-            resolve();
+            if (!opts.silent) toast('Immagine importata! Usa Seleziona per spostarla.', 'success');
+            resolve(h);
         };
         img.onerror = () => {
-            toast('Errore nel caricare l\'immagine', 'error');
+            if (!opts.silent) toast('Errore nel caricare l\'immagine', 'error');
             URL.revokeObjectURL(url);
-            resolve();
+            resolve(0);
         };
         img.src = url;
     });
@@ -6063,32 +6098,39 @@ function _ensurePdfJs() {
 }
 
 /**
- * Importa un PDF (tutte le pagine) come oggetti sul canvas tramite PDF.js.
+ * Importa un PDF come oggetti sul canvas tramite PDF.js. Se ha più di una pagina,
+ * mostra prima un selettore con le miniature (idea di Fabio, 14/08/2026): non obbliga
+ * a sapere in anticipo cosa c'è dentro il PDF, e importare solo le pagine utili alleggerisce
+ * il canvas (meno oggetti pesanti da trascinare/ridimensionare).
  * @param {File} file
  * @param {number} [clientX]
  * @param {number} [clientY]
+ * @param {{silent?: boolean, canvasPos?: {x:number,y:number}}} [opts] - vedi importImageFile:
+ *   stessa convenzione per `canvasPos` (priorità su clientX/clientY) e `silent`.
+ * @returns {Promise<number>} numero di pagine effettivamente importate (0 se annullato o in errore)
  */
-async function importPdfFile(file, clientX, clientY) {
-    toast('Conversione PDF in corso...', 'info');
+async function importPdfFile(file, clientX, clientY, opts = {}) {
+    if (!opts.silent) toast('Apertura PDF in corso...', 'info');
     try {
         await _ensurePdfJs();
     } catch (_) {
         toast('Impossibile caricare il componente per i PDF. Verifica la connessione.', 'error');
-        return;
+        return 0;
     }
+    let pdf = null;
     try {
         // Worker in locale come la libreria: da CDN falliva dietro i firewall scolastici e offline.
         pdfjsLib.GlobalWorkerOptions.workerSrc = './pdf.worker.min.js';
         const arrayBuffer = await file.arrayBuffer();
-        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
         const numPages = pdf.numPages;
-
-        // Scala: fattore per renderizzare a buona risoluzione (1.5 = 150% DPI)
-        const scale = 1.5;
 
         // Calcola posizione iniziale — usa la stessa conversione coordinate del resto del codice
         let baseX, baseY;
-        if (clientX !== undefined && clientY !== undefined) {
+        if (opts.canvasPos) {
+            baseX = opts.canvasPos.x;
+            baseY = opts.canvasPos.y;
+        } else if (clientX !== undefined && clientY !== undefined) {
             const coords = (typeof panMgr !== 'undefined' && panMgr)
                 ? panMgr.getCanvasCoords(clientX, clientY)
                 : (() => {
@@ -6104,35 +6146,210 @@ async function importPdfFile(file, clientX, clientY) {
             baseY = center.y;
         }
 
-        // Renderizza tutte le pagine come immagini separate
-        for (let pageNum = 1; pageNum <= numPages; pageNum++) {
-            const page = await pdf.getPage(pageNum);
-            const viewport = page.getViewport({ scale });
-
-            const tmpCanvas = document.createElement('canvas');
-            tmpCanvas.width  = viewport.width;
-            tmpCanvas.height = viewport.height;
-            const tmpCtx = tmpCanvas.getContext('2d');
-
-            await page.render({ canvasContext: tmpCtx, viewport }).promise;
-
-            // Converti in Image per ObjectLayer
-            const imgEl = new Image();
-            await new Promise(r => { imgEl.onload = r; imgEl.src = tmpCanvas.toDataURL('image/png'); });
-            imgEl._sourceFile = file;      // salva file originale per download
-            imgEl._sourcePage  = pageNum;  // numero di pagina
-
-            // Aggiungi come oggetto (una pagina sotto l'altra, offset di 20px)
-            const offsetY = baseY + (pageNum - 1) * (viewport.height / scale + 20);
-            // Non clampare a 0: il canvas è 3× il viewport, il centro visibile non è all'origine
-            objectLayer.addObject('pdf-page', imgEl, baseX, offsetY, viewport.width / scale, viewport.height / scale);
+        if (numPages === 1) {
+            // Una sola pagina: nessuna scelta da fare, si importa e basta.
+            await _importPdfPages(pdf, file, [1], baseX, baseY);
+            if (!opts.silent) toast('PDF importato! — usa Seleziona per spostarlo', 'success');
+            return 1;
         }
 
-        toast(`PDF importato! ${numPages} pagina${numPages > 1 ? 'e' : ''} — usa Seleziona per spostarle`, 'success');
+        // Promise attorno al popup: chi chiama importPdfFile con `await` (es. un batch di più
+        // file insieme, uno dopo l'altro) aspetta DAVVERO la scelta di Fabio prima di aprire il
+        // popup per il file successivo, invece di aprirli entrambi sullo stesso modal condiviso.
+        const selectedPages = await new Promise(resolve => showPdfPagePickerModal(pdf, numPages, resolve));
+        if (!selectedPages.length) {
+            if (!opts.silent) toast('Importazione annullata', 'info');
+            return 0;
+        }
+        if (!opts.silent) toast('Importazione pagine in corso...', 'info');
+        await _importPdfPages(pdf, file, selectedPages, baseX, baseY);
+        if (!opts.silent) toast(`PDF importato! ${selectedPages.length} pagina${selectedPages.length > 1 ? 'e' : ''} — usa Seleziona per spostarle`, 'success');
+        return selectedPages.length;
     } catch (err) {
         console.error('PDF import error:', err);
         toast('Errore importazione PDF: ' + err.message, 'error');
+        return 0;
+    } finally {
+        // Libera worker e memoria del documento PDF.js appena finito di leggerlo — senza,
+        // importarne molti in una lezione lunga li accumula tutti senza mai rilasciarli.
+        pdf?.destroy();
     }
+}
+
+/**
+ * Importa una lista di file (immagini e/o PDF) uno dopo l'altro. Con un solo file si comporta
+ * esattamente come prima (stesso punto, stesso toast); con più file insieme li dispone in una
+ * cascata (ognuno un po' più in basso a destra del precedente) invece di impilarli tutti nello
+ * stesso punto — difetto segnalato da Fabio il 19/09/2026, capitava già col drag&drop di più
+ * immagini insieme — e mostra UN riepilogo finale invece di un toast per ciascuno.
+ * @param {FileList|File[]} files
+ * @param {number} [clientX] posizione X del drop (client); omessa per il centro della vista
+ * @param {number} [clientY]
+ */
+async function importFilesBatch(files, clientX, clientY) {
+    const list = Array.from(files).filter(f => f.type.startsWith('image/') || f.type === 'application/pdf');
+    if (!list.length) return;
+    const batch = list.length > 1;
+
+    // Punto di partenza in coordinate canvas, calcolato una sola volta — stessa conversione
+    // già usata da importImageFile/importPdfFile per il caso a un file solo.
+    const base = (clientX !== undefined && clientY !== undefined)
+        ? ((typeof panMgr !== 'undefined' && panMgr)
+            ? panMgr.getCanvasCoords(clientX, clientY)
+            : (() => {
+                const area = document.getElementById('canvas-area');
+                const rect = area.getBoundingClientRect();
+                return { x: clientX - rect.left, y: clientY - rect.top };
+            })())
+        : getViewportCenter();
+
+    let images = 0, pdfs = 0, pdfPages = 0;
+    for (let i = 0; i < list.length; i++) {
+        const file = list[i];
+        const canvasPos = { x: base.x + i * 32, y: base.y + i * 32 };
+        if (file.type.startsWith('image/')) {
+            await importImageFile(file, undefined, undefined, { silent: batch, canvasPos });
+            images++;
+        } else if (file.type === 'application/pdf') {
+            const pages = await importPdfFile(file, undefined, undefined, { silent: batch, canvasPos });
+            if (pages) { pdfs++; pdfPages += pages; }
+        }
+    }
+
+    if (batch) {
+        const parts = [];
+        if (images) parts.push(`${images} ${images > 1 ? 'immagini' : 'immagine'}`);
+        if (pdfs) parts.push(`${pdfs} PDF (${pdfPages} pagina${pdfPages > 1 ? 'e' : ''})`);
+        toast(parts.length ? `Importati: ${parts.join(', ')}` : 'Importazione annullata', parts.length ? 'success' : 'info');
+    }
+}
+
+/**
+ * Renderizza le pagine scelte a piena risoluzione e le aggiunge come oggetti sul canvas,
+ * una sotto l'altra nell'ordine di selezione (non nel numero di pagina originale: con pagine
+ * non consecutive — es. 1 e 5 — l'offset segue la posizione nell'elenco, non il gap fra i numeri).
+ * @param {*} pdf documento PDF.js già caricato
+ * @param {File} file file originale (per il download successivo)
+ * @param {number[]} pageNumbers pagine da importare, 1-based
+ * @param {number} baseX
+ * @param {number} baseY
+ */
+async function _importPdfPages(pdf, file, pageNumbers, baseX, baseY) {
+    const scale = 1.5; // buona risoluzione (150% DPI), stessa usata prima del selettore
+    let yCursor = baseY; // avanza in base all'altezza REALE di ogni pagina già piazzata
+    for (let i = 0; i < pageNumbers.length; i++) {
+        const pageNum = pageNumbers[i];
+        const page = await pdf.getPage(pageNum);
+        const viewport = page.getViewport({ scale });
+
+        const tmpCanvas = document.createElement('canvas');
+        tmpCanvas.width  = viewport.width;
+        tmpCanvas.height = viewport.height;
+        const tmpCtx = tmpCanvas.getContext('2d');
+
+        await page.render({ canvasContext: tmpCtx, viewport }).promise;
+
+        // Converti in Image per ObjectLayer
+        const imgEl = new Image();
+        await new Promise(r => { imgEl.onload = r; imgEl.src = tmpCanvas.toDataURL('image/png'); });
+        imgEl._sourceFile = file;      // salva file originale per download
+        imgEl._sourcePage  = pageNum;  // numero di pagina originale nel PDF
+
+        // Entra già dimensionata dentro l'area di stampa (mai ingrandita, solo rimpicciolita
+        // se serve): un PDF a piena risoluzione arriverebbe altrimenti enorme sul canvas.
+        const { w, h } = _fitSizeToPage(viewport.width / scale, viewport.height / scale);
+
+        // Aggiungi come oggetto (una pagina sotto l'altra, offset di 20px)
+        // Non clampare a 0: il canvas è 3× il viewport, il centro visibile non è all'origine
+        objectLayer.addObject('pdf-page', imgEl, baseX, yCursor, w, h);
+        yCursor += h + 20;
+    }
+}
+
+/**
+ * Selettore pagine PDF: miniature a bassa risoluzione (veloci da generare) con spunta,
+ * tutte selezionate di default. onConfirm riceve l'elenco (ordinato) delle pagine scelte,
+ * o un array vuoto se annullato — chi chiama decide cosa fare in quel caso.
+ * @param {*} pdf documento PDF.js già caricato
+ * @param {number} numPages
+ * @param {(selectedPages: number[]) => void} onConfirm
+ */
+function showPdfPagePickerModal(pdf, numPages, onConfirm) {
+    const modal = document.getElementById('pdf-page-picker-modal');
+    const grid = document.getElementById('pdf-page-picker-grid');
+    const countLabel = document.getElementById('pdf-page-picker-count');
+    const okBtn = document.getElementById('pdf-page-picker-ok-btn');
+    grid.innerHTML = '';
+
+    const selected = new Set();
+    for (let p = 1; p <= numPages; p++) selected.add(p); // tutte selezionate di default
+
+    const updateCount = () => {
+        countLabel.textContent = `${selected.size} di ${numPages} selezionate`;
+        okBtn.disabled = selected.size === 0;
+    };
+
+    for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+        const card = document.createElement('label');
+        card.className = 'pdf-page-thumb selected';
+        card.innerHTML = `
+            <input type="checkbox" checked data-page="${pageNum}">
+            <span class="pdf-page-thumb-num">${pageNum}</span>
+            <div class="pdf-page-thumb-img"><span class="pdf-page-thumb-loading">⏳</span></div>
+        `;
+        const checkbox = card.querySelector('input');
+        checkbox.onchange = () => {
+            if (checkbox.checked) { selected.add(pageNum); card.classList.add('selected'); }
+            else { selected.delete(pageNum); card.classList.remove('selected'); }
+            updateCount();
+        };
+        grid.appendChild(card);
+
+        // Anteprima a bassa risoluzione (~200px di larghezza): non blocca l'apertura del popup,
+        // ogni miniatura si riempie da sola appena pronta.
+        pdf.getPage(pageNum).then(page => {
+            const thumbScale = 200 / page.getViewport({ scale: 1 }).width;
+            const viewport = page.getViewport({ scale: thumbScale });
+            const c = document.createElement('canvas');
+            c.width = viewport.width;
+            c.height = viewport.height;
+            return page.render({ canvasContext: c.getContext('2d'), viewport }).promise.then(() => c);
+        }).then(c => {
+            const imgBox = card.querySelector('.pdf-page-thumb-img');
+            imgBox.innerHTML = '';
+            imgBox.appendChild(c);
+        }).catch(() => {
+            card.querySelector('.pdf-page-thumb-img').innerHTML = '<span class="pdf-page-thumb-loading">⚠️</span>';
+        });
+    }
+
+    updateCount();
+    modal.style.display = 'flex';
+
+    document.getElementById('pdf-page-picker-all-btn').onclick = () => {
+        for (let p = 1; p <= numPages; p++) selected.add(p);
+        grid.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+            cb.checked = true;
+            cb.closest('.pdf-page-thumb').classList.add('selected');
+        });
+        updateCount();
+    };
+    document.getElementById('pdf-page-picker-none-btn').onclick = () => {
+        selected.clear();
+        grid.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+            cb.checked = false;
+            cb.closest('.pdf-page-thumb').classList.remove('selected');
+        });
+        updateCount();
+    };
+    okBtn.onclick = () => {
+        modal.style.display = 'none';
+        onConfirm(Array.from(selected).sort((a, b) => a - b));
+    };
+    document.getElementById('pdf-page-picker-cancel-btn').onclick = () => {
+        modal.style.display = 'none';
+        onConfirm([]);
+    };
 }
 
 // =============================================================================
@@ -7793,6 +8010,35 @@ window.addEventListener('load', function() {
                 btn.classList.add('active');
             };
         });
+        _loadPersonalBgOptions(prefs.defaultBg);
+    }
+
+    // Aggiunge gli sfondi personali (Drive: cartella EduBoard/Sfondi) come scelte in più nel
+    // selettore "sfondo di default", senza toccare quelle di serie già presenti (richiesto da
+    // Fabio il 19/09/2026). Il valore va impostato SOLO dopo che le opzioni esistono davvero:
+    // farlo prima (nel corpo sincrono di initPrefsUI) non avrebbe effetto se il salvato era
+    // proprio uno sfondo personale, perché quell'<option> non esiste ancora.
+    async function _loadPersonalBgOptions(savedValue) {
+        const group = document.getElementById('pref-bg-personal-group');
+        const bgSel = document.getElementById('pref-default-bg');
+        if (!group || !bgSel) return;
+        group.innerHTML = '';
+        group.style.display = 'none';
+        if (typeof driveMgr === 'undefined' || !driveMgr?.isConnected()) return;
+        try {
+            const images = (await driveMgr.listBackgrounds()).filter(f => f.mimeType?.startsWith('image/'));
+            if (!images.length) return;
+            for (const img of images) {
+                const opt = document.createElement('option');
+                opt.value = 'custom:' + img.id;
+                opt.textContent = '🖼️ ' + img.name;
+                group.appendChild(opt);
+            }
+            group.style.display = '';
+            if (savedValue && savedValue.startsWith('custom:')) bgSel.value = savedValue;
+        } catch (_) {
+            // Nessun blocco per l'utente: restano solo gli sfondi di serie
+        }
     }
 
     const saveBtn = document.getElementById('pref-save-btn');

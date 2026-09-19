@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-075'; // v2-075 — Corretto l'indirizzo della richiesta assistenza anche in EduConnect
+const CACHE_NAME = 'eduboard-v2-079'; // v2-079 — Sfondi personali selezionabili come default nuova lavagna
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-075 — Corretta la richiesta di assistenza in EduConnect: la mail partiva verso una casella inesistente, quindi le segnalazioni non arrivavano a nessuno.';
+const CHANGELOG  = 'EduBoard V2-079 — Nelle Impostazioni, lo sfondo di default per le nuove lavagne ora può essere anche uno dei tuoi sfondi personali caricati su Drive, non solo i pattern di serie.';
 
 const urlsToCache = [
   '.',
