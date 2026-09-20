@@ -2011,7 +2011,11 @@ class LibraryManager {
             lesson.name = copyName;
             lesson.createdAt = now;
             lesson.modifiedAt = now;
-            await this.drive._uploadMultipart(copyName + '.json', lesson, null, folderId);
+            const nuovoId = await this.drive._uploadMultipart(copyName + '.json', lesson, null, folderId);
+            // La copia va messa SUBITO SOTTO l'originale, non in fondo alla cartella:
+            // senza questo finiva in coda, perché _applyOrder manda in fondo tutti i
+            // file che non compaiono ancora in _order.json (richiesta di Fabio, 20/09/2026).
+            if (nuovoId) await this._inserisciDopo(folderId, fileId, nuovoId, siblings);
             toast(`"${copyName}" creata!`, 'success');
             this._forceRefresh();
         } catch (err) {
@@ -2478,6 +2482,35 @@ class LibraryManager {
         const newOrder = [...container.querySelectorAll(`.tree-item.lesson[data-folder-id="${folderId}"]`)]
             .map(el => el.dataset.fileId);
         this._saveOrder(folderId, newOrder, this._indentCache?.[folderId] || {});
+    }
+
+    /** Sposta `nuovoId` subito dopo `riferimentoId` nell'ordine della cartella.
+     *  @param elencoPrima - i file della cartella com'erano PRIMA dell'inserimento,
+     *                       usati per ricostruire l'ordine se _order.json non esiste. */
+    async _inserisciDopo(folderId, riferimentoId, nuovoId, elencoPrima = null) {
+        try {
+            const dati = await this._loadOrder(folderId);
+            let ordine = (dati.order || []).slice();
+            // Cartella senza ordine salvato: si parte dall'elenco reale, altrimenti
+            // salvare due sole voci spedirebbe tutte le altre lezioni in fondo.
+            if (!ordine.length) {
+                const base = elencoPrima || await this.drive.listLessons(folderId);
+                ordine = base.filter(f => f.name !== '_order.json').map(f => f.id);
+            }
+            ordine = ordine.filter(id => id !== nuovoId);
+            const pos = ordine.indexOf(riferimentoId);
+            if (pos === -1) ordine.push(nuovoId);
+            else ordine.splice(pos + 1, 0, nuovoId);
+            // La copia eredita il rientro dell'originale, così resta allineata con lui.
+            const indents = { ...(dati.indents || {}) };
+            if (indents[riferimentoId] != null) indents[nuovoId] = indents[riferimentoId];
+            // Il riferimento al file _order.json esistente evita di crearne un secondo.
+            if (!this._orderCache) this._orderCache = {};
+            this._orderCache[folderId] = { orderId: dati.orderId };
+            await this._saveOrder(folderId, ordine, indents);
+        } catch (err) {
+            console.warn('_inserisciDopo fallito:', err);
+        }
     }
 
     /** Salva l'ordine (e le indentazioni) in _order.json nella cartella su Drive. */
