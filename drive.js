@@ -1271,12 +1271,19 @@ class LibraryManager {
      *  Se il pannello è aperto con contenuto, aggiorna silenziosamente senza "Caricamento...".
      *  Se il pannello è chiuso, invalida lo stato così il prossimo open caricherà dati freschi. */
     _forceRefresh() {
-        this._lastBgRefresh = 0; // azzera il cooldown background refresh
         if (this.panel.classList.contains('open') && this.treeEl.hasChildNodes()) {
             // Pannello aperto: aggiornamento silenzioso senza spinner
+            this._lastBgRefresh = 0; // qui sì: serve vedere subito il cambiamento
             const savedScroll = this.treeEl.scrollTop || 0;
             this._backgroundRefresh('eduboard-lib-cache', savedScroll);
         }
+        // ⚠️ A pannello CHIUSO il cooldown NON si azzera più (20/09/2026).
+        // Prima si azzerava sempre, e siccome il salvataggio automatico chiama questa
+        // funzione di continuo, ogni riapertura della libreria ripartiva con un
+        // ricostruzione completa dell'albero: si vedeva ricaricare tutto da capo e si
+        // perdevano evidenziazione e posizione di scorrimento (segnalato da Fabio).
+        // Ora la riapertura mostra l'albero già pronto, e l'aggiornamento dal Drive
+        // avviene in silenzio quando il cooldown di 3 minuti è passato.
         // NON resettare _treeLoaded quando il pannello è chiuso:
         // il DOM dell'albero persiste ed è riutilizzabile — alla riapertura
         // mostra l'albero esistente immediatamente (zero flash) e fa bg refresh.
@@ -1706,7 +1713,13 @@ class LibraryManager {
             }
 
             // 3. Aggiorna nome progetto
-            const name = lesson.name || fileName.replace(/\.json$/, '');
+            // ⚠️ Vince il nome del FILE su Drive, non quello scritto dentro al JSON al
+            // primo salvataggio: rinominando dalla libreria si cambia solo il file, e
+            // col vecchio ordine (lesson.name prima) riaprendo tornava il nome di prima
+            // — sembrava che la rinomina non venisse memorizzata (segnalato da Fabio
+            // il 20/09/2026). Il nome interno resta come riserva per i file senza nome.
+            const nomeDaFile = fileName ? fileName.replace(/\.json$/, '').trim() : '';
+            const name = nomeDaFile || lesson.name || 'Lezione';
             CONFIG.projectName = name;
             document.getElementById('project-name').textContent = name;
 
@@ -1869,6 +1882,25 @@ class LibraryManager {
             if (newName === currentName) return;
             try {
                 await this.drive.renameItem(fileId, newName);
+
+                // Il nome nell'albero si aggiorna SUBITO, senza aspettare il refresh:
+                // prima bisognava ricaricare la pagina per vederlo cambiare.
+                const riga = this.treeEl?.querySelector(
+                    `[data-file-id="${fileId}"], [data-folder-id="${fileId}"]`
+                );
+                const etichetta = riga?.querySelector('.tree-label');
+                if (etichetta) etichetta.textContent = newName.replace(/\.json$/, '');
+
+                // Se è la lezione aperta in questo momento, il nome in alto si aggiorna
+                // subito: prima restava quello vecchio e sembrava che non avesse salvato.
+                if (this.currentFileId && this.currentFileId === fileId) {
+                    const pulito = newName.replace(/\.json$/, '').trim();
+                    if (pulito) {
+                        CONFIG.projectName = pulito;
+                        const badge = document.getElementById('project-name');
+                        if (badge) badge.textContent = pulito;
+                    }
+                }
                 toast('Rinominato!', 'success');
                 this._forceRefresh();
             } catch (err) {

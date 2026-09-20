@@ -4554,15 +4554,22 @@ class SelectManager {
     _deleteSelectedItems() {
         if (!this.selectedItems.length) return;
         if (typeof canvasMgr !== 'undefined') canvasMgr._saveUndo();
+        let toltoUnTratto = false;
         this.selectedItems.forEach(it => {
             if (it.type === 'object') {
-                objectLayer.removeObject(it.ref.id);
+                objectLayer.removeObject(it.ref.id);        // vive sul suo canvas: nulla da ridisegnare
             } else if (typeof canvasMgr !== 'undefined') {
                 const idx = canvasMgr._pageStrokes.indexOf(it.ref);
-                if (idx >= 0) canvasMgr._pageStrokes.splice(idx, 1);
+                if (idx >= 0) { canvasMgr._pageStrokes.splice(idx, 1); toltoUnTratto = true; }
             }
         });
-        if (typeof canvasMgr !== 'undefined') canvasMgr._redrawAllStrokes();
+        // ⚠️ _redrawAllStrokes() ripulisce il canvas del disegno e riplotta SOLO i tratti
+        // vettoriali: tutto ciò che è pixel e basta (lo sfondo incollato, il contenuto
+        // ripristinato da un salvataggio) sparirebbe. Eliminando una IMMAGINE — che vive
+        // su un altro canvas — non c'è nulla da ridisegnare qui: chiamarlo lo stesso
+        // svuotava l'intera pagina (segnalato da Fabio il 20/09/2026, eliminando una
+        // cattura schermo appena incollata). Si ridisegna solo se è caduto un tratto.
+        if (toltoUnTratto && typeof canvasMgr !== 'undefined') canvasMgr._redrawAllStrokes();
         this.selectedItems = [];
         this._clearSelection();
         this._hideContextPanel();

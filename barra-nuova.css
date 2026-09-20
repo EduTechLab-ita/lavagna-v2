@@ -680,6 +680,18 @@ body.v2 .v2-pagelist {
     display: flex;
     flex-direction: column;
     gap: 5px;
+    position: relative;   /* riferimento per la riga grigia di inserimento */
+}
+/* Riga che mostra dove finirà la pagina mentre la si trascina */
+body.v2 .v2-drop-line {
+    position: absolute;
+    left: 4px;
+    right: 4px;
+    height: 3px;
+    border-radius: 99px;
+    background: #94a3b8;
+    pointer-events: none;
+    display: none;
 }
 body.v2 .v2-pagerow {
     display: flex;
@@ -690,6 +702,9 @@ body.v2 .v2-pagerow {
     border: 1px solid transparent;
     background: #f6f8fb;
     cursor: pointer;
+    /* Tutta la riga è trascinabile: col dito il browser non deve interpretare il
+       gesto come uno scorrimento del pannello. */
+    touch-action: none;
 }
 body.v2 .v2-pagerow.v2-current {
     background: rgba(59, 130, 246, .15);

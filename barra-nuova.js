@@ -109,9 +109,19 @@
         const pm = pageManager;
         const isCurrent = index === pm.currentIndex;
         const drawCanvas = document.getElementById('draw-canvas');
+        const objCanvas = document.getElementById('objects-canvas');
         let src = null, rect = null;
+
         if (isCurrent && drawCanvas && drawCanvas.width) {
-            src = drawCanvas.toDataURL('image/png');
+            // Pagina aperta: si fotografano INSIEME disegno e immagini (stanno su due
+            // canvas diversi — prima l'anteprima mostrava solo le scritte).
+            const unione = document.createElement('canvas');
+            unione.width = drawCanvas.width;
+            unione.height = drawCanvas.height;
+            const ux = unione.getContext('2d');
+            if (objCanvas && objCanvas.width) ux.drawImage(objCanvas, 0, 0);
+            ux.drawImage(drawCanvas, 0, 0);
+            src = unione.toDataURL('image/png');
             if (typeof bgMgr !== 'undefined' && bgMgr) {
                 const r = bgMgr._getPageRect(drawCanvas.width, drawCanvas.height);
                 rect = { px: r.px, py: r.py, pw: r.pw, ph: r.ph };
@@ -120,17 +130,43 @@
             src = pm.pages[index]?.drawImageData || null;
             rect = pm.pages[index]?.captureRect || null;
         }
-        if (!src) return;                       // pagina mai disegnata: resta il riquadro bianco
+        const pagina = pm.pages[index] || {};
+        if (!src && !(pagina.objects || []).length && !(pagina.embeds || []).length) return;
         const img = new Image();
-        img.onload = () => {
+        img.onload = img.onerror = async () => {
             const TW = 112, TH = 80;            // doppio della misura a schermo, per la nitidezza
-            const r = (rect && rect.pw) ? rect : { px: 0, py: 0, pw: img.width, ph: img.height };
+            const r = (rect && rect.pw)
+                ? rect
+                : { px: 0, py: 0, pw: img.width || 1600, ph: img.height || 1100 };
 
             // 1) ritaglia il foglio a piena risoluzione
             let cur = document.createElement('canvas');
             cur.width = Math.max(1, Math.round(r.pw));
             cur.height = Math.max(1, Math.round(r.ph));
-            cur.getContext('2d').drawImage(img, r.px, r.py, r.pw, r.ph, 0, 0, cur.width, cur.height);
+            const cctx = cur.getContext('2d');
+            if (img.naturalWidth) cctx.drawImage(img, r.px, r.py, r.pw, r.ph, 0, 0, cur.width, cur.height);
+
+            // 1b) per le pagine NON aperte le immagini incollate stanno a parte (non sono
+            //     nel disegno): si ridisegnano qui, altrimenti l'anteprima mostrava solo
+            //     le scritte e non si capiva cosa ci fosse nella pagina.
+            if (!isCurrent && (pagina.objects || []).length) {
+                const disegni = (pagina.objects || []).map(o => new Promise(res => {
+                    if (!o.dataUrl) { res(); return; }
+                    const oi = new Image();
+                    oi.onload = () => {
+                        // coordinate salvate come frazione del foglio (objectFormat page-fraction)
+                        const x = (pagina.objectFormat === 'page-fraction') ? o.x * r.pw : (o.x - r.px);
+                        const y = (pagina.objectFormat === 'page-fraction') ? o.y * r.pw : (o.y - r.py);
+                        const w = (pagina.objectFormat === 'page-fraction') ? o.w * r.pw : o.w;
+                        const h = (pagina.objectFormat === 'page-fraction') ? o.h * r.pw : o.h;
+                        try { cctx.drawImage(oi, x, y, w, h); } catch (_) {}
+                        res();
+                    };
+                    oi.onerror = res;
+                    oi.src = o.dataUrl;
+                }));
+                await Promise.all(disegni);
+            }
 
             // 2) dimezza a passi fino a sfiorare la misura finale. Rimpicciolire di colpo
             //    da 2160px a 112px fa sparire le linee sottili (si mediano col bianco e
@@ -155,9 +191,47 @@
             const s = Math.min(TW / cur.width, TH / cur.height);
             const dw = cur.width * s, dh = cur.height * s;
             ctx.drawImage(cur, (TW - dw) / 2, (TH - dh) / 2, dw, dh);
+
+            // 4) bollini dei contenuti incorporati: un video o una pagina web non
+            //    lasciano traccia nell'immagine (sono riquadri veri, non disegno), quindi
+            //    senza questi non si capirebbe che la pagina ne contiene.
+            const incorporati = (isCurrent && typeof embedMgr !== 'undefined' && embedMgr)
+                ? embedMgr.serialize()
+                : (pagina.embeds || []);
+            incorporati.slice(0, 3).forEach((em, i) => {
+                const bx = 4 + i * 20, by = TH - 20;
+                const url = String(em.url || '');
+                const youtube = /youtube\.com|youtu\.be/i.test(url);
+                const link = em.type === 'link';
+                ctx.fillStyle = youtube ? '#e14434' : (link ? '#e8763a' : '#3b82f6');
+                ctx.beginPath();
+                ctx.roundRect ? ctx.roundRect(bx, by, 16, 16, 4) : ctx.rect(bx, by, 16, 16);
+                ctx.fill();
+                ctx.fillStyle = '#fff';
+                if (youtube) {                                  // triangolo "play"
+                    ctx.beginPath();
+                    ctx.moveTo(bx + 6, by + 4.5);
+                    ctx.lineTo(bx + 12, by + 8);
+                    ctx.lineTo(bx + 6, by + 11.5);
+                    ctx.closePath();
+                    ctx.fill();
+                } else if (link) {                              // due anelli di catena
+                    ctx.lineWidth = 1.6;
+                    ctx.strokeStyle = '#fff';
+                    ctx.beginPath(); ctx.arc(bx + 6, by + 8, 2.6, 0, Math.PI * 2); ctx.stroke();
+                    ctx.beginPath(); ctx.arc(bx + 10, by + 8, 2.6, 0, Math.PI * 2); ctx.stroke();
+                } else {                                        // mappamondo
+                    ctx.lineWidth = 1.4;
+                    ctx.strokeStyle = '#fff';
+                    ctx.beginPath(); ctx.arc(bx + 8, by + 8, 4.6, 0, Math.PI * 2); ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(bx + 3.4, by + 8); ctx.lineTo(bx + 12.6, by + 8); ctx.stroke();
+                    ctx.beginPath(); ctx.ellipse(bx + 8, by + 8, 2.2, 4.6, 0, 0, Math.PI * 2); ctx.stroke();
+                }
+            });
+
             imgEl.src = c.toDataURL();
         };
-        img.src = src;
+        img.src = src || 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
     }
 
     function closeRowMenu() {
@@ -225,12 +299,37 @@
     // Trascinamento con Pointer Events (non HTML5 drag&drop: quello col dito sulla LIM
     // non funziona). Si riordinano le righe nel DOM mentre si trascina, e al rilascio
     // si applica lo stesso ordine all'array vero delle pagine.
+    // Riga grigia che mostra DOVE finirà la pagina mentre la si trascina: senza,
+    // si sposta alla cieca (richiesta di Fabio). Si posiziona sopra o sotto la riga
+    // trascinata, a seconda di dove andrebbe a finire.
+    function mostraSegnoInserimento(row, list) {
+        let segno = list.querySelector('.v2-drop-line');
+        if (!segno) {
+            segno = document.createElement('div');
+            segno.className = 'v2-drop-line';
+            list.appendChild(segno);
+        }
+        const b = row.getBoundingClientRect();
+        const bl = list.getBoundingClientRect();
+        segno.style.top = (b.top - bl.top + list.scrollTop - 3) + 'px';
+        segno.style.display = 'block';
+    }
+
+    function togliSegnoInserimento(list) {
+        const segno = list.querySelector('.v2-drop-line');
+        if (segno) segno.remove();
+    }
+
     function setupRowDrag(row, list) {
-        const grip = row.querySelector('.v2-grip');
-        if (!grip) return;
-        grip.addEventListener('pointerdown', (e) => {
+        // Si trascina da TUTTA la riga, non solo dalla maniglia ⠿: quella è un bersaglio
+        // di pochi pixel, impossibile da prendere col dito sulla LIM (Fabio riferiva che
+        // "non funziona" mentre il meccanismo girava: semplicemente non lo agganciava).
+        // I pulsanti della riga restano esclusi, altrimenti non si potrebbe più cliccarli.
+        row.addEventListener('pointerdown', (e) => {
+            if (e.target.closest('.v2-rowbtn')) return;
             e.preventDefault();
             e.stopPropagation();
+            const partenzaY = e.clientY;
             row.classList.add('v2-dragging');
             let spostata = false;
 
@@ -240,6 +339,9 @@
             // al primo scambio — il trascinamento si fermava lì. Sul documento
             // invece gli eventi continuano ad arrivare per tutto il gesto.
             const onMove = (ev) => {
+                // Soglia: sotto i 5px è un tocco, non un trascinamento — così un tap
+                // un po' tremolante continua ad aprire la pagina invece di spostarla.
+                if (!spostata && Math.abs(ev.clientY - partenzaY) < 5) return;
                 spostata = true;
                 const righe = Array.from(list.querySelectorAll('.v2-pagerow'));
                 for (const altra of righe) {
@@ -251,12 +353,14 @@
                         break;
                     }
                 }
+                mostraSegnoInserimento(row, list);
             };
             const onUp = () => {
                 document.removeEventListener('pointermove', onMove);
                 document.removeEventListener('pointerup', onUp);
                 document.removeEventListener('pointercancel', onUp);
                 row.classList.remove('v2-dragging');
+                togliSegnoInserimento(list);
                 if (spostata) {
                     // Il click che segue il rilascio non deve far cambiare pagina
                     ignoraClickFino = Date.now() + 400;
