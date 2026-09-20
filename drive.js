@@ -1955,6 +1955,44 @@ class LibraryManager {
         }
     }
 
+    /** Aggiorna il nome di un elemento OVUNQUE si veda, senza ricostruire l'albero:
+     *  etichetta in libreria, nome usato dai pulsanti della riga, intestazione della
+     *  lavagna e memoria dell'ultima lezione aperta.
+     *  Usato da entrambe le strade di rinomina — la matita nella libreria e il nome
+     *  cliccabile nella barra in alto — che prima si comportavano in modo diverso
+     *  (segnalato da Fabio, 20/09/2026). */
+    aggiornaNomeOvunque(fileId, newName) {
+        const pulito = String(newName).replace(/\.json$/, '').trim();
+        if (!pulito) return;
+
+        // 1. Etichetta nell'albero della libreria
+        const riga = this.treeEl?.querySelector(
+            `[data-file-id="${fileId}"], [data-folder-id="${fileId}"]`
+        );
+        const etichetta = riga?.querySelector('.tree-label');
+        if (etichetta) etichetta.textContent = pulito;
+        // 2. Nome usato da duplica/elimina/rinomina di quella stessa riga
+        if (riga?._entry) riga._entry.name = pulito;
+
+        if (this.currentFileId !== fileId) return;
+
+        // 3. Intestazione della lavagna
+        CONFIG.projectName = pulito;
+        const badge = document.getElementById('project-name');
+        if (badge && badge.contentEditable !== 'true') badge.textContent = pulito;
+
+        // 4. Memoria dell'ultima lezione: senza questo, alla riapertura dell'app la
+        //    lezione tornava col nome VECCHIO, perché viene riletto da qui.
+        try {
+            const raw = localStorage.getItem('eduboard_last_lesson');
+            const dati = raw ? JSON.parse(raw) : null;
+            if (dati?.fileId === fileId) {
+                dati.fileName = pulito + '.json';
+                localStorage.setItem('eduboard_last_lesson', JSON.stringify(dati));
+            }
+        } catch (_) {}
+    }
+
     /** Rinomina un elemento (file o cartella). */
     rename(fileId, currentName) {
         if (!this.drive.isConnected()) { toast('Connetti Drive prima.', 'error'); return; }
@@ -1963,27 +2001,9 @@ class LibraryManager {
             try {
                 await this.drive.renameItem(fileId, newName);
 
-                // Il nome nell'albero si aggiorna SUBITO, senza aspettare il refresh:
+                // Il nome si aggiorna SUBITO dappertutto, senza aspettare il refresh:
                 // prima bisognava ricaricare la pagina per vederlo cambiare.
-                const riga = this.treeEl?.querySelector(
-                    `[data-file-id="${fileId}"], [data-folder-id="${fileId}"]`
-                );
-                const etichetta = riga?.querySelector('.tree-label');
-                if (etichetta) etichetta.textContent = newName.replace(/\.json$/, '');
-                // Allinea anche il nome usato dai pulsanti della riga (duplica/elimina/rinomina),
-                // altrimenti resterebbero fermi a quello vecchio fino al prossimo aggiornamento.
-                if (riga?._entry) riga._entry.name = newName.replace(/\.json$/, '');
-
-                // Se è la lezione aperta in questo momento, il nome in alto si aggiorna
-                // subito: prima restava quello vecchio e sembrava che non avesse salvato.
-                if (this.currentFileId && this.currentFileId === fileId) {
-                    const pulito = newName.replace(/\.json$/, '').trim();
-                    if (pulito) {
-                        CONFIG.projectName = pulito;
-                        const badge = document.getElementById('project-name');
-                        if (badge) badge.textContent = pulito;
-                    }
-                }
+                this.aggiornaNomeOvunque(fileId, newName);
                 toast('Rinominato!', 'success');
                 // ⚠️ NIENTE _forceRefresh() qui (20/09/2026). L'etichetta è già stata
                 // aggiornata qui sopra; ricostruire l'albero rileggeva da Drive, che per

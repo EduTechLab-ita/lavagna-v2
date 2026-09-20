@@ -3351,7 +3351,11 @@ function setupProjectName() {
         if (fileId && window.libraryMgr?.drive?.isConnected?.()) {
             try {
                 await window.libraryMgr.drive.renameItem(fileId, newName);
-                window.libraryMgr.refresh(); // aggiorna l'albero
+                // Stesso aggiornamento sul posto usato dalla matita nella libreria
+                // (20/09/2026). Prima qui si chiamava refresh(), che ora — giustamente —
+                // non ricostruisce più l'albero già caricato: il nome in libreria
+                // restava quello vecchio finché non si ricaricava la pagina.
+                window.libraryMgr.aggiornaNomeOvunque(fileId, newName);
                 toast('Rinominato!', 'success');
             } catch (err) {
                 toast('Errore rinomina Drive: ' + err.message, 'error');
