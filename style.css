@@ -4165,7 +4165,7 @@ body.has-page-bar #zoom-indicator {
     height: 28px;
     border-radius: 50%;
     border: 2px solid transparent;
-    background: var(--bg-app, #f1f5f9);
+    background: transparent;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -4269,6 +4269,65 @@ body.has-page-bar #zoom-indicator {
     padding: 1px 6px;
     font-size: 0.78rem;
     font-family: monospace;
+}
+
+/* Guida — ricerca + capitoli cliccabili */
+.guida-searchbox {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 7px 10px;
+    margin-bottom: 12px;
+}
+.guida-search-icon { font-size: 0.8rem; opacity: 0.6; flex-shrink: 0; }
+.guida-searchbox input {
+    flex: 1;
+    border: none;
+    background: none;
+    outline: none;
+    font-size: 0.85rem;
+    font-family: inherit;
+    color: #1e293b;
+    min-width: 0;
+}
+.guida-search-clear {
+    background: none;
+    border: none;
+    color: #94a3b8;
+    font-size: 1.1rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 2px;
+    display: none;
+}
+.guida-searchbox.has-text .guida-search-clear { display: block; }
+.guida-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 16px;
+}
+.guida-chip {
+    background: #f1f5f9;
+    border: 1px solid transparent;
+    border-radius: 20px;
+    padding: 6px 12px;
+    font-size: 0.78rem;
+    font-family: inherit;
+    color: #475569;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.guida-chip:hover { background: #e2e8f0; }
+.guida-chip.active {
+    background: var(--accent-glow, rgba(59,130,246,0.2));
+    border-color: var(--accent, #3b82f6);
+    color: var(--accent, #3b82f6);
+    font-weight: 600;
 }
 
 /* Contacts tab */
