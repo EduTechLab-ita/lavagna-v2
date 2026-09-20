@@ -29,8 +29,10 @@ body.v2 #floating-toolbar {
    banco (scala 1: le icone native 28px sono già alla misura giusta). */
 body.v2 #page-bar,
 body.v2 #bottom-right-bar {
-    padding: 5px 9px;
-    gap: 2px;
+    /* Un filo più strette del banco: richiesta di Fabio del 20/09 sera, per far
+       stare le due barre laterali più raccolte (icone più vicine fra loro). */
+    padding: 4px 7px;
+    gap: 0;
     background: rgba(255, 255, 255, .97);
     border: 1px solid rgba(15, 23, 42, .08);
     border-radius: 50px;
@@ -121,9 +123,11 @@ body.v2 .v2-pagechip {
     font: inherit;
     font-size: 13px;
     font-weight: 600;
-    color: #334155;
-    padding: 7px 14px;
-    border: 1px solid #e2e8f0;
+    color: #0f172a;
+    padding: 6px 12px;
+    /* Bordino scuro attorno all'ovale del contatore: così si distingue subito
+       dalla pillola bianca su cui poggia (richiesta di Fabio). */
+    border: 1.5px solid #0f172a;
     border-radius: 999px;
     font-variant-numeric: tabular-nums;
     background: #fff;
@@ -600,6 +604,72 @@ body.v2 .bg-color-label,
 body.v2 .shape-fill-row,
 body.v2 .toggle-label {
     color: #475569;
+}
+
+/* ---- Sfondi presi dal Drive: anteprime più grandi e su fondo chiaro ----
+   Erano 90×65 su `--bg-elevated`, che in questo tema è quasi nero: dentro il
+   pannello bianco non si distinguevano e non si riusciva a scegliere. */
+body.v2 .bg-drive-grid {
+    gap: 10px;
+}
+body.v2 .bg-drive-thumb {
+    width: 124px;
+    height: 88px;
+    background: #f6f8fb;
+    border: 2px solid #cbd5e1;
+}
+body.v2 .bg-drive-thumb:hover {
+    border-color: #3b82f6;
+}
+body.v2 .bg-drive-grid::-webkit-scrollbar-thumb {
+    background: rgba(15, 23, 42, .25);
+}
+body.v2 .bg-drive-loading,
+body.v2 .bg-drive-empty {
+    color: #64748b;
+}
+body.v2 .bg-upload-btn {
+    background: #f6f8fb;
+    border: 1px solid #cbd5e1;
+    color: #0f172a;
+}
+
+/* ---- Comandi dei contenuti incorporati: misura FISSA sullo schermo ----
+   #embed-layer vive dentro #canvas-area, che è scalato dallo zoom della lavagna.
+   A "100%" lo zoom reale è circa 0,3 (il canvas è tre volte la finestra), quindi i
+   38px dei pulsanti diventavano ~12px: illeggibili, e per vederli bisognava
+   ingrandire il contenuto. Qui si moltiplica ogni misura per l'INVERSO dello zoom
+   (--v2-inv, aggiornato da barra-nuova.js ad ogni pan/zoom): sullo schermo restano
+   sempre della stessa grandezza, qualunque sia l'ingrandimento. */
+body.v2 .embed-header {
+    height: calc(46px * var(--v2-inv, 1));
+    gap: calc(4px * var(--v2-inv, 1));
+    padding: 0 calc(5px * var(--v2-inv, 1));
+    border-radius: calc(8px * var(--v2-inv, 1)) calc(8px * var(--v2-inv, 1)) 0 0;
+}
+body.v2 .embed-btn {
+    width: calc(40px * var(--v2-inv, 1));
+    height: calc(40px * var(--v2-inv, 1));
+    font-size: calc(1.3rem * var(--v2-inv, 1));
+    border-radius: calc(8px * var(--v2-inv, 1));
+}
+body.v2 .embed-header-url {
+    font-size: calc(0.82rem * var(--v2-inv, 1));
+    padding: 0 calc(6px * var(--v2-inv, 1));
+}
+body.v2 .embed-resize-handle {
+    width: calc(32px * var(--v2-inv, 1));
+    height: calc(32px * var(--v2-inv, 1));
+}
+/* Scheda "Link": anche il suo contenuto resta leggibile a qualunque zoom */
+body.v2 .embed-link-icon {
+    font-size: calc(1.6rem * var(--v2-inv, 1));
+}
+body.v2 .embed-link-host {
+    font-size: calc(0.95rem * var(--v2-inv, 1));
+}
+body.v2 .embed-link-cta {
+    font-size: calc(0.78rem * var(--v2-inv, 1));
 }
 
 /* ---- Pannello pagine (banco: .panel-pages / .pagerow / .rowbtn / .addpagebtn) ---- */

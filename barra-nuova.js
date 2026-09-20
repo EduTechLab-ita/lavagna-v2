@@ -164,6 +164,25 @@
         document.querySelectorAll('.v2-rowmenu').forEach(m => m.remove());
     }
 
+    // Identificativo del video da qualunque forma di link YouTube (o dall'id nudo)
+    function estraiIdYouTube(raw) {
+        const s = (raw || '').trim();
+        if (!s) return null;
+        if (/^[A-Za-z0-9_-]{11}$/.test(s)) return s;                 // già solo l'id
+        const schemi = [
+            /[?&]v=([A-Za-z0-9_-]{11})/,                              // watch?v=
+            /youtu\.be\/([A-Za-z0-9_-]{11})/,                         // youtu.be/
+            /\/embed\/([A-Za-z0-9_-]{11})/,                           // /embed/
+            /\/shorts\/([A-Za-z0-9_-]{11})/,                          // /shorts/
+            /\/live\/([A-Za-z0-9_-]{11})/                             // /live/
+        ];
+        for (const re of schemi) {
+            const m = s.match(re);
+            if (m) return m[1];
+        }
+        return null;
+    }
+
     // ⋮ di riga: duplica la pagina, oppure la sposta in un'altra lezione (quest'ultima
     // è la funzione che l'app aveva già sul vecchio pulsante ⇄).
     function openRowMenu(index, anchor) {
@@ -212,29 +231,41 @@
         grip.addEventListener('pointerdown', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            grip.setPointerCapture(e.pointerId);
             row.classList.add('v2-dragging');
+            let spostata = false;
 
+            // ⚠️ I movimenti si ascoltano sul DOCUMENTO, non sulla maniglia con
+            // setPointerCapture: riordinando si sposta la riga nel DOM, e spostare
+            // (= staccare e riattaccare) l'elemento che ha la cattura la fa perdere
+            // al primo scambio — il trascinamento si fermava lì. Sul documento
+            // invece gli eventi continuano ad arrivare per tutto il gesto.
             const onMove = (ev) => {
-                const rows = Array.from(list.querySelectorAll('.v2-pagerow'));
-                for (const other of rows) {
-                    if (other === row) continue;
-                    const b = other.getBoundingClientRect();
+                spostata = true;
+                const righe = Array.from(list.querySelectorAll('.v2-pagerow'));
+                for (const altra of righe) {
+                    if (altra === row) continue;
+                    const b = altra.getBoundingClientRect();
                     if (ev.clientY > b.top && ev.clientY < b.bottom) {
-                        const before = ev.clientY < b.top + b.height / 2;
-                        list.insertBefore(row, before ? other : other.nextSibling);
+                        const prima = ev.clientY < b.top + b.height / 2;
+                        list.insertBefore(row, prima ? altra : altra.nextSibling);
                         break;
                     }
                 }
             };
             const onUp = () => {
-                grip.removeEventListener('pointermove', onMove);
-                grip.removeEventListener('pointerup', onUp);
+                document.removeEventListener('pointermove', onMove);
+                document.removeEventListener('pointerup', onUp);
+                document.removeEventListener('pointercancel', onUp);
                 row.classList.remove('v2-dragging');
-                applyRowOrder(list);
+                if (spostata) {
+                    // Il click che segue il rilascio non deve far cambiare pagina
+                    ignoraClickFino = Date.now() + 400;
+                    applyRowOrder(list);
+                }
             };
-            grip.addEventListener('pointermove', onMove);
-            grip.addEventListener('pointerup', onUp);
+            document.addEventListener('pointermove', onMove);
+            document.addEventListener('pointerup', onUp);
+            document.addEventListener('pointercancel', onUp);
         });
     }
 
@@ -309,6 +340,7 @@
             row.appendChild(dots);
 
             row.addEventListener('click', () => {
+                if (Date.now() < ignoraClickFino) return;   // arriva da un trascinamento
                 pageManager.goToPage(i);
                 renderPagesPanel();
             });
@@ -385,6 +417,7 @@
     // al loro posto alla chiusura. Stessi nodi ⇒ stessi listener di app.js, intatti.
     const PEN_FAMILY = ['pen', 'pencil', 'pastel', 'marker', 'laser'];
     let optionHomes = null;
+    let ignoraClickFino = 0;     // finestra in cui il click dopo un trascinamento va ignorato
 
     function captureOptionHomes() {
         if (optionHomes) return;
@@ -555,6 +588,22 @@
             document.getElementById('btn-save')?.click();
         });
 
+        // YouTube: pulsante dedicato. Estrae l'identificativo da QUALUNQUE forma di
+        // link (watch?v=, youtu.be/, /shorts/, /live/, /embed/, con o senza parametri)
+        // e incorpora sempre nel formato /embed/, l'unico che YouTube permette.
+        document.getElementById('v2-youtube-btn')?.addEventListener('click', () => {
+            closeV2Panels();
+            showPromptModal('Incorpora un video di YouTube', '', (val) => {
+                const id = estraiIdYouTube(val);
+                if (!id) { toast('Non riconosco questo link di YouTube', 'error'); return; }
+                const t = (val.match(/[?&]t=(\d+)/) || val.match(/[?&]start=(\d+)/) || [])[1];
+                const url = 'https://www.youtube.com/embed/' + id + (t ? '?start=' + t : '');
+                const centro = (typeof _getPageCenter === 'function') ? _getPageCenter() : getViewportCenter();
+                embedMgr.addEmbed(url, centro.x, centro.y, 640, 420, 'iframe');
+                toast('Video incorporato', 'success');
+            }, 'Incolla qui il link del video');
+        });
+
         // Il Magic Box si chiude da solo appena si usa uno strumento al suo interno
         ['btn-geo-ruler', 'btn-geo-protractor', 'embed-web-btn', 'embed-link-btn',
          'btn-capture-board', 'btn-timer', 'btn-spotlight', 'btn-tendina'].forEach(id => {
@@ -673,6 +722,62 @@
         document.addEventListener('DOMContentLoaded', keepToolbarOpen);
     } else {
         keepToolbarOpen();
+    }
+
+    // ------------------------------------------------------------------
+    // Comandi degli incorporati a misura fissa + foto profilo nell'angolo.
+    // ------------------------------------------------------------------
+
+    // Pubblica l'inverso dello zoom come variabile CSS: la usano le regole
+    // .embed-header/.embed-btn/... per restare della stessa grandezza a schermo.
+    function syncEmbedScale() {
+        const layer = document.getElementById('embed-layer');
+        if (!layer || typeof panMgr === 'undefined' || !panMgr || !panMgr.scale) return;
+        layer.style.setProperty('--v2-inv', (1 / panMgr.scale).toFixed(4));
+    }
+
+    // La foto profilo arriva DOPO il primo aggiornamento del pulsante account
+    // (prima c'è solo il token), e quell'aggiornamento non viene più ripetuto:
+    // nel menù la foto si vedeva, nel pallino sulla lavagna no. Qui la si applica
+    // appena l'indirizzo è disponibile. Nessuna chiamata a Drive: solo la <img>.
+    function syncAvatar() {
+        const d = window.driveMgr;
+        const img = document.getElementById('drive-fab-photo');
+        const icon = document.getElementById('drive-fab-icon');
+        if (!d || !img || !icon || typeof d.isConnected !== 'function') return false;
+        if (!d.isConnected() || !d.userPhotoUrl) return false;
+        if (img.getAttribute('src') === d.userPhotoUrl) {
+            return img.complete && img.naturalWidth > 0;     // già a posto
+        }
+        img.referrerPolicy = 'no-referrer';
+        img.onload = () => { img.style.display = 'block'; icon.style.display = 'none'; };
+        img.onerror = () => { img.style.display = 'none'; icon.style.display = 'block'; };
+        img.src = d.userPhotoUrl;
+        return true;
+    }
+
+    function setupLateBits() {
+        syncEmbedScale();
+        // Ogni pan/zoom ricalcola la variabile: si aggancia la funzione vera di
+        // PanManager senza modificarla (si chiama l'originale e poi la nostra).
+        if (typeof panMgr !== 'undefined' && panMgr && typeof panMgr._applyTransform === 'function') {
+            const originale = panMgr._applyTransform.bind(panMgr);
+            panMgr._applyTransform = function () { originale(); syncEmbedScale(); };
+        }
+        window.addEventListener('resize', syncEmbedScale);
+
+        // La foto può arrivare anche molto dopo il caricamento: si ritenta a intervalli
+        // finché non è a posto, poi si smette.
+        let tentativi = 0;
+        const t = setInterval(() => {
+            if (syncAvatar() || ++tentativi > 60) clearInterval(t);
+        }, 1000);
+        document.getElementById('drive-fab')?.addEventListener('click', () => setTimeout(syncAvatar, 400));
+    }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', setupLateBits);
+    } else {
+        setupLateBits();
     }
 
     // ------------------------------------------------------------------
