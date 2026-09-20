@@ -606,6 +606,22 @@ body.v2 .toggle-label {
     color: #475569;
 }
 
+/* Intestazione e riga orientamento del pannello Sfondo: restano "appiccicate" in
+   alto mentre si scorre, e avevano ancora il fondo SCURO del tema vecchio — testo
+   scuro su fondo scuro, illeggibile (segnalato da Fabio con schermata). */
+body.v2 #bg-popup .popup-title,
+body.v2 #bg-popup .bg-orient-row {
+    background: #ffffff;
+}
+body.v2 #bg-popup .bg-color-label span,
+body.v2 #bg-popup .bg-section-header {
+    color: #64748b;
+}
+body.v2 #bg-page-color-btn {
+    border: 1px solid #cbd5e1;
+    background: #f6f8fb;
+}
+
 /* ---- Sfondi presi dal Drive: anteprime più grandi e su fondo chiaro ----
    Erano 90×65 su `--bg-elevated`, che in questo tema è quasi nero: dentro il
    pannello bianco non si distinguevano e non si riusciva a scegliere. */
@@ -621,8 +637,37 @@ body.v2 .bg-drive-thumb {
 body.v2 .bg-drive-thumb:hover {
     border-color: #3b82f6;
 }
+/* Barra di scorrimento grigia: era bianca su bianco e non si vedeva */
+body.v2 .bg-drive-grid {
+    scrollbar-color: #94a3b8 #e2e8f0;
+}
+body.v2 .bg-drive-grid::-webkit-scrollbar {
+    height: 9px;
+}
+body.v2 .bg-drive-grid::-webkit-scrollbar-track {
+    background: #e2e8f0;
+    border-radius: 99px;
+}
 body.v2 .bg-drive-grid::-webkit-scrollbar-thumb {
-    background: rgba(15, 23, 42, .25);
+    background: #94a3b8;
+    border-radius: 99px;
+}
+body.v2 .bg-drive-grid::-webkit-scrollbar-thumb:hover {
+    background: #64748b;
+}
+/* Stessa cura per ogni altro pannello che scorre (Forme, Guida, libreria…) */
+body.v2 .popup-panel {
+    scrollbar-color: #94a3b8 transparent;
+}
+body.v2 .popup-panel::-webkit-scrollbar {
+    width: 9px;
+}
+body.v2 .popup-panel::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 99px;
+}
+body.v2 .popup-panel::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
 }
 body.v2 .bg-drive-loading,
 body.v2 .bg-drive-empty {

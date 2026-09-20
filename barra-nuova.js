@@ -860,8 +860,38 @@
         return true;
     }
 
+    // Anteprime degli sfondi presi dal Drive: app.js le mette come SFONDO CSS, e a
+    // un'immagine di sfondo non si può dire "non mandare il referrer" — Google allora
+    // la rifiuta e il riquadro resta vuoto (stessa causa della foto profilo). Qui ogni
+    // riquadro riceve una <img> vera con referrerpolicy corretta. Non si tocca app.js:
+    // si osserva la griglia e si converte ciò che compare.
+    function convertiAnteprimeSfondi() {
+        document.querySelectorAll('.bg-drive-thumb').forEach(thumb => {
+            if (thumb.dataset.v2Img === '1') return;
+            const bg = thumb.style.backgroundImage || '';
+            const m = bg.match(/url\(['"]?(.+?)['"]?\)/);
+            if (!m) return;
+            thumb.dataset.v2Img = '1';
+            thumb.style.backgroundImage = 'none';
+            const im = document.createElement('img');
+            im.referrerPolicy = 'no-referrer';
+            im.alt = '';
+            im.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:4px;display:block';
+            im.onerror = () => { im.remove(); thumb.textContent = '🖼️'; };
+            im.src = m[1];
+            thumb.textContent = '';
+            thumb.appendChild(im);
+        });
+    }
+
     function setupLateBits() {
         syncEmbedScale();
+
+        const griglia = document.getElementById('bg-drive-images');
+        if (griglia) {
+            convertiAnteprimeSfondi();
+            new MutationObserver(convertiAnteprimeSfondi).observe(griglia, { childList: true, subtree: true });
+        }
         // Ogni pan/zoom ricalcola la variabile: si aggancia la funzione vera di
         // PanManager senza modificarla (si chiama l'originale e poi la nostra).
         if (typeof panMgr !== 'undefined' && panMgr && typeof panMgr._applyTransform === 'function') {
