@@ -1,0 +1,827 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Nuova Barra EduBoard — prototipo</title>
+</head>
+<body>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap">
+
+<style>
+:root{
+  --ground:#e7ebf2; --ground-2:#d8dee9;
+  --ink:#0f172a; --ink-2:#475569; --ink-3:#7f8da3;
+  --card:#ffffff; --card-line:rgba(15,23,42,.10);
+  --bar:rgba(255,255,255,.97); --bar-line:rgba(15,23,42,.08);
+  --accent:#3b82f6; --accent-soft:rgba(59,130,246,.15); --accent-line:rgba(59,130,246,.40);
+  --shadow:0 4px 16px rgba(15,23,42,.10);
+  --shadow-lg:0 18px 50px rgba(15,23,42,.20);
+  --bench:#7a5af8; --bench-soft:rgba(122,90,248,.10);
+  --board:#ffffff; --board-line:rgba(15,23,42,.12);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --ground:#0d1526; --ground-2:#080e1b;
+    --ink:#e9eef7; --ink-2:#a8b5c9; --ink-3:#8494ab;
+    --card:#131d31; --card-line:rgba(148,163,184,.18);
+    --shadow:0 4px 18px rgba(0,0,0,.45);
+    --shadow-lg:0 20px 55px rgba(0,0,0,.55);
+    --bench-soft:rgba(122,90,248,.16);
+    --board:#f7f9fc; --board-line:rgba(15,23,42,.14);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0d1526; --ground-2:#080e1b;
+  --ink:#e9eef7; --ink-2:#a8b5c9; --ink-3:#8494ab;
+  --card:#131d31; --card-line:rgba(148,163,184,.18);
+  --shadow:0 4px 18px rgba(0,0,0,.45);
+  --shadow-lg:0 20px 55px rgba(0,0,0,.55);
+  --bench-soft:rgba(122,90,248,.16);
+  --board:#f7f9fc; --board-line:rgba(15,23,42,.14);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--board); color:var(--ink);
+  font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;
+  overflow:hidden;
+}
+.wrap{display:block}
+
+/* ---------- lavagna a piena pagina: dimensioni vere, come nell'app ---------- */
+.stage{
+  position:fixed; inset:0; background:var(--board); overflow:hidden;
+}
+.stage-paper{
+  position:absolute; inset:24px 24px 104px; border:1px dashed rgba(15,23,42,.16);
+  border-radius:6px; background:
+    repeating-linear-gradient(to bottom,transparent 0 33px,rgba(15,23,42,.055) 33px 34px);
+}
+.stage-scribble{position:absolute; inset:24px 24px 104px; pointer-events:none}
+.stage-note{display:none}
+
+/* ---------- pannello note del banco, richiudibile ---------- */
+.bench-head{
+  position:fixed; top:14px; right:14px; z-index:60; width:min(330px,calc(100vw - 28px));
+  background:var(--card); border:1px solid var(--card-line); border-radius:16px;
+  box-shadow:var(--shadow-lg); padding:14px 15px; max-height:min(68vh,660px); overflow-y:auto;
+}
+.bench-head h1{
+  font-family:Fraunces,Georgia,serif; font-weight:600; font-size:19px;
+  margin:6px 0 5px; letter-spacing:-.01em; padding-right:34px;
+}
+.bench-head p{margin:0 0 12px; color:var(--ink-2); font-size:13px; line-height:1.5}
+.stamp{
+  display:inline-block;
+  font-size:10px; font-weight:700; letter-spacing:.09em; text-transform:uppercase;
+  color:var(--bench); background:var(--bench-soft); border:1px solid rgba(122,90,248,.32);
+  padding:3px 7px; border-radius:999px; white-space:nowrap;
+}
+#bench-toggle{
+  position:absolute; top:11px; right:11px; width:28px; height:28px; border-radius:8px;
+  border:1px solid var(--card-line); background:var(--ground); color:var(--ink-2);
+  font-size:15px; line-height:1; cursor:pointer; z-index:2;
+}
+.bench-head.shut{width:auto; padding:8px 10px}
+.bench-head.shut h1,.bench-head.shut p,.bench-head.shut .controls,.bench-head.shut .stamp{display:none}
+.bench-head.shut #bench-toggle{position:static}
+
+/* ---------- barra principale ---------- */
+.dock{
+  position:absolute; left:50%; bottom:16px; transform:translateX(-50%);
+  display:flex; align-items:center; gap:3px; padding:6px 9px;
+  background:var(--bar); border:1px solid var(--bar-line); border-radius:50px;
+  box-shadow:var(--shadow); z-index:30; max-width:calc(100% - 32px);
+}
+.tb{
+  width:46px; height:46px; flex-shrink:0; display:flex; align-items:center; justify-content:center;
+  background:transparent; border:1px solid transparent; border-radius:12px; cursor:pointer;
+  transition:background .16s,border-color .16s,transform .16s; padding:0;
+}
+.tb:hover{background:#f1f5f9; border-color:#e2e8f0}
+.tb:active{transform:scale(.94)}
+.tb.on{background:var(--accent-soft); border-color:var(--accent-line)}
+.tb[hidden]{display:none}
+.tb:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+.tb svg{width:30px; height:30px; display:block; pointer-events:none}
+.sep{width:1px; height:26px; background:#e2e8f0; margin:0 4px; flex-shrink:0}
+
+/* presentazione attiva: si spegne il contorno della scena */
+.stage.presenting .pagebar,.stage.presenting .corner{opacity:0; pointer-events:none}
+.stage.presenting .stage-paper{inset:14px 14px 78px}
+.pagebar,.corner{transition:opacity .25s}
+
+/* ---------- barra pagine (in basso a sinistra) ---------- */
+.pagebar{
+  position:absolute; left:16px; bottom:16px; display:flex; align-items:center; gap:2px;
+  padding:5px 9px; background:var(--bar); border:1px solid var(--bar-line);
+  border-radius:50px; box-shadow:var(--shadow); z-index:28;
+}
+.pagebar .tb{width:38px; height:38px}
+.pagebar .tb svg{width:21px; height:21px}
+.pagechip{
+  font-size:12.5px; font-weight:600; color:var(--ink-2); padding:4px 11px;
+  border:1px solid #e2e8f0; border-radius:999px; font-variant-numeric:tabular-nums;
+}
+
+/* ---------- angolo zoom + account ---------- */
+.corner{
+  position:absolute; right:16px; bottom:16px; display:flex; align-items:center; gap:2px;
+  padding:5px 8px; background:var(--bar); border:1px solid var(--bar-line);
+  border-radius:50px; box-shadow:var(--shadow); z-index:28;
+}
+.corner .tb{width:38px; height:38px}
+.corner .tb svg{width:20px; height:20px}
+.zoomgroup{display:flex; align-items:center; gap:2px; overflow:hidden; transition:max-width .28s ease,opacity .2s ease; max-width:260px}
+.corner.folded .zoomgroup{max-width:0; opacity:0}
+.zoomval{font-size:12.5px; font-weight:600; color:var(--ink-2); min-width:46px; text-align:center; font-variant-numeric:tabular-nums}
+.avatar{
+  width:34px; height:34px; border-radius:50%; background:#e2e8f0; color:#475569;
+  display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-left:2px;
+}
+.avatar svg{width:19px; height:19px}
+
+/* ---------- pannelli che salgono ---------- */
+.panel{
+  position:absolute; bottom:78px; left:50%; transform:translateX(-50%) translateY(8px);
+  background:#fff; border:1px solid rgba(15,23,42,.10); border-radius:18px;
+  box-shadow:0 22px 60px rgba(15,23,42,.22); padding:16px 16px 14px; z-index:40;
+  width:min(440px,calc(100% - 36px)); opacity:0; pointer-events:none;
+  transition:opacity .18s ease,transform .18s ease; color:#0f172a;
+  max-height:min(62vh,430px); overflow-y:auto;
+}
+.panel.open{opacity:1; pointer-events:auto; transform:translateX(-50%) translateY(0)}
+.panel-head{display:flex; align-items:center; gap:9px; margin-bottom:13px}
+.panel-head svg{width:22px; height:22px; flex-shrink:0}
+.panel-head h3{margin:0; font-size:15.5px; font-weight:700; flex:1}
+.x{
+  width:30px; height:30px; border:none; background:transparent; border-radius:8px;
+  color:#94a3b8; font-size:21px; line-height:1; cursor:pointer;
+}
+.x:hover{background:#f1f5f9; color:#0f172a}
+.tray{background:#f6f8fb; border-radius:13px; padding:12px}
+.tray+.tray{margin-top:10px}
+.tray-title{font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:#64748b; margin-bottom:9px}
+.row{display:flex; flex-wrap:wrap; gap:6px; align-items:center}
+.pick{
+  width:46px; height:46px; border-radius:12px; border:1px solid transparent; background:transparent;
+  display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0;
+  transition:background .15s,border-color .15s;
+}
+.pick:hover{background:#e9eef6}
+.pick.on{background:var(--accent-soft); border-color:var(--accent-line)}
+.pick svg{width:29px; height:29px}
+/* spessore punta: pillole grigie orizzontali — forma diversa dai colori, mai confondibili */
+.nib{
+  width:52px; height:38px; border-radius:10px; border:1px solid transparent; background:#eef2f7;
+  cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0;
+}
+.nib i{display:block; width:30px; border-radius:99px; background:#94a3b8}
+.nib:hover{background:#e2e8f0}
+.nib.on{background:#fff; border-color:var(--accent-line); box-shadow:0 1px 4px rgba(15,23,42,.10)}
+.nib.on i{background:#475569}
+
+/* colore: cerchio pieno con freccetta per aprire tutta la gamma */
+.swatch{
+  position:relative; width:34px; height:34px; border-radius:50%; border:2px solid transparent;
+  cursor:pointer; padding:0; margin-top:7px;
+}
+.swatch.on{border-color:var(--accent); box-shadow:0 0 0 2px #fff inset}
+.swatch b{
+  position:absolute; left:50%; top:-9px; transform:translateX(-50%);
+  width:15px; height:9px; display:block;
+  background:no-repeat center/9px 6px url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 7'><path d='M1 6l4-4 4 4' fill='none' stroke='%2364748b' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+}
+.addcol{
+  width:34px; height:34px; margin-top:7px; border-radius:50%; border:1.5px dashed #94a3b8;
+  background:#fff; color:#475569; font-size:19px; line-height:1; cursor:pointer; padding:0;
+}
+.addcol:hover{border-color:var(--accent); color:var(--accent)}
+
+/* pannello colori */
+.panel-colors{width:min(310px,calc(100% - 36px))}
+.colordot{width:20px; height:20px; border-radius:50%; background:#0f172a; flex-shrink:0; border:2px solid #fff; box-shadow:0 0 0 1.5px #cbd5e1}
+.opacity{
+  height:12px; border-radius:99px; position:relative;
+  background:linear-gradient(90deg,rgba(225,68,52,0) 0%,#e14434 100%),
+             repeating-conic-gradient(#e2e8f0 0 25%,#fff 0 50%) 0 0/10px 10px;
+}
+.opacity::after{content:""; position:absolute; right:2px; top:50%; width:18px; height:18px; margin-top:-9px; border-radius:50%; background:#fff; box-shadow:0 1px 5px rgba(15,23,42,.35)}
+.grid{display:grid; grid-template-columns:repeat(5,1fr); gap:8px}
+.grid button{width:100%; aspect-ratio:1; border-radius:50%; border:2.5px solid transparent; cursor:pointer; padding:0}
+.grid button.on{border-color:var(--accent); box-shadow:0 0 0 2px #fff inset}
+.gridfoot{display:flex; align-items:center; gap:10px; margin-top:11px; padding-top:11px; border-top:1px solid #e2e8f0}
+.gridfoot span{font-size:12px; color:#64748b; line-height:1.4}
+.plusbig{
+  width:36px; height:36px; border-radius:10px; border:1.5px dashed #94a3b8; background:#fff;
+  color:var(--accent); font-size:21px; line-height:1; cursor:pointer; flex-shrink:0; padding:0;
+}
+.plusbig:hover{border-color:var(--accent)}
+
+/* sfondo staccato a sinistra + campanella */
+.solo-btn{
+  position:absolute; left:16px; bottom:72px; z-index:28; background:var(--bar);
+  border:1px solid var(--bar-line); box-shadow:var(--shadow); border-radius:14px;
+}
+.solo-btn:hover{background:#f8fafc}
+.bell-slot{position:relative}
+.bell-slot::after{
+  content:"2"; position:absolute; top:1px; right:1px; min-width:15px; height:15px;
+  background:#e14434; color:#fff; font-size:10px; font-weight:700; line-height:15px;
+  border-radius:99px; border:1.5px solid #fff; padding:0 2px;
+}
+.corner .bell-slot svg{width:23px; height:23px}
+
+/* magic box: sezione con icone a fianco, come nel riferimento */
+.mbsec{display:flex; gap:12px; align-items:flex-start; padding:11px; border-radius:13px; background:#f6f8fb}
+.mbsec+.mbsec{margin-top:9px}
+.mbsec-txt{flex:1; min-width:112px}
+.mbsec-txt strong{display:block; font-size:14px; margin-bottom:2px}
+.mbsec-txt span{font-size:12.2px; color:#64748b; line-height:1.45; display:block}
+.mbsec-tools{display:flex; gap:4px; flex-wrap:wrap}
+
+/* gestione file */
+.filewrap{display:flex; gap:12px; align-items:flex-start; flex-wrap:wrap}
+.filenav{display:flex; flex-direction:column; gap:2px; min-width:172px; flex:1}
+.filenav button{
+  display:flex; align-items:center; gap:9px; padding:9px 10px; border-radius:10px;
+  border:none; background:transparent; cursor:pointer; font:inherit; font-size:13.5px;
+  color:#0f172a; text-align:left; width:100%;
+}
+.filenav button:hover{background:#f1f5f9}
+.filenav button.on{background:var(--accent-soft); font-weight:600}
+.filenav svg{width:19px; height:19px; flex-shrink:0}
+.filenav .gap{height:1px; background:#e2e8f0; margin:6px 4px}
+.sources{display:flex; gap:7px; flex:1; min-width:180px}
+.src{
+  flex:1; border:1.5px solid #e2e8f0; border-radius:12px; padding:12px 8px; background:#fff;
+  display:flex; flex-direction:column; align-items:center; gap:6px; cursor:pointer;
+  font-size:12px; color:#475569; font-weight:500;
+}
+.src.on{border-color:var(--accent); background:var(--accent-soft); color:#1d4ed8}
+.src svg{width:26px; height:26px}
+.filenote{
+  margin-top:10px; font-size:12.3px; line-height:1.5; color:#64748b;
+  border-left:2px solid #fcd34d; padding-left:9px;
+}
+
+/* slider gomma */
+.slider{flex:1; min-width:110px; height:7px; border-radius:99px; background:#e2e8f0; position:relative}
+.slider::after{content:""; position:absolute; left:0; top:0; bottom:0; width:52%; border-radius:99px; background:var(--accent)}
+.slider::before{content:""; position:absolute; left:52%; top:50%; width:17px; height:17px; margin:-8.5px 0 0 -8.5px; border-radius:50%; background:#fff; box-shadow:0 1px 4px rgba(15,23,42,.3)}
+
+/* tooltip */
+.tip{
+  position:absolute; bottom:132px; left:50%; transform:translateX(-50%);
+  background:#0f172a; color:#fff; font-size:12.5px; font-weight:500;
+  padding:6px 11px; border-radius:9px; white-space:nowrap; z-index:45;
+  opacity:0; transition:opacity .15s; pointer-events:none;
+}
+.tip.show{opacity:1}
+
+/* ---------- pannello di controllo del banco ---------- */
+.controls{display:flex; flex-direction:column; gap:11px}
+.ctl{
+  background:var(--ground); border:1px solid var(--card-line); border-radius:12px; padding:11px 12px;
+}
+.ctl h2{
+  margin:0 0 9px; font-size:11.5px; font-weight:700; letter-spacing:.09em;
+  text-transform:uppercase; color:var(--ink-3);
+}
+.ctl p{margin:0; font-size:13.3px; line-height:1.55; color:var(--ink-2)}
+.ctl p+p{margin-top:8px}
+.seg{display:flex; gap:4px; background:var(--ground-2); padding:4px; border-radius:11px}
+.seg button{
+  flex:1; border:none; background:transparent; font:inherit; font-size:13px; font-weight:600;
+  color:var(--ink-2); padding:8px 6px; border-radius:8px; cursor:pointer;
+}
+.seg button.on{background:var(--card); color:var(--ink); box-shadow:var(--shadow)}
+.ctl ul{margin:0; padding-left:17px; font-size:13.3px; line-height:1.7; color:var(--ink-2)}
+.ctl li+li{margin-top:3px}
+.ctl b{color:var(--ink)}
+.warn{
+  font-size:12.6px; line-height:1.55; color:var(--ink-2);
+  border-left:2px solid #f59e0b; padding-left:10px; margin-top:10px;
+}
+kbd{
+  font:inherit; font-size:11.6px; font-weight:600; background:var(--ground-2);
+  border:1px solid var(--card-line); border-radius:5px; padding:1px 6px; color:var(--ink);
+}
+@media (max-width:640px){
+  .stage{height:auto; min-height:0; padding-bottom:0}
+  .dock{position:static; transform:none; margin:0 auto; flex-wrap:wrap; justify-content:center; border-radius:24px}
+  .stage-paper,.stage-scribble,.stage-note{display:none}
+  .pagebar,.corner{position:static; margin:10px auto 0; justify-content:center}
+  .stage{display:flex; flex-direction:column; gap:10px; padding:12px}
+  .panel{position:fixed; bottom:12px; left:50%; width:min(440px,calc(100vw - 24px))}
+  .tip{display:none}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+<defs>
+  <symbol id="ic-present" viewBox="0 0 24 24"><rect x="2.4" y="3.2" width="19.2" height="12.8" rx="1.8" fill="#e8763a"/><rect x="4.4" y="5.2" width="15.2" height="8.8" rx="1" fill="#fff3e6"/><path d="M10.4 7.4l4.6 2.6-4.6 2.6z" fill="#e8763a"/><path d="M12 16v3.2M8 21.2l4-2 4 2" fill="none" stroke="#475569" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="ic-present-on" viewBox="0 0 24 24"><rect x="2.4" y="3.2" width="19.2" height="12.8" rx="1.8" fill="#3b82f6"/><rect x="4.4" y="5.2" width="15.2" height="8.8" rx="1" fill="#eaf2ff"/><path d="M10.4 7.4l4.6 2.6-4.6 2.6z" fill="#3b82f6"/><path d="M12 16v3.2M8 21.2l4-2 4 2" fill="none" stroke="#3b82f6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="ic-lasso" viewBox="0 0 24 24"><path d="M12 3.4c4.9 0 8.8 2.8 8.8 6.3 0 3.5-3.9 6.3-8.8 6.3-1.5 0-2.9-.26-4.1-.72" fill="none" stroke="#3b82f6" stroke-width="1.9" stroke-linecap="round" stroke-dasharray="3.4 2.6"/><path d="M7.9 15.28c-2.8-1.14-4.7-3.03-4.7-5.58 0-2.1 1.3-3.96 3.3-5.1" fill="none" stroke="#3b82f6" stroke-width="1.9" stroke-linecap="round" stroke-dasharray="3.4 2.6"/><path d="M7.6 15.4c.7 1.5.5 3.1-.5 4.3" fill="none" stroke="#94a3b8" stroke-width="1.7" stroke-linecap="round"/><circle cx="6.6" cy="20.6" r="1.7" fill="#ffc24d" stroke="#d98e3d" stroke-width="1"/></symbol>
+  <symbol id="ic-laser" viewBox="0 0 24 24"><rect x="2.6" y="9.4" width="10.4" height="5.2" rx="2.6" fill="#475569" transform="rotate(-14 8 12)"/><rect x="3.4" y="10.6" width="3" height="2.8" rx="1.4" fill="#94a3b8" transform="rotate(-14 8 12)"/><circle cx="14.4" cy="10.2" r="2.1" fill="#e14434"/><path d="M17.4 9.2l4.2-1.4M17.8 11.4l3.6 1M16.6 7.4l2.8-3" fill="none" stroke="#e14434" stroke-width="1.7" stroke-linecap="round"/></symbol>
+  <symbol id="ic-import" viewBox="0 0 24 24"><rect x="2.8" y="5.4" width="18.4" height="13.2" rx="2.2" fill="#eaf2ff" stroke="#3b82f6" stroke-width="1.5"/><path d="M4.4 16.8l4.4-4.8 3 3.2 2.8-2.9 4.8 5.1z" fill="#2fa36b"/><circle cx="8.2" cy="9.4" r="1.6" fill="#ffc24d"/><circle cx="18.6" cy="17.4" r="5" fill="#3b82f6"/><path d="M18.6 14.8v5.2M16.4 17.9l2.2 2.2 2.2-2.2" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="ic-bell" viewBox="0 0 24 24"><path d="M12 2.6a6.4 6.4 0 0 1 6.4 6.4v4.2l1.7 3a1 1 0 0 1-.87 1.5H4.77a1 1 0 0 1-.87-1.5l1.7-3V9A6.4 6.4 0 0 1 12 2.6z" fill="#ffc24d"/><path d="M9.5 18.4h5a2.5 2.5 0 0 1-5 0z" fill="#d98e3d"/><circle cx="18.4" cy="5.6" r="3.6" fill="#e14434"/></symbol>
+  <symbol id="ic-movepage" viewBox="0 0 24 24"><path d="M3.4 9.4h13m0 0l-3.4-3.4M16.4 9.4L13 12.8" fill="none" stroke="#3b82f6" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M20.6 14.6h-13m0 0l3.4-3.4M7.6 14.6L11 18" fill="none" stroke="#94a3b8" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="ic-hand" viewBox="0 0 24 24"><path d="M7 12V6.6a1.4 1.4 0 0 1 2.8 0V11m0-.4V5.4a1.4 1.4 0 0 1 2.8 0V11m0-.6V6.2a1.4 1.4 0 0 1 2.8 0V12m0-2.2a1.4 1.4 0 0 1 2.8 0v5.3c0 3.1-2.2 5.4-5.3 5.4h-1c-2.6 0-4-1.1-5.2-3L7 14.4c-.6-1-.2-1.9.7-2.2.6-.2 1.2 0 1.6.6" fill="#ffd9a3" stroke="#d98e3d" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round"/></symbol>
+  <symbol id="ic-pen" viewBox="0 0 24 24"><path d="M9.4 2.4h5.2a1.1 1.1 0 0 1 1.1 1.1v3.1H8.3V3.5a1.1 1.1 0 0 1 1.1-1.1z" fill="#1d4ed8"/><path d="M16.4 3.9h1.5a.8.8 0 0 1 .8.8v3a.8.8 0 0 1-.8.8h-1.5z" fill="#1d4ed8"/><path d="M8.3 6.6h7.4v9.8H8.3z" fill="#cfe0fb"/><path d="M9.9 6.6h4.2v9.8H9.9z" fill="#eaf2ff"/><path d="M8.3 16.4h7.4l-2.5 3.9a1.4 1.4 0 0 1-2.4 0z" fill="#1d4ed8"/><rect x="11" y="19.6" width="2" height="2.2" rx="1" fill="#0f172a"/></symbol>
+  <symbol id="ic-pencil" viewBox="0 0 24 24"><path d="M8.6 3.6h6.8v11.2H8.6z" fill="#e8c07a"/><path d="M8.6 3.6h6.8v2.4H8.6z" fill="#f0a1a1"/><path d="M8.6 14.8h6.8L12.4 20a.5.5 0 0 1-.8 0z" fill="#f2dcb4"/><path d="M11 18.6h2l-.6 1.4a.5.5 0 0 1-.8 0z" fill="#334155"/></symbol>
+  <symbol id="ic-crayon" viewBox="0 0 24 24"><rect x="7.6" y="6.2" width="8.8" height="14.2" rx="3" fill="#f07f6a"/><rect x="7.6" y="10.4" width="8.8" height="4.2" fill="#fbe3cd"/><path d="M12 2.8c2.3 1.4 3.6 2.8 4.4 4.4H7.6C8.4 5.6 9.7 4.2 12 2.8z" fill="#d9614c"/></symbol>
+  <symbol id="ic-marker" viewBox="0 0 24 24"><rect x="7.4" y="3.4" width="9.2" height="9.4" rx="2.2" fill="#ffd93d"/><path d="M7.4 12.8h9.2v3.6H7.4z" fill="#e8b830"/><path d="M8.6 16.4h6.8v3.1a1.4 1.4 0 0 1-1.4 1.4h-4a1.4 1.4 0 0 1-1.4-1.4z" fill="#fff08a" stroke="#e8b830" stroke-width="1"/></symbol>
+  <symbol id="ic-eraser" viewBox="0 0 24 24"><path d="M12.2 2.8a2.6 2.6 0 0 1 3.7 0l5.3 5.3a2.6 2.6 0 0 1 0 3.7l-4.6 4.6-9-9z" fill="#ffc24d"/><path d="M7.6 7.4l9 9-3.9 3.9H7.2l-4.6-4.6a2.6 2.6 0 0 1 0-3.7z" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.1" stroke-linejoin="round"/></symbol>
+  <symbol id="ic-eraser-lasso" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.2" fill="none" stroke="#3b82f6" stroke-width="1.7" stroke-dasharray="3 2.6"/><path d="M12.4 7.6a1.7 1.7 0 0 1 2.4 0l2.6 2.6a1.7 1.7 0 0 1 0 2.4l-3 3h-3.6l-2.4-2.4a1.7 1.7 0 0 1 0-2.4z" fill="#ffc24d"/><path d="M10.2 10.6l4.6 4.6-1.4 1.4h-3.6l-2.4-2.4z" fill="#f8fafc" stroke="#cbd5e1" stroke-width=".8"/></symbol>
+  <symbol id="ic-eraser-stroke" viewBox="0 0 24 24"><path d="M3.4 8.6c2.6-3 5-3 7 0s4.4 3 7-.4" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round"/><path d="M12.4 13.4a1.7 1.7 0 0 1 2.4 0l2.6 2.6a1.7 1.7 0 0 1 0 2.4l-2.2 2.2h-3.6l-2.2-2.2a1.7 1.7 0 0 1 0-2.4z" fill="#ffc24d"/><path d="M10.6 16.2l4.4 4.4h-3.4l-2.2-2.2z" fill="#f8fafc" stroke="#cbd5e1" stroke-width=".8"/></symbol>
+  <symbol id="ic-trash" viewBox="0 0 24 24"><path d="M5.8 7.4h12.4l-1.1 12a2 2 0 0 1-2 1.8H8.9a2 2 0 0 1-2-1.8z" fill="#ffc24d"/><path d="M9.8 10.6v7M14.2 10.6v7" stroke="#d98e3d" stroke-width="1.5" stroke-linecap="round"/><path d="M4.4 6.4h15.2" stroke="#e14434" stroke-width="2" stroke-linecap="round"/><path d="M9.6 3.4h4.8v3h-4.8z" fill="#e14434"/></symbol>
+  <symbol id="ic-shapes" viewBox="0 0 24 24"><rect x="2.6" y="11" width="11" height="10.4" rx="2" fill="#ffc24d"/><circle cx="15.6" cy="7.8" r="5.2" fill="#3b82f6"/></symbol>
+  <symbol id="ic-text" viewBox="0 0 24 24"><path d="M4.4 4.6h15.2v3.4h-1.9V6.5h-4.3v13h2.2v1.9H8.4v-1.9h2.2v-13H6.3v1.5H4.4z" fill="#334155"/></symbol>
+  <symbol id="ic-select" viewBox="0 0 24 24"><rect x="3.2" y="3.2" width="17.6" height="17.6" rx="2.6" fill="none" stroke="#3b82f6" stroke-width="1.7" stroke-dasharray="3.2 2.8"/><path d="M10 8.4l6.6 3.9-2.9.7-.8 2.9z" fill="#fff" stroke="#1e293b" stroke-width="1.2" stroke-linejoin="round"/></symbol>
+  <symbol id="ic-bg" viewBox="0 0 24 24"><rect x="3.2" y="4.8" width="17.6" height="14.4" rx="2.6" fill="#eaf2ff" stroke="#3b82f6" stroke-width="1.6"/><circle cx="8.4" cy="9.6" r="1.8" fill="#ffc24d"/><path d="M4.6 17.6l4.6-5.2 3.2 3.4 2.8-3 4.2 4.8z" fill="#2fa36b"/></symbol>
+  <symbol id="ic-folder" viewBox="0 0 24 24"><path d="M2.8 6.6a2 2 0 0 1 2-2h4.3l2 2.4h8.1a2 2 0 0 1 2 2v2.2H2.8z" fill="#e8a33d"/><path d="M2.8 9.6h18.4v8.2a2 2 0 0 1-2 2H4.8a2 2 0 0 1-2-2z" fill="#ffc24d"/></symbol>
+  <symbol id="ic-magic" viewBox="0 0 24 24"><g transform="rotate(16 9 9)"><rect x="5.6" y="2.6" width="3.4" height="9" rx=".7" fill="#3b82f6"/><g stroke="#dbeafe" stroke-width=".9" stroke-linecap="round"><path d="M6.3 4.4h1.2M6.3 6.2h1.9M6.3 8h1.2M6.3 9.8h1.9"/></g></g><path d="M17.4 3.2l4.2 7.3h-8.4z" fill="#2fa36b"/><path d="M17.4 6.2l2.5 4.3h-5z" fill="#eafaf1"/><path d="M4.2 10.2h15.6l-1.2 8.6a2 2 0 0 1-2 1.8H7.4a2 2 0 0 1-2-1.8z" fill="#ffc24d"/><path d="M3.2 8.2h17.6v2.6H3.2z" fill="#e8a33d"/><path d="M7.4 10.2h3.4l-.8 10.4h-1.4a2 2 0 0 1-2-1.8z" fill="#f2b455"/><path d="M12.4 1l.85 2.3 2.3.85-2.3.85-.85 2.3-.85-2.3L9.25 4.15l2.3-.85z" fill="#e14434"/><path d="M20.4 4.6l.45 1.25 1.25.45-1.25.45-.45 1.25-.45-1.25L18.7 6.3l1.25-.45z" fill="#f0b429"/></symbol>
+  <symbol id="ic-undo" viewBox="0 0 24 24"><path d="M9.4 6.2L4.6 11l4.8 4.8" fill="none" stroke="#64748b" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M4.6 11h8.8a5.6 5.6 0 0 1 0 11.2H9" fill="none" stroke="#64748b" stroke-width="1.9" stroke-linecap="round"/></symbol>
+  <symbol id="ic-redo" viewBox="0 0 24 24"><path d="M14.6 6.2L19.4 11l-4.8 4.8" fill="none" stroke="#64748b" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M19.4 11h-8.8a5.6 5.6 0 0 0 0 11.2H15" fill="none" stroke="#64748b" stroke-width="1.9" stroke-linecap="round"/></symbol>
+  <symbol id="ic-ruler" viewBox="0 0 24 24"><rect x="1.8" y="7.6" width="20.4" height="8.8" rx="1.6" fill="#3b82f6" transform="rotate(-12 12 12)"/><g stroke="#dbeafe" stroke-width="1.3" stroke-linecap="round"><path d="M5.6 9.1v2.6M9.1 8.3v3.8M12.6 7.6v2.6M16.1 6.8v3.8M19.6 6.1v2.6"/></g></symbol>
+  <symbol id="ic-protractor" viewBox="0 0 24 24"><path d="M2.6 18.2a9.4 9.4 0 0 1 18.8 0z" fill="#ffc24d"/><path d="M7.6 18.2a4.4 4.4 0 0 1 8.8 0z" fill="#fff"/><path d="M2.6 18.2h18.8" stroke="#d98e3d" stroke-width="1.5"/><g stroke="#d98e3d" stroke-width="1.1" stroke-linecap="round"><path d="M5.2 13.6l1.4 1M12 8.8v1.8M18.8 13.6l-1.4 1"/></g></symbol>
+  <symbol id="ic-web" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8.2" fill="#3b82f6"/><path d="M2.8 11h16.4M11 2.8c4.4 4.6 4.4 11.8 0 16.4M11 2.8c-4.4 4.6-4.4 11.8 0 16.4" fill="none" stroke="#dbeafe" stroke-width="1.3"/><path d="M14.6 16.4l6.6 3.4-6.6 3.4z" fill="#e8763a" stroke="#fff" stroke-width="1.1" stroke-linejoin="round"/></symbol>
+  <symbol id="ic-link" viewBox="0 0 24 24"><rect x="2.6" y="4.6" width="18.8" height="14.8" rx="2.6" fill="#ffc24d"/><rect x="2.6" y="4.6" width="18.8" height="4" rx="2" fill="#e8a33d"/><path d="M9.4 14.4l1.8-1.8a2.2 2.2 0 0 1 3.1 3.1l-.9.9m-1.3-4.9l-1.8 1.8a2.2 2.2 0 0 0 3.1 3.1" fill="none" stroke="#1e3a8a" stroke-width="1.5" stroke-linecap="round"/></symbol>
+  <symbol id="ic-capture" viewBox="0 0 24 24"><g stroke="#3b82f6" stroke-width="1.8" stroke-linecap="round" fill="none"><path d="M2.6 7.6V4.4a1.8 1.8 0 0 1 1.8-1.8h3.2M21.4 7.6V4.4a1.8 1.8 0 0 0-1.8-1.8h-3.2M2.6 16.4v3.2a1.8 1.8 0 0 0 1.8 1.8h3.2M21.4 16.4v3.2a1.8 1.8 0 0 1-1.8 1.8h-3.2"/></g><rect x="6.4" y="8.4" width="11.2" height="7.6" rx="1.8" fill="#3b82f6"/><circle cx="12" cy="12.2" r="2.3" fill="#dbeafe"/></symbol>
+  <symbol id="ic-timer" viewBox="0 0 24 24"><circle cx="12" cy="13.6" r="8" fill="#ffc24d"/><circle cx="12" cy="13.6" r="5.6" fill="#fff8e8"/><path d="M12 10.2v3.4l2.2 1.6" fill="none" stroke="#d98e3d" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><rect x="9.8" y="1.8" width="4.4" height="2.6" rx="1.1" fill="#e14434"/><rect x="11" y="4" width="2" height="2" fill="#e14434"/></symbol>
+  <symbol id="ic-focus" viewBox="0 0 24 24"><rect x="2.4" y="3.6" width="19.2" height="16.8" rx="2.4" fill="#1e293b"/><circle cx="12" cy="12" r="7.4" fill="#ffe9a8" opacity=".3"/><circle cx="12" cy="12" r="4.8" fill="#ffe9a8"/></symbol>
+  <symbol id="ic-curtain" viewBox="0 0 24 24"><rect x="2.4" y="3.2" width="19.2" height="3" rx="1.2" fill="#475569"/><path d="M3.6 6.2h16.8v7.6H3.6z" fill="#3b82f6"/><path d="M3.6 13.8h16.8l-2.1 2.1H5.7z" fill="#1d4ed8"/><path d="M12 16.4v3.4" stroke="#475569" stroke-width="1.5" stroke-linecap="round"/><circle cx="12" cy="20.4" r="1.4" fill="#475569"/></symbol>
+  <symbol id="ic-new" viewBox="0 0 24 24"><path d="M5.4 3.4h8.4l5 5v12.2a1.8 1.8 0 0 1-1.8 1.8H5.4a1.8 1.8 0 0 1-1.8-1.8V5.2a1.8 1.8 0 0 1 1.8-1.8z" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/><path d="M12 11v6M9 14h6" stroke="#3b82f6" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="ic-open" viewBox="0 0 24 24"><path d="M2.8 6.6a2 2 0 0 1 2-2h4.3l2 2.4h8.1a2 2 0 0 1 2 2v2.2H2.8z" fill="#e8a33d"/><path d="M2.8 9.6h18.4v8.2a2 2 0 0 1-2 2H4.8a2 2 0 0 1-2-2z" fill="#ffc24d"/></symbol>
+  <symbol id="ic-save" viewBox="0 0 24 24"><path d="M4.4 3.6h12.2l3.8 3.8v13a1.6 1.6 0 0 1-1.6 1.6H4.4a1.6 1.6 0 0 1-1.6-1.6V5.2a1.6 1.6 0 0 1 1.6-1.6z" fill="#3b82f6"/><rect x="7" y="3.6" width="8" height="6" rx=".8" fill="#dbeafe"/><rect x="6.4" y="13" width="11.2" height="6.6" rx="1" fill="#fff"/></symbol>
+  <symbol id="ic-print" viewBox="0 0 24 24"><rect x="6" y="2.8" width="12" height="5.4" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.3"/><rect x="2.8" y="8.2" width="18.4" height="8" rx="1.8" fill="#3b82f6"/><rect x="6" y="14" width="12" height="7.2" fill="#fff" stroke="#3b82f6" stroke-width="1.3"/><circle cx="18" cy="11.4" r="1.1" fill="#dbeafe"/></symbol>
+  <symbol id="ic-export" viewBox="0 0 24 24"><path d="M4.4 9.4v9.4a1.8 1.8 0 0 0 1.8 1.8h11.6a1.8 1.8 0 0 0 1.8-1.8V9.4" fill="none" stroke="#3b82f6" stroke-width="1.8" stroke-linecap="round"/><path d="M12 15V3.4M7.8 7.2L12 3l4.2 4.2" fill="none" stroke="#e8763a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="ic-drive" viewBox="0 0 24 24"><path d="M8.6 2.8h6.8l6.4 11.1h-6.8z" fill="#ffc24d"/><path d="M2.2 13.9L8.6 2.8l3.4 5.9-6.4 11.1z" fill="#2fa36b"/><path d="M5.6 19.8l3.4-5.9h12.8l-3.4 5.9z" fill="#3b82f6"/></symbol>
+  <symbol id="ic-disk" viewBox="0 0 24 24"><rect x="2.4" y="7.4" width="19.2" height="9.2" rx="2.6" fill="#cbd5e1" stroke="#64748b" stroke-width="1.3"/><circle cx="17.4" cy="12" r="1.5" fill="#475569"/><path d="M5.4 10.4h6" stroke="#64748b" stroke-width="1.4" stroke-linecap="round"/></symbol>
+  <symbol id="ic-qr" viewBox="0 0 24 24"><g fill="#334155"><rect x="3" y="3" width="7" height="7" rx="1.2"/><rect x="14" y="3" width="7" height="7" rx="1.2"/><rect x="3" y="14" width="7" height="7" rx="1.2"/></g><g fill="#fff"><rect x="5" y="5" width="3" height="3"/><rect x="16" y="5" width="3" height="3"/><rect x="5" y="16" width="3" height="3"/></g><g fill="#3b82f6"><rect x="14" y="14" width="3" height="3"/><rect x="18" y="18" width="3" height="3"/><rect x="14" y="19" width="2" height="2"/><rect x="19" y="14" width="2" height="2"/></g></symbol>
+  <symbol id="ic-chevron-l" viewBox="0 0 24 24"><path d="M14.6 5.4L8 12l6.6 6.6" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="ic-chevron-r" viewBox="0 0 24 24"><path d="M9.4 5.4L16 12l-6.6 6.6" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="ic-minus" viewBox="0 0 24 24"><path d="M5 12h14" stroke="#475569" stroke-width="2.1" stroke-linecap="round"/></symbol>
+  <symbol id="ic-plus" viewBox="0 0 24 24"><path d="M5 12h14M12 5v14" stroke="#475569" stroke-width="2.1" stroke-linecap="round"/></symbol>
+  <symbol id="ic-fit" viewBox="0 0 24 24"><g stroke="#475569" stroke-width="1.9" stroke-linecap="round" fill="none"><path d="M3.4 8.6V4.8a1.4 1.4 0 0 1 1.4-1.4h3.8M20.6 8.6V4.8a1.4 1.4 0 0 0-1.4-1.4h-3.8M3.4 15.4v3.8a1.4 1.4 0 0 0 1.4 1.4h3.8M20.6 15.4v3.8a1.4 1.4 0 0 1-1.4 1.4h-3.8"/></g><rect x="8" y="8" width="8" height="8" rx="1.4" fill="#cbd5e1"/></symbol>
+  <symbol id="ic-user" viewBox="0 0 24 24"><circle cx="12" cy="8.4" r="4.2" fill="#64748b"/><path d="M3.8 21.2a8.2 8.2 0 0 1 16.4 0z" fill="#64748b"/></symbol>
+  <symbol id="ic-pages" viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="1.4" fill="#3b82f6"/><rect x="13" y="3" width="8" height="8" rx="1.4" fill="#93c5fd"/><rect x="3" y="13" width="8" height="8" rx="1.4" fill="#93c5fd"/><rect x="13" y="13" width="8" height="8" rx="1.4" fill="#3b82f6"/></symbol>
+  <symbol id="ic-addpage" viewBox="0 0 24 24"><rect x="3.4" y="3.4" width="17.2" height="17.2" rx="2.6" fill="none" stroke="#475569" stroke-width="1.7"/><path d="M12 8.4v7.2M8.4 12h7.2" stroke="#475569" stroke-width="1.9" stroke-linecap="round"/></symbol>
+</defs>
+</svg>
+
+<div class="wrap">
+
+  <div class="stage" id="stage">
+    <div class="stage-note">Area lavagna (simulata)</div>
+    <div class="stage-paper"></div>
+    <svg class="stage-scribble" viewBox="0 0 900 400" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+      <path d="M96 176c22-46 44-46 66 0s44 46 66 0" fill="none" stroke="#1d4ed8" stroke-width="5" stroke-linecap="round"/>
+      <text x="300" y="196" font-family="Inter,sans-serif" font-size="52" font-weight="600" fill="#0f172a">3 + 4 =</text>
+      <circle cx="530" cy="178" r="30" fill="none" stroke="#e14434" stroke-width="5"/>
+      <path d="M640 210h150" stroke="#f0b429" stroke-width="16" stroke-linecap="round" opacity=".55"/>
+    </svg>
+
+    <!-- sfondo: pulsante staccato a sinistra, come nel riferimento -->
+    <button class="tb solo-btn" data-panel="bg" data-tip="Sfondo della pagina"><svg><use href="#ic-bg"/></svg></button>
+
+    <!-- barra pagine -->
+    <div class="pagebar">
+      <button class="tb" id="btn-present" data-tip="Presentazione — schermo intero, i comandi restano"><svg><use href="#ic-present" id="present-use"/></svg></button>
+      <button class="tb" data-tip="Vista pagine"><svg><use href="#ic-pages"/></svg></button>
+      <button class="tb" data-tip="Sposta o copia pagina in un'altra lezione"><svg><use href="#ic-movepage"/></svg></button>
+      <div class="sep"></div>
+      <button class="tb" data-tip="Pagina precedente"><svg><use href="#ic-chevron-l"/></svg></button>
+      <span class="pagechip">2/3</span>
+      <button class="tb" data-tip="Pagina successiva"><svg><use href="#ic-chevron-r"/></svg></button>
+      <button class="tb" data-tip="Nuova pagina"><svg><use href="#ic-addpage"/></svg></button>
+    </div>
+
+    <!-- barra principale -->
+    <div class="dock" id="dock">
+      <button class="tb" data-tip="Lazo — seleziona e sposta"><svg><use href="#ic-lasso"/></svg></button>
+      <button class="tb" data-tip="Mano — sposta la lavagna"><svg><use href="#ic-hand"/></svg></button>
+      <div class="sep"></div>
+      <button class="tb on" data-panel="pen" data-tip="Penna, matita, pastello, evidenziatore, laser"><svg><use href="#ic-pen"/></svg></button>
+      <button class="tb" data-panel="eraser" data-tip="Gomma — area, lazo, tratto intero"><svg><use href="#ic-eraser"/></svg></button>
+      <button class="tb" data-panel="shapes" data-tip="Forme"><svg><use href="#ic-shapes"/></svg></button>
+      <button class="tb" data-tip="Testo"><svg><use href="#ic-text"/></svg></button>
+      <div class="sep"></div>
+      <button class="tb" data-tip="Importa immagine o PDF"><svg><use href="#ic-import"/></svg></button>
+      <button class="tb" data-tip="Crea una nuova lavagna"><svg><use href="#ic-new"/></svg></button>
+      <button class="tb" data-panel="file" data-tip="Gestione File — apri, salva, esporta, stampa"><svg><use href="#ic-folder"/></svg></button>
+      <button class="tb" data-panel="magic" data-tip="Magic Box — righello, timer, web e altro"><svg><use href="#ic-magic"/></svg></button>
+      <button class="tb bell-slot" id="bell-dock" data-tip="Foto ricevute dal telefono" hidden><svg><use href="#ic-bell"/></svg></button>
+
+      <!-- versione "come oggi": gli strumenti del Magic Box sparsi in riga -->
+      <span class="legacy-only" hidden>
+        <button class="tb" data-tip="Sfondo della pagina"><svg><use href="#ic-bg"/></svg></button>
+        <button class="tb" data-tip="Righello"><svg><use href="#ic-ruler"/></svg></button>
+        <button class="tb" data-tip="Goniometro"><svg><use href="#ic-protractor"/></svg></button>
+        <button class="tb" data-tip="Incorpora pagina web"><svg><use href="#ic-web"/></svg></button>
+        <button class="tb" data-tip="Link"><svg><use href="#ic-link"/></svg></button>
+        <button class="tb" data-tip="Cattura"><svg><use href="#ic-capture"/></svg></button>
+        <button class="tb" data-tip="Timer"><svg><use href="#ic-timer"/></svg></button>
+        <button class="tb" data-tip="Focus"><svg><use href="#ic-focus"/></svg></button>
+        <button class="tb" data-tip="Tendina"><svg><use href="#ic-curtain"/></svg></button>
+      </span>
+
+      <div class="sep"></div>
+      <button class="tb" data-tip="Annulla"><svg><use href="#ic-undo"/></svg></button>
+      <button class="tb" data-tip="Ripeti"><svg><use href="#ic-redo"/></svg></button>
+      <button class="tb" data-tip="Cancella tutto"><svg><use href="#ic-trash"/></svg></button>
+    </div>
+
+    <!-- angolo: campanella + zoom + account -->
+    <div class="corner" id="corner">
+      <button class="tb bell-slot" id="bell-corner" data-tip="Foto ricevute dal telefono"><svg><use href="#ic-bell"/></svg></button>
+      <button class="tb" id="fold" data-tip="Nascondi lo zoom"><svg><use href="#ic-chevron-r" id="fold-use"/></svg></button>
+      <div class="zoomgroup">
+        <button class="tb" title="Adatta alla pagina"><svg><use href="#ic-fit"/></svg></button>
+        <button class="tb" title="Riduci"><svg><use href="#ic-minus"/></svg></button>
+        <span class="zoomval">100%</span>
+        <button class="tb" title="Ingrandisci"><svg><use href="#ic-plus"/></svg></button>
+      </div>
+      <span class="avatar"><svg><use href="#ic-user"/></svg></span>
+    </div>
+
+    <div class="tip" id="tip"></div>
+
+    <!-- PANNELLO PENNA -->
+    <div class="panel" data-for="pen">
+      <div class="panel-head"><svg><use href="#ic-pen"/></svg><h3>Strumenti di scrittura</h3><button class="x" data-close>&times;</button></div>
+      <div class="tray">
+        <div class="tray-title">Tipo di tratto</div>
+        <div class="row">
+          <button class="pick on" data-tip="Penna"><svg><use href="#ic-pen"/></svg></button>
+          <button class="pick" data-tip="Matita HB"><svg><use href="#ic-pencil"/></svg></button>
+          <button class="pick" data-tip="Pastello morbido"><svg><use href="#ic-crayon"/></svg></button>
+          <button class="pick" data-tip="Evidenziatore"><svg><use href="#ic-marker"/></svg></button>
+          <button class="pick" data-tip="Puntatore laser"><svg><use href="#ic-laser"/></svg></button>
+        </div>
+      </div>
+      <div class="tray">
+        <div class="tray-title">Spessore della punta</div>
+        <div class="row">
+          <button class="nib" data-tip="Sottile"><i style="height:3px"></i></button>
+          <button class="nib on" data-tip="Media"><i style="height:6px"></i></button>
+          <button class="nib" data-tip="Grossa"><i style="height:10px"></i></button>
+          <button class="nib" data-tip="Molto grossa"><i style="height:15px"></i></button>
+        </div>
+      </div>
+      <div class="tray">
+        <div class="tray-title">Ultimi colori usati</div>
+        <div class="row">
+          <button class="swatch on" style="background:#0f172a" data-open-colors data-tip="Nero — tocca la freccetta per tutta la gamma"><b></b></button>
+          <button class="swatch" style="background:#e14434" data-open-colors data-tip="Rosso"><b></b></button>
+          <button class="swatch" style="background:#1d4ed8" data-open-colors data-tip="Blu"><b></b></button>
+          <button class="swatch" style="background:#2fa36b" data-open-colors data-tip="Verde"><b></b></button>
+          <button class="addcol" data-open-colors data-tip="Scegli un altro colore">+</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PANNELLO COLORI (si apre dalla freccetta di un colore o dal +) -->
+    <div class="panel panel-colors" data-for="colors">
+      <div class="panel-head"><span class="colordot" id="colordot"></span><h3>Colore del tratto</h3><button class="x" data-close>&times;</button></div>
+      <div class="tray">
+        <div class="tray-title">Opacità</div>
+        <div class="opacity"></div>
+      </div>
+      <div class="tray">
+        <div class="tray-title">Tutta la gamma</div>
+        <div class="grid" id="colorgrid"></div>
+        <div class="gridfoot">
+          <button class="plusbig" id="btn-custom">+</button>
+          <span>Colore personalizzato con HEX e contagocce</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- PANNELLO GOMMA -->
+    <div class="panel" data-for="eraser">
+      <div class="panel-head"><svg><use href="#ic-eraser"/></svg><h3>Gomma</h3><button class="x" data-close>&times;</button></div>
+      <div class="tray">
+        <div class="tray-title">Modo</div>
+        <div class="row">
+          <button class="pick on" title="Cancella area"><svg><use href="#ic-eraser"/></svg></button>
+          <button class="pick" title="Gomma di selezione (lazo) — NUOVA"><svg><use href="#ic-eraser-lasso"/></svg></button>
+          <button class="pick" title="Cancella tratto intero"><svg><use href="#ic-eraser-stroke"/></svg></button>
+          <button class="pick" title="Cancella tutto"><svg><use href="#ic-trash"/></svg></button>
+          <div class="sep"></div>
+          <div class="slider"></div>
+        </div>
+      </div>
+      <p style="margin:10px 0 0; font-size:12.6px; line-height:1.55; color:#64748b; border-left:2px solid #7a5af8; padding-left:9px">
+        La seconda icona è il <b>lazo della gomma</b> che manca oggi: cerchi una zona a mano libera e sparisce solo quello che c'è dentro.
+      </p>
+    </div>
+
+    <!-- PANNELLO FORME -->
+    <div class="panel" data-for="shapes">
+      <div class="panel-head"><svg><use href="#ic-shapes"/></svg><h3>Forme</h3><button class="x" data-close>&times;</button></div>
+      <div class="tray">
+        <div class="row">
+          <button class="pick on"><svg viewBox="0 0 24 24"><path d="M4 20L20 4" stroke="#334155" stroke-width="2.2" stroke-linecap="round"/></svg></button>
+          <button class="pick"><svg viewBox="0 0 24 24"><rect x="3.4" y="5.4" width="17.2" height="13.2" rx="1.6" fill="#ffc24d"/></svg></button>
+          <button class="pick"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.4" fill="#3b82f6"/></svg></button>
+          <button class="pick"><svg viewBox="0 0 24 24"><path d="M12 3.6l8.6 16.8H3.4z" fill="#2fa36b"/></svg></button>
+          <button class="pick"><svg viewBox="0 0 24 24"><path d="M3.6 12h12m0 0l-4.6-4.6M15.6 12L11 16.6" stroke="#e8763a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg></button>
+          <button class="pick"><svg viewBox="0 0 24 24"><path d="M12 3l2.6 5.8 6.4.7-4.8 4.3 1.4 6.2L12 16.9 6.4 20l1.4-6.2L3 9.5l6.4-.7z" fill="#f0b429"/></svg></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PANNELLO SFONDO -->
+    <div class="panel" data-for="bg">
+      <div class="panel-head"><svg><use href="#ic-bg"/></svg><h3>Sfondo della pagina</h3><button class="x" data-close>&times;</button></div>
+      <div class="tray">
+        <div class="row">
+          <button class="pick on" title="Bianco"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2.4" fill="#fff" stroke="#cbd5e1" stroke-width="1.4"/></svg></button>
+          <button class="pick" title="Righe"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2.4" fill="#fff" stroke="#cbd5e1" stroke-width="1.4"/><g stroke="#93c5fd" stroke-width="1.3"><path d="M5.4 9h13.2M5.4 12.6h13.2M5.4 16.2h13.2"/></g></svg></button>
+          <button class="pick" title="Quadretti"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2.4" fill="#fff" stroke="#cbd5e1" stroke-width="1.4"/><g stroke="#93c5fd" stroke-width="1.1"><path d="M8.4 4v16M13.2 4v16M18 4v16M4 8.4h16M4 13.2h16M4 18h16"/></g></svg></button>
+          <button class="pick" title="Pentagramma"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2.4" fill="#fff" stroke="#cbd5e1" stroke-width="1.4"/><g stroke="#475569" stroke-width="1"><path d="M6 9h12M6 11h12M6 13h12M6 15h12"/></g></svg></button>
+          <button class="pick" title="Dai tuoi sfondi su Drive"><svg><use href="#ic-drive"/></svg></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PANNELLO GESTIONE FILE -->
+    <div class="panel" data-for="file" style="width:min(560px,calc(100% - 36px))">
+      <div class="panel-head"><svg><use href="#ic-folder"/></svg><h3>Gestione File</h3><button class="x" data-close>&times;</button></div>
+      <div class="filewrap">
+        <div class="filenav">
+          <button><svg><use href="#ic-new"/></svg>Crea nuova lavagna</button>
+          <button class="on"><svg><use href="#ic-open"/></svg>Apri file</button>
+          <div class="gap"></div>
+          <button><svg><use href="#ic-save"/></svg>Salva una copia</button>
+          <button><svg><use href="#ic-export"/></svg>Esporta PDF o immagine</button>
+          <div class="gap"></div>
+          <button><svg><use href="#ic-print"/></svg>Stampa</button>
+          <button><svg><use href="#ic-qr"/></svg>Condividi con QR</button>
+        </div>
+        <div style="flex:1; min-width:190px">
+          <div class="sources">
+            <button class="src on"><svg><use href="#ic-disk"/></svg>Questo dispositivo</button>
+            <button class="src"><svg><use href="#ic-drive"/></svg>Google Drive</button>
+          </div>
+          <div class="filenote">
+            <b>Non tocca la libreria delle lezioni.</b> Il salvataggio automatico su Drive resta identico a oggi: questa cartella serve solo per aprire, esportare e stampare a mano.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PANNELLO MAGIC BOX -->
+    <div class="panel" data-for="magic" style="width:min(500px,calc(100% - 36px))">
+      <div class="panel-head"><svg><use href="#ic-magic"/></svg><h3>Magic Box</h3><button class="x" data-close>&times;</button></div>
+
+      <div class="mbsec">
+        <div class="mbsec-txt"><strong>Strumenti geometrici</strong><span>Disegna dritto e misura gli angoli.</span></div>
+        <div class="mbsec-tools">
+          <button class="pick" data-tip="Righello"><svg><use href="#ic-ruler"/></svg></button>
+          <button class="pick" data-tip="Goniometro"><svg><use href="#ic-protractor"/></svg></button>
+        </div>
+      </div>
+
+      <div class="mbsec">
+        <div class="mbsec-txt"><strong>Contenuti web</strong><span>Porta un sito o un video dentro la lezione.</span></div>
+        <div class="mbsec-tools">
+          <button class="pick" data-tip="Incorpora una pagina web"><svg><use href="#ic-web"/></svg></button>
+          <button class="pick" data-tip="Link cliccabile"><svg><use href="#ic-link"/></svg></button>
+          <button class="pick" data-tip="Cattura la lavagna come immagine"><svg><use href="#ic-capture"/></svg></button>
+        </div>
+      </div>
+
+      <div class="mbsec">
+        <div class="mbsec-txt"><strong>Strumenti per la lezione</strong><span>Gestisci tempo e attenzione della classe.</span></div>
+        <div class="mbsec-tools">
+          <button class="pick" data-tip="Timer — countdown o cronometro"><svg><use href="#ic-timer"/></svg></button>
+          <button class="pick" data-tip="Focus — illumina solo un'area"><svg><use href="#ic-focus"/></svg></button>
+          <button class="pick" data-tip="Tendina — copri e rivela"><svg><use href="#ic-curtain"/></svg></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bench-head" id="bench">
+    <button id="bench-toggle" title="Mostra o nascondi le note del banco">–</button>
+    <span class="stamp">Prototipo</span>
+    <h1>Nuova barra di EduBoard</h1>
+    <p>Dimensioni reali, come sarebbe nell'app. Si può toccare tutto: niente qui tocca EduBoard vera.</p>
+
+  <div class="controls">
+    <div class="ctl">
+      <h2>Confronta la barra</h2>
+      <div class="seg" role="group" aria-label="Organizzazione della barra">
+        <button id="seg-new" class="on">Con Magic Box</button>
+        <button id="seg-old">Tutto in riga</button>
+      </div>
+      <p style="margin-top:9px">Le icone sono le stesse in entrambi: cambia solo <b>dove stanno</b>. "Tutto in riga" è l'organizzazione di oggi — guarda quanto si allunga.</p>
+    </div>
+
+    <div class="ctl">
+      <h2>Dov'è la campanella</h2>
+      <div class="seg" role="group" aria-label="Posizione della campanella">
+        <button id="bell-a" class="on">Con l'account</button>
+        <button id="bell-b">Vicino al Magic Box</button>
+      </div>
+      <p style="margin-top:9px">La campanella è un <b>avviso</b>, non uno strumento: in mezzo agli strumenti sembra qualcosa da scegliere. Accanto all'account sta dove già vive il telefono (EduConnect + Drive) e resta visibile anche a schermo intero. Ma guardale tutte e due.</p>
+    </div>
+
+    <div class="ctl">
+      <h2>Cosa provare</h2>
+      <ul>
+        <li><b>Freccetta sopra un colore</b>: apre tutta la gamma, col <b>+</b> per gli altri</li>
+        <li><b>Penna</b>: c'è anche il laser, e gli spessori ora sono pillole grigie</li>
+        <li><b>Gomma</b>: il lazo nuovo è il secondo</li>
+        <li><b>Magic Box</b>: righello, squadra e stelline escono dal box</li>
+        <li><b>Presentazione</b> (barra pagine): va a schermo intero <b>senza</b> nascondere i comandi</li>
+      </ul>
+      <div class="warn">La <b>libreria lezioni con salvataggio automatico non cambia</b>: la cartella Gestione File è in più, non al posto suo.</div>
+    </div>
+  </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var stage = document.getElementById('stage');
+  var tip = document.getElementById('tip');
+  var panels = Array.prototype.slice.call(document.querySelectorAll('.panel'));
+
+  function closeAll(except){
+    panels.forEach(function(p){ if(p !== except) p.classList.remove('open'); });
+    document.querySelectorAll('.tb[data-panel]').forEach(function(b){
+      if(!except || b.getAttribute('data-panel') !== except.getAttribute('data-for')) b.classList.remove('on');
+    });
+  }
+
+  document.querySelectorAll('.tb[data-panel]').forEach(function(btn){
+    btn.addEventListener('click', function(e){
+      e.stopPropagation();
+      var name = btn.getAttribute('data-panel');
+      var panel = document.querySelector('.panel[data-for="'+name+'"]');
+      var wasOpen = panel.classList.contains('open');
+      closeAll();
+      if(!wasOpen){
+        panel.classList.add('open');
+        btn.classList.add('on');
+        var r = btn.getBoundingClientRect(), s = stage.getBoundingClientRect();
+        var centre = r.left - s.left + r.width/2;
+        var half = panel.offsetWidth/2, min = half + 14, max = s.width - half - 14;
+        panel.style.left = Math.max(min, Math.min(max, centre)) + 'px';
+      }
+      hideTip();
+    });
+  });
+
+  document.querySelectorAll('[data-close]').forEach(function(b){
+    b.addEventListener('click', function(e){ e.stopPropagation(); closeAll(); });
+  });
+  document.addEventListener('click', function(){ closeAll(); });
+  document.querySelectorAll('.panel').forEach(function(p){
+    p.addEventListener('click', function(e){ e.stopPropagation(); });
+  });
+
+  /* selezione dentro i pannelli */
+  document.querySelectorAll('.tray .row, .mbsec-tools, .sources, .filenav').forEach(function(group){
+    group.addEventListener('click', function(e){
+      var t = e.target.closest('.pick, .dot, .swatch, .src, button');
+      if(!t || !group.contains(t)) return;
+      var cls = t.classList.contains('src') ? '.src'
+              : t.classList.contains('dot') ? '.dot'
+              : t.classList.contains('swatch') ? '.swatch'
+              : t.classList.contains('pick') ? '.pick' : 'button';
+      group.querySelectorAll(cls).forEach(function(s){ s.classList.remove('on'); });
+      t.classList.add('on');
+    });
+  });
+
+  /* presentazione: resta acceso, MA non nasconde più i comandi (decisione di Fabio:
+     con la barra più corta conviene tenere tutto a portata di mano sulla LIM) */
+  var present = document.getElementById('btn-present');
+  present.addEventListener('click', function(e){
+    e.stopPropagation();
+    var on = present.classList.toggle('on');
+    document.getElementById('present-use').setAttribute('href', on ? '#ic-present-on' : '#ic-present');
+    closeAll();
+    showTip(present, on ? 'Schermo intero attivo — i comandi restano, ripremi per uscire' : 'Presentazione');
+    setTimeout(hideTip, 2200);
+  });
+
+  /* pannello colori: si apre dalla freccetta di un colore o dal + */
+  var GAMMA = [
+    '#ffffff','#e14434','#1d4ed8','#f5c518','#7cb342',
+    '#d1d5db','#f0623f','#3b82f6','#e9df72','#a6ce7a',
+    '#9ca3af','#f49b86','#74b4f5','#f6e3b0','#b3d3c4',
+    '#4b5563','#f47fb6','#9b8cf7','#f5b44a','#6ec6bd',
+    '#0f172a','#e91e8c','#6d28d9','#f97316','#4cc4d0'
+  ];
+  var grid = document.getElementById('colorgrid');
+  GAMMA.forEach(function(c,i){
+    var b = document.createElement('button');
+    b.style.background = c;
+    if(c === '#ffffff') b.style.boxShadow = 'inset 0 0 0 1px #cbd5e1';
+    if(i === 1) b.classList.add('on');
+    b.setAttribute('data-tip', c.toUpperCase());
+    grid.appendChild(b);
+  });
+  var colorsPanel = document.querySelector('.panel[data-for="colors"]');
+  document.querySelectorAll('[data-open-colors]').forEach(function(sw){
+    sw.addEventListener('click', function(e){
+      e.stopPropagation();
+      var bg = getComputedStyle(sw).backgroundColor;
+      if(!sw.classList.contains('addcol')){
+        document.querySelectorAll('.swatch').forEach(function(s){ s.classList.remove('on'); });
+        sw.classList.add('on');
+        document.getElementById('colordot').style.background = bg;
+      }
+      var wasOpen = colorsPanel.classList.contains('open');
+      closeAll();
+      if(!wasOpen){
+        document.querySelector('.panel[data-for="pen"]').classList.add('open');
+        document.querySelector('.tb[data-panel="pen"]').classList.add('on');
+        colorsPanel.classList.add('open');
+        var r = sw.getBoundingClientRect(), s = stage.getBoundingClientRect();
+        var half = colorsPanel.offsetWidth/2, min = half + 14, max = s.width - half - 14;
+        colorsPanel.style.left = Math.max(min, Math.min(max, r.left - s.left + r.width/2)) + 'px';
+        colorsPanel.style.bottom = (s.bottom - r.top + 14) + 'px';
+      }
+      hideTip();
+    });
+  });
+  document.getElementById('btn-custom').addEventListener('click', function(e){
+    e.stopPropagation();
+    showTip(this, 'Qui si aprirebbe il selettore con HEX, RGB e contagocce');
+    setTimeout(hideTip, 2400);
+  });
+
+  /* campanella: angolo (consigliata) o in barra vicino al Magic Box */
+  var bellCorner = document.getElementById('bell-corner'), bellDock = document.getElementById('bell-dock');
+  var bellA = document.getElementById('bell-a'), bellB = document.getElementById('bell-b');
+  function setBell(inDock){
+    bellDock.hidden = !inDock; bellCorner.hidden = inDock;
+    bellB.classList.toggle('on', inDock); bellA.classList.toggle('on', !inDock);
+  }
+  bellA.addEventListener('click', function(){ setBell(false); });
+  bellB.addEventListener('click', function(){ setBell(true); });
+  setBell(false);
+
+  /* zoom ritraibile */
+  var corner = document.getElementById('corner');
+  document.getElementById('fold').addEventListener('click', function(e){
+    e.stopPropagation();
+    var folded = corner.classList.toggle('folded');
+    document.getElementById('fold-use').setAttribute('href', folded ? '#ic-chevron-l' : '#ic-chevron-r');
+  });
+
+  /* confronto organizzazione barra */
+  var legacy = document.querySelector('.legacy-only');
+  var segNew = document.getElementById('seg-new'), segOld = document.getElementById('seg-old');
+  function setMode(old){
+    legacy.hidden = !old;
+    document.querySelectorAll('.tb[data-panel="magic"]').forEach(function(b){ b.style.display = old ? 'none' : ''; });
+    segOld.classList.toggle('on', old); segNew.classList.toggle('on', !old);
+    closeAll();
+  }
+  segNew.addEventListener('click', function(){ setMode(false); });
+  segOld.addEventListener('click', function(){ setMode(true); });
+
+  /* pannello note richiudibile */
+  var bench = document.getElementById('bench'), benchBtn = document.getElementById('bench-toggle');
+  benchBtn.addEventListener('click', function(e){
+    e.stopPropagation();
+    var shut = bench.classList.toggle('shut');
+    benchBtn.textContent = shut ? '?' : '–';
+    benchBtn.title = shut ? 'Mostra le note del banco' : 'Nascondi le note del banco';
+  });
+  bench.addEventListener('click', function(e){ e.stopPropagation(); });
+
+  /* tooltip */
+  function showTip(el, text){
+    tip.textContent = text;
+    tip.classList.add('show');
+    var r = el.getBoundingClientRect(), s = stage.getBoundingClientRect();
+    tip.style.left = (r.left - s.left + r.width/2) + 'px';
+    tip.style.bottom = (s.bottom - r.top + 10) + 'px';
+  }
+  function hideTip(){ tip.classList.remove('show'); }
+  /* delegation: copre anche i colori creati da JS e tutto quello che aggiungeremo dopo */
+  document.addEventListener('mouseover', function(e){
+    var el = e.target.closest('[data-tip]');
+    if(el) showTip(el, el.getAttribute('data-tip'));
+  });
+  document.addEventListener('mouseout', function(e){
+    if(e.target.closest('[data-tip]')) hideTip();
+  });
+})();
+</script>
+</body>
+</html>
