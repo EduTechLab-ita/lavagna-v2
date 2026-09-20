@@ -1,0 +1,1396 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>EduBoard - Lavagna Digitale</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="barra-nuova.css">
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="EduBoard">
+    <link rel="icon" type="image/png" sizes="32x32"   href="./favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="./icon-192x192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="./icon-512x512.png">
+    <link rel="apple-touch-icon" href="./icon-192x192.png">
+    <meta name="description" content="Lavagna digitale interattiva per la scuola — EduTechLab">
+</head>
+<body class="v2">
+
+    <!-- Sprite icone nuove (restyling barra, 20/09/2026) — inerte finché non richiamata con <use> -->
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <symbol id="ic-lasso" viewBox="0 0 24 24"><path d="M12 3.4c4.9 0 8.8 2.8 8.8 6.3 0 3.5-3.9 6.3-8.8 6.3-1.5 0-2.9-.26-4.1-.72" fill="none" stroke="#3b82f6" stroke-width="1.9" stroke-linecap="round" stroke-dasharray="3.4 2.6"/><path d="M7.9 15.28c-2.8-1.14-4.7-3.03-4.7-5.58 0-2.1 1.3-3.96 3.3-5.1" fill="none" stroke="#3b82f6" stroke-width="1.9" stroke-linecap="round" stroke-dasharray="3.4 2.6"/><path d="M7.6 15.4c.7 1.5.5 3.1-.5 4.3" fill="none" stroke="#94a3b8" stroke-width="1.7" stroke-linecap="round"/><circle cx="6.6" cy="20.6" r="1.7" fill="#ffc24d" stroke="#d98e3d" stroke-width="1"/></symbol>
+      <symbol id="ic-laser" viewBox="0 0 24 24"><rect x="2.6" y="9.4" width="10.4" height="5.2" rx="2.6" fill="#475569" transform="rotate(-14 8 12)"/><rect x="3.4" y="10.6" width="3" height="2.8" rx="1.4" fill="#94a3b8" transform="rotate(-14 8 12)"/><circle cx="14.4" cy="10.2" r="2.1" fill="#e14434"/><path d="M17.4 9.2l4.2-1.4M17.8 11.4l3.6 1M16.6 7.4l2.8-3" fill="none" stroke="#e14434" stroke-width="1.7" stroke-linecap="round"/></symbol>
+      <symbol id="ic-import" viewBox="0 0 24 24"><rect x="2.8" y="5.4" width="18.4" height="13.2" rx="2.2" fill="#eaf2ff" stroke="#3b82f6" stroke-width="1.5"/><path d="M4.4 16.8l4.4-4.8 3 3.2 2.8-2.9 4.8 5.1z" fill="#2fa36b"/><circle cx="8.2" cy="9.4" r="1.6" fill="#ffc24d"/><circle cx="18.6" cy="17.4" r="5" fill="#3b82f6"/><path d="M18.6 14.8v5.2M16.4 17.9l2.2 2.2 2.2-2.2" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="ic-bell" viewBox="0 0 24 24"><path d="M12 2.6a6.4 6.4 0 0 1 6.4 6.4v4.2l1.7 3a1 1 0 0 1-.87 1.5H4.77a1 1 0 0 1-.87-1.5l1.7-3V9A6.4 6.4 0 0 1 12 2.6z" fill="#ffc24d"/><path d="M9.5 18.4h5a2.5 2.5 0 0 1-5 0z" fill="#d98e3d"/><circle cx="18.4" cy="5.6" r="3.6" fill="#e14434"/></symbol>
+      <symbol id="ic-hand" viewBox="0 0 24 24"><path d="M7 12V6.6a1.4 1.4 0 0 1 2.8 0V11m0-.4V5.4a1.4 1.4 0 0 1 2.8 0V11m0-.6V6.2a1.4 1.4 0 0 1 2.8 0V12m0-2.2a1.4 1.4 0 0 1 2.8 0v5.3c0 3.1-2.2 5.4-5.3 5.4h-1c-2.6 0-4-1.1-5.2-3L7 14.4c-.6-1-.2-1.9.7-2.2.6-.2 1.2 0 1.6.6" fill="#ffd9a3" stroke="#d98e3d" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round"/></symbol>
+      <symbol id="ic-pen" viewBox="0 0 24 24"><path d="M9.4 2.4h5.2a1.1 1.1 0 0 1 1.1 1.1v3.1H8.3V3.5a1.1 1.1 0 0 1 1.1-1.1z" fill="#1d4ed8"/><path d="M16.4 3.9h1.5a.8.8 0 0 1 .8.8v3a.8.8 0 0 1-.8.8h-1.5z" fill="#1d4ed8"/><path d="M8.3 6.6h7.4v9.8H8.3z" fill="#cfe0fb"/><path d="M9.9 6.6h4.2v9.8H9.9z" fill="#eaf2ff"/><path d="M8.3 16.4h7.4l-2.5 3.9a1.4 1.4 0 0 1-2.4 0z" fill="#1d4ed8"/><rect x="11" y="19.6" width="2" height="2.2" rx="1" fill="#0f172a"/></symbol>
+      <symbol id="ic-pencil" viewBox="0 0 24 24"><path d="M8.6 3.6h6.8v11.2H8.6z" fill="#e8c07a"/><path d="M8.6 3.6h6.8v2.4H8.6z" fill="#f0a1a1"/><path d="M8.6 14.8h6.8L12.4 20a.5.5 0 0 1-.8 0z" fill="#f2dcb4"/><path d="M11 18.6h2l-.6 1.4a.5.5 0 0 1-.8 0z" fill="#334155"/></symbol>
+      <symbol id="ic-crayon" viewBox="0 0 24 24"><rect x="7.6" y="6.2" width="8.8" height="14.2" rx="3" fill="#f07f6a"/><rect x="7.6" y="10.4" width="8.8" height="4.2" fill="#fbe3cd"/><path d="M12 2.8c2.3 1.4 3.6 2.8 4.4 4.4H7.6C8.4 5.6 9.7 4.2 12 2.8z" fill="#d9614c"/></symbol>
+      <symbol id="ic-marker" viewBox="0 0 24 24"><rect x="7.4" y="3.4" width="9.2" height="9.4" rx="2.2" fill="#ffd93d"/><path d="M7.4 12.8h9.2v3.6H7.4z" fill="#e8b830"/><path d="M8.6 16.4h6.8v3.1a1.4 1.4 0 0 1-1.4 1.4h-4a1.4 1.4 0 0 1-1.4-1.4z" fill="#fff08a" stroke="#e8b830" stroke-width="1"/></symbol>
+      <symbol id="ic-eraser" viewBox="0 0 24 24"><path d="M12.2 2.8a2.6 2.6 0 0 1 3.7 0l5.3 5.3a2.6 2.6 0 0 1 0 3.7l-4.6 4.6-9-9z" fill="#ffc24d"/><path d="M7.6 7.4l9 9-3.9 3.9H7.2l-4.6-4.6a2.6 2.6 0 0 1 0-3.7z" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.1" stroke-linejoin="round"/></symbol>
+      <symbol id="ic-eraser-lasso" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.2" fill="none" stroke="#3b82f6" stroke-width="1.7" stroke-dasharray="3 2.6"/><path d="M12.4 7.6a1.7 1.7 0 0 1 2.4 0l2.6 2.6a1.7 1.7 0 0 1 0 2.4l-3 3h-3.6l-2.4-2.4a1.7 1.7 0 0 1 0-2.4z" fill="#ffc24d"/><path d="M10.2 10.6l4.6 4.6-1.4 1.4h-3.6l-2.4-2.4z" fill="#f8fafc" stroke="#cbd5e1" stroke-width=".8"/></symbol>
+      <symbol id="ic-eraser-stroke" viewBox="0 0 24 24"><path d="M3.4 8.6c2.6-3 5-3 7 0s4.4 3 7-.4" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round"/><path d="M12.4 13.4a1.7 1.7 0 0 1 2.4 0l2.6 2.6a1.7 1.7 0 0 1 0 2.4l-2.2 2.2h-3.6l-2.2-2.2a1.7 1.7 0 0 1 0-2.4z" fill="#ffc24d"/><path d="M10.6 16.2l4.4 4.4h-3.4l-2.2-2.2z" fill="#f8fafc" stroke="#cbd5e1" stroke-width=".8"/></symbol>
+      <symbol id="ic-trash" viewBox="0 0 24 24"><path d="M5.8 7.4h12.4l-1.1 12a2 2 0 0 1-2 1.8H8.9a2 2 0 0 1-2-1.8z" fill="#ffc24d"/><path d="M9.8 10.6v7M14.2 10.6v7" stroke="#d98e3d" stroke-width="1.5" stroke-linecap="round"/><path d="M4.4 6.4h15.2" stroke="#e14434" stroke-width="2" stroke-linecap="round"/><path d="M9.6 3.4h4.8v3h-4.8z" fill="#e14434"/></symbol>
+      <symbol id="ic-shapes" viewBox="0 0 24 24"><rect x="2.6" y="11" width="11" height="10.4" rx="2" fill="#ffc24d"/><circle cx="15.6" cy="7.8" r="5.2" fill="#3b82f6"/></symbol>
+      <symbol id="ic-text" viewBox="0 0 24 24"><path d="M4.4 4.6h15.2v3.4h-1.9V6.5h-4.3v13h2.2v1.9H8.4v-1.9h2.2v-13H6.3v1.5H4.4z" fill="#334155"/></symbol>
+      <symbol id="ic-select" viewBox="0 0 24 24"><rect x="3.2" y="3.2" width="17.6" height="17.6" rx="2.6" fill="none" stroke="#3b82f6" stroke-width="1.7" stroke-dasharray="3.2 2.8"/><path d="M10 8.4l6.6 3.9-2.9.7-.8 2.9z" fill="#fff" stroke="#1e293b" stroke-width="1.2" stroke-linejoin="round"/></symbol>
+      <symbol id="ic-bg" viewBox="0 0 24 24"><rect x="3.2" y="4.8" width="17.6" height="14.4" rx="2.6" fill="#eaf2ff" stroke="#3b82f6" stroke-width="1.6"/><circle cx="8.4" cy="9.6" r="1.8" fill="#ffc24d"/><path d="M4.6 17.6l4.6-5.2 3.2 3.4 2.8-3 4.2 4.8z" fill="#2fa36b"/></symbol>
+      <symbol id="ic-folder" viewBox="0 0 24 24"><path d="M2.8 6.6a2 2 0 0 1 2-2h4.3l2 2.4h8.1a2 2 0 0 1 2 2v2.2H2.8z" fill="#e8a33d"/><path d="M2.8 9.6h18.4v8.2a2 2 0 0 1-2 2H4.8a2 2 0 0 1-2-2z" fill="#ffc24d"/></symbol>
+      <symbol id="ic-magic" viewBox="0 0 24 24"><g transform="rotate(16 9 9)"><rect x="5.6" y="2.6" width="3.4" height="9" rx=".7" fill="#3b82f6"/><g stroke="#dbeafe" stroke-width=".9" stroke-linecap="round"><path d="M6.3 4.4h1.2M6.3 6.2h1.9M6.3 8h1.2M6.3 9.8h1.9"/></g></g><path d="M17.4 3.2l4.2 7.3h-8.4z" fill="#2fa36b"/><path d="M17.4 6.2l2.5 4.3h-5z" fill="#eafaf1"/><path d="M4.2 10.2h15.6l-1.2 8.6a2 2 0 0 1-2 1.8H7.4a2 2 0 0 1-2-1.8z" fill="#ffc24d"/><path d="M3.2 8.2h17.6v2.6H3.2z" fill="#e8a33d"/><path d="M7.4 10.2h3.4l-.8 10.4h-1.4a2 2 0 0 1-2-1.8z" fill="#f2b455"/><path d="M12.4 1l.85 2.3 2.3.85-2.3.85-.85 2.3-.85-2.3L9.25 4.15l2.3-.85z" fill="#e14434"/><path d="M20.4 4.6l.45 1.25 1.25.45-1.25.45-.45 1.25-.45-1.25L18.7 6.3l1.25-.45z" fill="#f0b429"/></symbol>
+      <symbol id="ic-undo" viewBox="0 0 24 24"><path d="M9.4 6.2L4.6 11l4.8 4.8" fill="none" stroke="#64748b" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M4.6 11h8.8a5.6 5.6 0 0 1 0 11.2H9" fill="none" stroke="#64748b" stroke-width="1.9" stroke-linecap="round"/></symbol>
+      <symbol id="ic-redo" viewBox="0 0 24 24"><path d="M14.6 6.2L19.4 11l-4.8 4.8" fill="none" stroke="#64748b" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M19.4 11h-8.8a5.6 5.6 0 0 0 0 11.2H15" fill="none" stroke="#64748b" stroke-width="1.9" stroke-linecap="round"/></symbol>
+      <symbol id="ic-ruler" viewBox="0 0 24 24"><rect x="1.8" y="7.6" width="20.4" height="8.8" rx="1.6" fill="#3b82f6" transform="rotate(-12 12 12)"/><g stroke="#dbeafe" stroke-width="1.3" stroke-linecap="round"><path d="M5.6 9.1v2.6M9.1 8.3v3.8M12.6 7.6v2.6M16.1 6.8v3.8M19.6 6.1v2.6"/></g></symbol>
+      <symbol id="ic-protractor" viewBox="0 0 24 24"><path d="M2.6 18.2a9.4 9.4 0 0 1 18.8 0z" fill="#ffc24d"/><path d="M7.6 18.2a4.4 4.4 0 0 1 8.8 0z" fill="#fff"/><path d="M2.6 18.2h18.8" stroke="#d98e3d" stroke-width="1.5"/><g stroke="#d98e3d" stroke-width="1.1" stroke-linecap="round"><path d="M5.2 13.6l1.4 1M12 8.8v1.8M18.8 13.6l-1.4 1"/></g></symbol>
+      <symbol id="ic-web" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8.2" fill="#3b82f6"/><path d="M2.8 11h16.4M11 2.8c4.4 4.6 4.4 11.8 0 16.4M11 2.8c-4.4 4.6-4.4 11.8 0 16.4" fill="none" stroke="#dbeafe" stroke-width="1.3"/><path d="M14.6 16.4l6.6 3.4-6.6 3.4z" fill="#e8763a" stroke="#fff" stroke-width="1.1" stroke-linejoin="round"/></symbol>
+      <symbol id="ic-link" viewBox="0 0 24 24"><path d="M10 14a4.6 4.6 0 0 1 0-6.5l3.2-3.2a4.6 4.6 0 0 1 6.5 6.5l-1.7 1.7" fill="none" stroke="#3b82f6" stroke-width="2.4" stroke-linecap="round"/><path d="M14 10a4.6 4.6 0 0 1 0 6.5l-3.2 3.2a4.6 4.6 0 0 1-6.5-6.5L6 11.5" fill="none" stroke="#e8763a" stroke-width="2.4" stroke-linecap="round"/></symbol>
+      <symbol id="ic-capture" viewBox="0 0 24 24"><g stroke="#3b82f6" stroke-width="1.8" stroke-linecap="round" fill="none"><path d="M2.6 7.6V4.4a1.8 1.8 0 0 1 1.8-1.8h3.2M21.4 7.6V4.4a1.8 1.8 0 0 0-1.8-1.8h-3.2M2.6 16.4v3.2a1.8 1.8 0 0 0 1.8 1.8h3.2M21.4 16.4v3.2a1.8 1.8 0 0 1-1.8 1.8h-3.2"/></g><rect x="6.4" y="8.4" width="11.2" height="7.6" rx="1.8" fill="#3b82f6"/><circle cx="12" cy="12.2" r="2.3" fill="#dbeafe"/></symbol>
+      <symbol id="ic-timer" viewBox="0 0 24 24"><circle cx="12" cy="13.6" r="8" fill="#ffc24d"/><circle cx="12" cy="13.6" r="5.6" fill="#fff8e8"/><path d="M12 10.2v3.4l2.2 1.6" fill="none" stroke="#d98e3d" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><rect x="9.8" y="1.8" width="4.4" height="2.6" rx="1.1" fill="#e14434"/><rect x="11" y="4" width="2" height="2" fill="#e14434"/></symbol>
+      <symbol id="ic-focus" viewBox="0 0 24 24"><rect x="2.4" y="3.6" width="19.2" height="16.8" rx="2.4" fill="#1e293b"/><circle cx="12" cy="12" r="7.4" fill="#ffe9a8" opacity=".3"/><circle cx="12" cy="12" r="4.8" fill="#ffe9a8"/></symbol>
+      <symbol id="ic-curtain" viewBox="0 0 24 24"><rect x="2.4" y="3.2" width="19.2" height="3" rx="1.2" fill="#475569"/><path d="M3.6 6.2h16.8v7.6H3.6z" fill="#3b82f6"/><path d="M3.6 13.8h16.8l-2.1 2.1H5.7z" fill="#1d4ed8"/><path d="M12 16.4v3.4" stroke="#475569" stroke-width="1.5" stroke-linecap="round"/><circle cx="12" cy="20.4" r="1.4" fill="#475569"/></symbol>
+      <symbol id="ic-new" viewBox="0 0 24 24"><path d="M5.4 3.4h8.4l5 5v12.2a1.8 1.8 0 0 1-1.8 1.8H5.4a1.8 1.8 0 0 1-1.8-1.8V5.2a1.8 1.8 0 0 1 1.8-1.8z" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/><path d="M12 11v6M9 14h6" stroke="#3b82f6" stroke-width="1.8" stroke-linecap="round"/></symbol>
+      <symbol id="ic-open" viewBox="0 0 24 24"><path d="M2.8 6.6a2 2 0 0 1 2-2h4.3l2 2.4h8.1a2 2 0 0 1 2 2v2.2H2.8z" fill="#e8a33d"/><path d="M2.8 9.6h18.4v8.2a2 2 0 0 1-2 2H4.8a2 2 0 0 1-2-2z" fill="#ffc24d"/></symbol>
+      <symbol id="ic-save" viewBox="0 0 24 24"><path d="M4.4 3.6h12.2l3.8 3.8v13a1.6 1.6 0 0 1-1.6 1.6H4.4a1.6 1.6 0 0 1-1.6-1.6V5.2a1.6 1.6 0 0 1 1.6-1.6z" fill="#3b82f6"/><rect x="7" y="3.6" width="8" height="6" rx=".8" fill="#dbeafe"/><rect x="6.4" y="13" width="11.2" height="6.6" rx="1" fill="#fff"/></symbol>
+      <symbol id="ic-print" viewBox="0 0 24 24"><rect x="6" y="2.8" width="12" height="5.4" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.3"/><rect x="2.8" y="8.2" width="18.4" height="8" rx="1.8" fill="#3b82f6"/><rect x="6" y="14" width="12" height="7.2" fill="#fff" stroke="#3b82f6" stroke-width="1.3"/><circle cx="18" cy="11.4" r="1.1" fill="#dbeafe"/></symbol>
+      <symbol id="ic-export" viewBox="0 0 24 24"><path d="M4.4 9.4v9.4a1.8 1.8 0 0 0 1.8 1.8h11.6a1.8 1.8 0 0 0 1.8-1.8V9.4" fill="none" stroke="#3b82f6" stroke-width="1.8" stroke-linecap="round"/><path d="M12 15V3.4M7.8 7.2L12 3l4.2 4.2" fill="none" stroke="#e8763a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="ic-drive" viewBox="0 0 24 24"><path d="M8.6 2.8h6.8l6.4 11.1h-6.8z" fill="#ffc24d"/><path d="M2.2 13.9L8.6 2.8l3.4 5.9-6.4 11.1z" fill="#2fa36b"/><path d="M5.6 19.8l3.4-5.9h12.8l-3.4 5.9z" fill="#3b82f6"/></symbol>
+      <symbol id="ic-disk" viewBox="0 0 24 24"><rect x="2.4" y="7.4" width="19.2" height="9.2" rx="2.6" fill="#cbd5e1" stroke="#64748b" stroke-width="1.3"/><circle cx="17.4" cy="12" r="1.5" fill="#475569"/><path d="M5.4 10.4h6" stroke="#64748b" stroke-width="1.4" stroke-linecap="round"/></symbol>
+      <symbol id="ic-qr" viewBox="0 0 24 24"><g fill="#334155"><rect x="3" y="3" width="7" height="7" rx="1.2"/><rect x="14" y="3" width="7" height="7" rx="1.2"/><rect x="3" y="14" width="7" height="7" rx="1.2"/></g><g fill="#fff"><rect x="5" y="5" width="3" height="3"/><rect x="16" y="5" width="3" height="3"/><rect x="5" y="16" width="3" height="3"/></g><g fill="#3b82f6"><rect x="14" y="14" width="3" height="3"/><rect x="18" y="18" width="3" height="3"/><rect x="14" y="19" width="2" height="2"/><rect x="19" y="14" width="2" height="2"/></g></symbol>
+      <symbol id="ic-chevron-l" viewBox="0 0 24 24"><path d="M14.6 5.4L8 12l6.6 6.6" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="ic-chevron-r" viewBox="0 0 24 24"><path d="M9.4 5.4L16 12l-6.6 6.6" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="ic-minus" viewBox="0 0 24 24"><path d="M5 12h14" stroke="#475569" stroke-width="2.1" stroke-linecap="round"/></symbol>
+      <symbol id="ic-plus" viewBox="0 0 24 24"><path d="M5 12h14M12 5v14" stroke="#475569" stroke-width="2.1" stroke-linecap="round"/></symbol>
+      <symbol id="ic-fit" viewBox="0 0 24 24"><g stroke="#475569" stroke-width="1.9" stroke-linecap="round" fill="none"><path d="M3.4 8.6V4.8a1.4 1.4 0 0 1 1.4-1.4h3.8M20.6 8.6V4.8a1.4 1.4 0 0 0-1.4-1.4h-3.8M3.4 15.4v3.8a1.4 1.4 0 0 0 1.4 1.4h3.8M20.6 15.4v3.8a1.4 1.4 0 0 1-1.4 1.4h-3.8"/></g><rect x="8" y="8" width="8" height="8" rx="1.4" fill="#cbd5e1"/></symbol>
+      <symbol id="ic-user" viewBox="0 0 24 24"><circle cx="12" cy="8.4" r="4.2" fill="#64748b"/><path d="M3.8 21.2a8.2 8.2 0 0 1 16.4 0z" fill="#64748b"/></symbol>
+      <symbol id="ic-pages" viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="1.4" fill="#3b82f6"/><rect x="13" y="3" width="8" height="8" rx="1.4" fill="#93c5fd"/><rect x="3" y="13" width="8" height="8" rx="1.4" fill="#93c5fd"/><rect x="13" y="13" width="8" height="8" rx="1.4" fill="#3b82f6"/></symbol>
+      <symbol id="ic-addpage" viewBox="0 0 24 24"><rect x="3.4" y="3.4" width="17.2" height="17.2" rx="2.6" fill="none" stroke="#475569" stroke-width="1.7"/><path d="M12 8.4v7.2M8.4 12h7.2" stroke="#475569" stroke-width="1.9" stroke-linecap="round"/></symbol>
+      <symbol id="ic-present" viewBox="0 0 24 24"><rect x="2.4" y="3.2" width="19.2" height="12.8" rx="1.8" fill="#e8763a"/><rect x="4.4" y="5.2" width="15.2" height="8.8" rx="1" fill="#fff3e6"/><path d="M10.4 7.4l4.6 2.6-4.6 2.6z" fill="#e8763a"/><path d="M12 16v3.2M8 21.2l4-2 4 2" fill="none" stroke="#475569" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="ic-present-on" viewBox="0 0 24 24"><rect x="2.4" y="3.2" width="19.2" height="12.8" rx="1.8" fill="#3b82f6"/><rect x="4.4" y="5.2" width="15.2" height="8.8" rx="1" fill="#eaf2ff"/><path d="M10.4 7.4l4.6 2.6-4.6 2.6z" fill="#3b82f6"/><path d="M12 16v3.2M8 21.2l4-2 4 2" fill="none" stroke="#3b82f6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    </defs>
+    </svg>
+
+    <!-- Header -->
+    <header id="app-header">
+        <div class="header-left">
+            <div class="logo">
+                <img src="./icon-192x192.png" alt="EduBoard" class="logo-icon">
+                <div class="logo-info">
+                    <span class="logo-text"><span class="logo-edu">Edu</span><span class="logo-board">Board</span></span>
+                    <span class="logo-sub">v2-088 &nbsp;&nbsp; © EduTechLab di Rizzotto Fabio</span>
+                </div>
+            </div>
+            <div class="project-badge" id="project-name">Nuova Lavagna</div>
+        </div>
+        <div class="header-right">
+            <button class="hdr-btn" id="btn-install-pwa" title="Installa EduBoard su questo PC" style="display:none">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><polyline points="8 21 12 17 16 21"/><line x1="12" y1="17" x2="12" y2="3"/><polyline points="9 7 12 4 15 7"/></svg>
+                <span>Installa</span>
+            </button>
+            <button class="hdr-btn" id="btn-new-board-header" title="Nuova Lavagna">
+                <svg viewBox="0 0 24 24"><use href="#ic-new"/></svg>
+                <span>Nuova</span>
+            </button>
+            <button class="hdr-btn" id="btn-export" title="Stampa / Salva PDF (come OneNote)">
+                <svg viewBox="0 0 24 24"><use href="#ic-print"/></svg>
+                <span>Stampa</span>
+            </button>
+            <!-- Feature 5: Fullscreen -->
+            <button class="hdr-btn" id="btn-fullscreen" title="Schermo intero (F11)">
+                <svg id="fullscreen-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+                </svg>
+                <span id="fullscreen-label">Espandi</span>
+            </button>
+            <!-- Campanella notifiche foto -->
+            <div id="photo-bell-wrap" style="position:relative;display:inline-flex;align-items:center;">
+                <button id="photo-bell-btn" class="photo-bell-btn" title="Foto ricevute dal telefono" style="display:none">
+                    🔔
+                </button>
+                <span id="photo-bell-badge" class="photo-bell-badge" style="display:none">0</span>
+            </div>
+            <!-- Stato Drive testuale -->
+            <div id="drive-status-header" class="drive-status-header">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" id="drive-status-icon" style="display:none">
+                    <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>
+                </svg>
+                <span id="drive-status-text">Non connesso</span>
+            </div>
+            <button class="hdr-btn hdr-btn--primary" id="btn-save" title="Salva la lavagna nel browser (localmente). Se Drive è connesso, salva anche sul tuo Google Drive.">
+                <svg viewBox="0 0 24 24"><use href="#ic-save"/></svg>
+                <span>Salva</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Nome lezione discreto, visibile SOLO in modalità fullscreen (l'header con project-name sparisce) -->
+    <div id="fullscreen-lesson-name"></div>
+
+    <!-- Tab libreria SINISTRA — fisso, fuori dal pannello (transform parent blocca position:fixed) -->
+    <button id="library-tab-left" class="library-tab library-tab--left" title="Apri libreria" aria-label="Apri libreria da sinistra">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16">
+            <polyline id="library-tab-arrow-left" points="9 18 15 12 9 6"/>
+        </svg>
+    </button>
+
+    <!-- Tab libreria DESTRA — fisso -->
+    <button id="library-tab-right" class="library-tab library-tab--right" title="Apri libreria" aria-label="Apri libreria da destra">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16">
+            <polyline id="library-tab-arrow-right" points="15 18 9 12 15 6"/>
+        </svg>
+    </button>
+
+    <!-- ===== PANNELLO LIBRERIA LEZIONI ===== -->
+    <div id="library-panel" class="library-panel">
+        <div class="library-header">
+            <span>📚 Libreria Lezioni</span>
+            <button id="library-close" title="Chiudi">×</button>
+        </div>
+        <div class="library-drive-status" id="library-drive-status">
+            <span class="drive-status-off">Drive non connesso</span>
+        </div>
+        <div class="library-tree" id="library-tree">
+            <!-- Struttura ad albero generata da drive.js -->
+        </div>
+        <div class="library-actions">
+            <button id="library-new-board">+ Lavagna</button>
+            <button id="library-new-folder">+ Cartella</button>
+            <button id="library-save-here">💾 Salva</button>
+        </div>
+    </div>
+
+    <!-- Area principale -->
+    <main id="canvas-area">
+        <!-- Layer 1: Sfondo -->
+        <canvas id="bg-canvas"></canvas>
+        <!-- Layer 2: Disegno -->
+        <canvas id="draw-canvas"></canvas>
+        <!-- Layer 2b: Oggetti (immagini/PDF importati) -->
+        <canvas id="objects-canvas"></canvas>
+        <!-- Layer 3: Laser / Preview forme -->
+        <canvas id="overlay-canvas"></canvas>
+        <!-- Layer 4: Input testo inline -->
+        <div id="text-cursor" contenteditable="true" spellcheck="false" style="display:none"></div>
+        <!-- Layer 5: Pagine web incorporate (video, link, contenuti interattivi) — elementi DOM
+             veri, non canvas: un iframe non può essere "disegnato" dentro un canvas. Vive come
+             figlio di #canvas-area così eredita automaticamente lo stesso transform pan/zoom
+             delle altre layer, e le sue coordinate x/y/w/h usano le stesse unità canvas. -->
+        <div id="embed-layer"></div>
+    </main>
+
+    <!-- ===== TOOLBAR WRAPPER ===== -->
+    <div id="toolbar-wrapper">
+
+        <!-- Riga superiore: mini-color-bar + quick strip + toggle + mini-size-bar -->
+        <div id="toolbar-top-row">
+            <!-- Mini-bar colori rapidi — visibile solo con strumenti di scrittura e toolbar chiusa -->
+            <div id="mini-color-bar" class="mini-color-bar"></div>
+            <!-- Quick strip — visibile solo quando toolbar è chiusa -->
+            <div id="quick-strip">
+                <!-- Icona dinamica: cambia in base all'ultimo strumento di scrittura usato -->
+                <button class="tool-btn qab-btn active" id="qab-writing-tool" data-tool="pen" title="Penna">
+                    <svg viewBox="0 0 24 24"><use href="#ic-pen"/></svg>
+                </button>
+                <button class="tool-btn qab-btn" data-tool="eraser" title="Gomma">
+                    <svg viewBox="0 0 24 24"><use href="#ic-eraser"/></svg>
+                </button>
+                <div class="qab-sep"></div>
+                <button class="qab-btn" id="qab-undo" title="Annulla (Ctrl+Z)">
+                    <svg viewBox="0 0 24 24" width="22" height="22"><use href="#ic-undo"/></svg>
+                </button>
+                <button class="qab-btn" id="qab-redo" title="Ripristina (Ctrl+Y)">
+                    <svg viewBox="0 0 24 24" width="22" height="22"><use href="#ic-redo"/></svg>
+                </button>
+                <div class="qab-sep"></div>
+                <button class="tool-btn qab-btn" data-tool="pan" title="Mano — sposta la lavagna">
+                    <svg viewBox="0 0 24 24"><use href="#ic-hand"/></svg>
+                </button>
+                <button class="tool-btn qab-btn" data-tool="select" title="Seleziona oggetti">
+                    <svg viewBox="0 0 24 24"><use href="#ic-select"/></svg>
+                </button>
+            </div>
+            <!-- Toggle — sempre visibile, fuori dal quick strip -->
+            <button id="toolbar-toggle" title="Mostra/Nascondi strumenti">
+                <svg id="toggle-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <polyline points="18 15 12 9 6 15"/>
+                </svg>
+            </button>
+            <!-- Mini-bar dimensioni — visibile solo con strumenti di scrittura/gomma e toolbar chiusa -->
+            <div id="mini-size-bar" class="mini-size-bar"></div>
+        </div>
+
+        <!-- Toolbar principale -->
+        <div id="floating-toolbar">
+
+            <!-- Riga controlli: opzioni strumento + freccia chiudi (affiancati) -->
+            <div id="toolbar-controls-row">
+                <!-- Opzioni contestuali (colore + dimensione) — appare solo per strumenti che le supportano -->
+                <div id="tool-options-row" class="toolbar-row options-row" style="display:none">
+                <div class="options-colors" id="options-colors">
+                    <button class="color-swatch active" data-color="#000000" style="background:#000000" title="Nero"></button>
+                    <button class="color-swatch" data-color="#1d4ed8" style="background:#1d4ed8" title="Blu"></button>
+                    <button class="color-swatch" data-color="#dc2626" style="background:#dc2626" title="Rosso"></button>
+                    <button class="color-swatch" data-color="#16a34a" style="background:#16a34a" title="Verde"></button>
+                    <button class="color-swatch" data-color="#d97706" style="background:#d97706" title="Arancio"></button>
+                    <button class="color-swatch" data-color="#7c3aed" style="background:#7c3aed" title="Viola"></button>
+                    <button class="color-swatch" data-color="#be185d" style="background:#be185d" title="Rosa"></button>
+                    <button class="color-swatch" data-color="#0891b2" style="background:#0891b2" title="Azzurro"></button>
+                    <button class="color-swatch" data-color="#854d0e" style="background:#854d0e" title="Marrone"></button>
+                    <button class="color-swatch" data-color="#ffffff" style="background:#ffffff;border:2px solid #64748b" title="Bianco"></button>
+                    <!-- Feature 2: pulsante "+" apre tavolozza -->
+                    <button class="color-swatch color-custom" id="color-custom" title="Scegli colore dalla tavolozza">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>
+                    </button>
+                </div>
+                <div class="options-divider"></div>
+                <div class="options-sizes" id="options-sizes">
+                    <button class="size-btn" data-size="1" title="Stilo extra-fine (1px)"><span class="size-dot" style="width:2px;height:2px"></span></button>
+                    <button class="size-btn active" data-size="3"><span class="size-dot" style="width:4px;height:4px"></span></button>
+                    <button class="size-btn" data-size="6"><span class="size-dot" style="width:7px;height:7px"></span></button>
+                    <button class="size-btn" data-size="10"><span class="size-dot" style="width:11px;height:11px"></span></button>
+                    <button class="size-btn" data-size="16"><span class="size-dot" style="width:16px;height:16px"></span></button>
+                    <button class="size-btn" data-size="24"><span class="size-dot" style="width:22px;height:22px"></span></button>
+                </div>
+                <div class="options-divider" id="eraser-mode-divider" style="display:none"></div>
+                <div id="eraser-mode-btns" style="display:none; align-items:center; gap:5px">
+                    <button class="eraser-mode-btn active" data-mode="area" title="Cancella area">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 20H7L3 16l10-10 7 7-3.5 3.5"/><path d="M6 20L18 8"/></svg>
+                        Area
+                    </button>
+                    <button class="eraser-mode-btn" data-mode="stroke" title="Cancella tratto intero">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12 C6 6 10 6 12 12 C14 18 18 18 21 12"/><line x1="18" y1="6" x2="22" y2="10"/><line x1="22" y1="6" x2="18" y2="10"/></svg>
+                        Tratto
+                    </button>
+                </div>
+            </div>
+                <!-- Freccia chiudi toolbar — affiancata alle opzioni, stessa estetica del ^ per aprire -->
+                <button id="toolbar-toggle-open" title="Chiudi strumenti">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <polyline points="18 9 12 15 6 9"/>
+                    </svg>
+                </button>
+            </div><!-- fine toolbar-controls-row -->
+
+            <!-- Riga strumenti principali -->
+            <div class="toolbar-row main-row">
+
+                <!-- Gruppo 1: Penne -->
+                <div class="tool-group">
+                    <button class="tool-btn active" data-tool="pen" title="Penna">
+                        <svg viewBox="0 0 24 24"><use href="#ic-pen"/></svg>
+                        <span>Penna</span>
+                    </button>
+                    <button class="tool-btn" data-tool="pencil" title="Matita HB">
+                        <svg viewBox="0 0 24 24"><use href="#ic-pencil"/></svg>
+                        <span>Matita</span>
+                    </button>
+                    <button class="tool-btn" data-tool="pastel" title="Pastello morbido">
+                        <svg viewBox="0 0 24 24"><use href="#ic-crayon"/></svg>
+                        <span>Pastello</span>
+                    </button>
+                    <button class="tool-btn" data-tool="marker" title="Evidenziatore">
+                        <svg viewBox="0 0 24 24"><use href="#ic-marker"/></svg>
+                        <span>Evidenz.</span>
+                    </button>
+                    <button class="tool-btn" data-tool="eraser" title="Gomma">
+                        <svg viewBox="0 0 24 24"><use href="#ic-eraser"/></svg>
+                        <span>Gomma</span>
+                    </button>
+                </div>
+
+                <div class="tool-separator"></div>
+
+                <!-- Gruppo 2: Speciali -->
+                <div class="tool-group">
+                    <button class="tool-btn" data-tool="laser" title="Puntatore laser">
+                        <svg viewBox="0 0 24 24"><use href="#ic-laser"/></svg>
+                        <span>Laser</span>
+                    </button>
+                    <button class="tool-btn" data-tool="text" title="Testo">
+                        <svg viewBox="0 0 24 24"><use href="#ic-text"/></svg>
+                        <span>Testo</span>
+                    </button>
+                    <button class="tool-btn" data-tool="shape" title="Forme" id="shape-tool-btn">
+                        <svg viewBox="0 0 24 24"><use href="#ic-shapes"/></svg>
+                        <span>Forme</span>
+                    </button>
+                    <button class="tool-btn" data-tool="select" title="Seleziona e sposta oggetti" id="select-tool-btn">
+                        <svg viewBox="0 0 24 24">
+                            <use href="#ic-select"/>
+                        </svg>
+                        <span>Seleziona</span>
+                    </button>
+                    <button class="tool-btn" data-tool="pan" title="Mano — sposta la lavagna">
+                      <svg viewBox="0 0 24 24">
+                        <use href="#ic-hand"/>
+                      </svg>
+                      <span>Mano</span>
+                    </button>
+                </div>
+
+                <div class="tool-separator"></div>
+
+                <!-- Gruppo 3: Sfondo + Azioni -->
+                <div class="tool-group">
+                    <button class="tool-btn" data-tool="background" title="Sfondo" id="bg-tool-btn">
+                        <svg viewBox="0 0 24 24"><use href="#ic-bg"/></svg>
+                        <span>Sfondo</span>
+                    </button>
+                    <button class="tool-btn" data-tool="import-media" title="Importa immagine o PDF nella lavagna" id="import-media-btn">
+                        <svg viewBox="0 0 24 24">
+                            <use href="#ic-import"/>
+                        </svg>
+                        <span>Importa</span>
+                    </button>
+                </div>
+
+                <div class="tool-separator"></div>
+
+                <!-- Gruppo 3b: Nuova / Gestione File / Magic Box (restyling 20/09/2026) -->
+                <div class="tool-group">
+                    <button class="tool-btn" id="v2-new-board-btn" title="Crea una nuova lavagna">
+                        <svg viewBox="0 0 24 24"><use href="#ic-new"/></svg>
+                        <span>Nuova</span>
+                    </button>
+                    <button class="tool-btn" id="v2-file-btn" title="Gestione File — apri, salva, stampa">
+                        <svg viewBox="0 0 24 24"><use href="#ic-folder"/></svg>
+                        <span>File</span>
+                    </button>
+                    <button class="tool-btn" id="v2-magic-btn" title="Magic Box — righello, goniometro, web e altro">
+                        <svg viewBox="0 0 24 24"><use href="#ic-magic"/></svg>
+                        <span>Magic Box</span>
+                    </button>
+                </div>
+
+                <div class="tool-separator"></div>
+
+                <!-- Gruppo 4: Undo/Redo/Cancella -->
+                <div class="tool-group">
+                    <button class="tool-btn action-btn" id="btn-undo" title="Annulla (Ctrl+Z)">
+                        <svg viewBox="0 0 24 24"><use href="#ic-undo"/></svg>
+                        <span>Annulla</span>
+                    </button>
+                    <button class="tool-btn action-btn" id="btn-redo" title="Ripeti (Ctrl+Y)">
+                        <svg viewBox="0 0 24 24"><use href="#ic-redo"/></svg>
+                        <span>Ripeti</span>
+                    </button>
+                    <button class="tool-btn action-btn danger-btn" id="btn-clear" title="Cancella tutto">
+                        <svg viewBox="0 0 24 24"><use href="#ic-trash"/></svg>
+                        <span>Cancella</span>
+                    </button>
+                </div>
+
+            </div><!-- end main-row -->
+
+        </div><!-- end floating-toolbar -->
+    </div><!-- end toolbar-wrapper -->
+
+    <!-- ===== MAGIC BOX (restyling 20/09/2026) =====
+         Pannello nuovo, gestito da barra-nuova.js: raccoglie strumenti che prima
+         stavano sparsi in riga. I pulsanti dentro sono gli STESSI di sempre (stessi
+         id/data-tool), solo spostati qui — nessuna funzione riscritta. -->
+    <div id="v2-magic-panel" class="v2-panel popup-panel" style="display:none">
+        <button class="popup-close-btn" title="Chiudi">&times;</button>
+        <div class="popup-title">Magic Box</div>
+
+        <div class="v2-tray">
+            <div class="v2-tray-title">Strumenti geometrici</div>
+            <div class="v2-tray-tools">
+                <button class="shape-opt" id="btn-geo-ruler" title="Righello draggabile e ruotabile">
+                    <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="4" y="14" width="32" height="12" rx="2"/>
+                        <line x1="10" y1="14" x2="10" y2="20"/>
+                        <line x1="16" y1="14" x2="16" y2="22"/>
+                        <line x1="22" y1="14" x2="22" y2="20"/>
+                        <line x1="28" y1="14" x2="28" y2="22"/>
+                    </svg>
+                    <span>Righello</span>
+                </button>
+                <button class="shape-opt" id="btn-geo-protractor" title="Goniometro draggabile">
+                    <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M6 32 A16 16 0 0 1 34 32"/>
+                        <line x1="6" y1="32" x2="34" y2="32"/>
+                        <line x1="20" y1="32" x2="20" y2="16"/>
+                    </svg>
+                    <span>Goniometro</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="v2-tray">
+            <div class="v2-tray-title">Contenuti web</div>
+            <div class="v2-tray-tools">
+                <button class="tool-btn" data-tool="embed-web" title="Incorpora una pagina web (video, giochi interattivi) dentro alla lavagna" id="embed-web-btn">
+                    <svg viewBox="0 0 24 24"><use href="#ic-web"/></svg>
+                    <span>Incorpora</span>
+                </button>
+                <button class="tool-btn" data-tool="embed-link" title="Aggiungi un link cliccabile (utile se una pagina non si lascia incorporare, es. molti video YouTube)" id="embed-link-btn">
+                    <svg viewBox="0 0 24 24"><use href="#ic-link"/></svg>
+                    <span>Link</span>
+                </button>
+                <button class="tool-btn action-btn" id="btn-capture-board" title="Cattura la lavagna come immagine (chiede il permesso di condividere lo schermo)">
+                    <svg viewBox="0 0 24 24"><use href="#ic-capture"/></svg>
+                    <span>Cattura</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="v2-tray">
+            <div class="v2-tray-title">Strumenti per la lezione</div>
+            <div class="v2-tray-tools">
+                <button class="tool-btn action-btn" id="btn-timer" title="Timer countdown / cronometro">
+                    <svg viewBox="0 0 24 24"><use href="#ic-timer"/></svg>
+                    <span>Timer</span>
+                </button>
+                <button class="tool-btn action-btn" id="btn-spotlight" title="Spotlight — evidenzia area schermo">
+                    <svg viewBox="0 0 24 24"><use href="#ic-focus"/></svg>
+                    <span>Focus</span>
+                </button>
+                <button class="tool-btn action-btn" id="btn-tendina" title="Tendina — copri e rivela la lavagna">
+                    <svg viewBox="0 0 24 24"><use href="#ic-curtain"/></svg>
+                    <span>Tendina</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== GESTIONE FILE (restyling 20/09/2026) =====
+         Scorciatoie a funzioni GIÀ ESISTENTI (Nuova/Apri libreria/Stampa/Salva) —
+         niente di nuovo dietro: ogni pulsante richiama il pulsante vero, non lo sostituisce.
+         La libreria lezioni con salvataggio automatico resta identica. -->
+    <div id="v2-file-panel" class="v2-panel popup-panel" style="display:none">
+        <button class="popup-close-btn" title="Chiudi">&times;</button>
+        <div class="popup-title">Gestione File</div>
+        <div class="v2-filenav">
+            <button id="v2-file-new"><svg viewBox="0 0 24 24"><use href="#ic-new"/></svg>Crea nuova lavagna</button>
+            <button id="v2-file-open"><svg viewBox="0 0 24 24"><use href="#ic-open"/></svg>Apri libreria lezioni</button>
+            <button id="v2-file-print"><svg viewBox="0 0 24 24"><use href="#ic-print"/></svg>Stampa / Esporta PDF</button>
+            <button id="v2-file-save"><svg viewBox="0 0 24 24"><use href="#ic-save"/></svg>Salva</button>
+        </div>
+        <div class="v2-filenote">Non tocca la libreria delle lezioni: sono scorciatoie ai pulsanti che usi già oggi.</div>
+    </div>
+
+    <!-- Popup: Strumenti geometrici -->
+    <div id="geo-popup" class="popup-panel" style="display:none">
+        <button class="popup-close-btn" title="Chiudi">&times;</button>
+        <div class="popup-title">Strumenti geometrici</div>
+        <!-- Righello e Goniometro (20/09/2026): spostati dentro il Magic Box, si veda
+             #v2-magic-panel più sotto — questo popup non viene più aperto da nessun
+             pulsante, resta inerte. -->
+    </div>
+
+    <!-- Popup: Selezione forme -->
+    <div id="shape-popup" class="popup-panel" style="display:none">
+        <button class="popup-close-btn" title="Chiudi">&times;</button>
+        <div class="popup-title">Forme</div>
+        <div class="shape-grid">
+            <button class="shape-opt active" data-shape="line" title="Linea retta">
+                <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="6" y1="34" x2="34" y2="6"/></svg>
+                <span>Linea</span>
+            </button>
+            <button class="shape-opt" data-shape="rect" title="Rettangolo">
+                <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="5" y="10" width="30" height="20" rx="2"/></svg>
+                <span>Rettangolo</span>
+            </button>
+            <button class="shape-opt" data-shape="circle" title="Cerchio/Ellisse">
+                <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.5"><ellipse cx="20" cy="20" rx="15" ry="12"/></svg>
+                <span>Ellisse</span>
+            </button>
+            <button class="shape-opt" data-shape="cerchio" title="Cerchio perfetto">
+                <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <circle cx="20" cy="20" r="15"/>
+                    <line x1="20" y1="5" x2="20" y2="35" stroke-width="1" stroke-dasharray="3 3" opacity="0.5"/>
+                </svg>
+                <span>Cerchio</span>
+            </button>
+            <button class="shape-opt" data-shape="triangle" title="Triangolo">
+                <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="20,5 35,35 5,35"/></svg>
+                <span>Triangolo</span>
+            </button>
+            <button class="shape-opt" data-shape="arrow" title="Freccia">
+                <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="6" y1="20" x2="34" y2="20"/><polyline points="24,12 34,20 24,28"/></svg>
+                <span>Freccia</span>
+            </button>
+            <button class="shape-opt" data-shape="star" title="Stella">
+                <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="20,4 24.9,14.8 37,16.2 28,25 30.2,37 20,31.3 9.8,37 12,25 3,16.2 15.1,14.8"/></svg>
+                <span>Stella</span>
+            </button>
+            <!-- Feature 3: nuove forme -->
+            <button class="shape-opt" data-shape="diamond" title="Rombo">
+                <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="20,4 36,20 20,36 4,20"/></svg>
+                <span>Rombo</span>
+            </button>
+            <button class="shape-opt" data-shape="pentagon" title="Pentagono">
+                <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="20,4 36,15 30,34 10,34 4,15"/></svg>
+                <span>Pentagono</span>
+            </button>
+            <button class="shape-opt" data-shape="hexagon" title="Esagono">
+                <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="20,3 34,11.5 34,28.5 20,37 6,28.5 6,11.5"/></svg>
+                <span>Esagono</span>
+            </button>
+            <button class="shape-opt" data-shape="arrow-right" title="Freccia destra">
+                <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="4,14 26,14 26,6 36,20 26,34 26,26 4,26"/></svg>
+                <span>Freccia piena</span>
+            </button>
+            <button class="shape-opt" data-shape="double-arrow" title="Freccia doppia">
+                <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="4,20 12,8 12,14 28,14 28,8 36,20 28,32 28,26 12,26 12,32"/></svg>
+                <span>Fr. doppia</span>
+            </button>
+            <button class="shape-opt" data-shape="speech" title="Nuvoletta">
+                <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="4" y="4" width="32" height="24" rx="4"/><polyline points="10,28 8,36 18,28"/></svg>
+                <span>Nuvoletta</span>
+            </button>
+            <button class="shape-opt" data-shape="heart" title="Cuore">
+                <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 35 C20 35 4 25 4 14 C4 8 9 4 14 4 C17 4 20 6 20 6 C20 6 23 4 26 4 C31 4 36 8 36 14 C36 25 20 35 20 35Z"/></svg>
+                <span>Cuore</span>
+            </button>
+            <button class="shape-opt" data-shape="brace" title="Parentesi graffa">
+                <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M30,4 C20,4 22,20 14,20 C22,20 20,36 30,36"/></svg>
+                <span>Parentesi</span>
+            </button>
+        </div>
+        <div class="shape-fill-row">
+            <label class="toggle-label">
+                <input type="checkbox" id="shape-fill-check">
+                <span class="toggle-slider"></span>
+                Riempimento
+            </label>
+        </div>
+    </div>
+
+    <!-- Popup: Selezione sfondo -->
+    <div id="bg-popup" class="popup-panel" style="display:none">
+        <button class="popup-close-btn" title="Chiudi">&times;</button>
+        <div class="popup-title">Sfondo</div>
+        <!-- Orientamento e colore pagina -->
+        <div class="bg-orient-row">
+            <button class="bg-orient-btn active" id="bg-orient-landscape" title="Orizzontale A4">&#8596; Orizzontale</button>
+            <button class="bg-orient-btn" id="bg-orient-portrait" title="Verticale A4">&#8597; Verticale</button>
+            <div class="bg-color-label" title="Colore pagina">
+                <span>Colore</span>
+                <button id="bg-page-color-btn" class="bg-page-color-btn" title="Scegli colore pagina">
+                    <span id="bg-page-color-swatch" class="bg-page-color-swatch" style="background:#ffffff"></span>
+                </button>
+            </div>
+        </div>
+        <div class="bg-grid">
+            <button class="bg-opt active" data-bg="white" title="Bianco"><div class="bg-preview" style="background:#fff"></div><span>Bianco</span></button>
+            <button class="bg-opt" data-bg="lines-8" title="Righe larghe (8mm)"><div class="bg-preview bg-p-lines-8"></div><span>Righe 8mm</span></button>
+            <button class="bg-opt" data-bg="lines-5" title="Righe medie (5mm)"><div class="bg-preview bg-p-lines-5"></div><span>Righe 5mm</span></button>
+            <button class="bg-opt" data-bg="lines-3" title="Righe strette (3mm)"><div class="bg-preview bg-p-lines-3"></div><span>Righe 3mm</span></button>
+            <button class="bg-opt" data-bg="grid-10" title="Quadretti 10mm"><div class="bg-preview bg-p-grid-10"></div><span>Quadr. 10mm</span></button>
+            <button class="bg-opt" data-bg="grid-5" title="Quadretti 5mm"><div class="bg-preview bg-p-grid-5"></div><span>Quadr. 5mm</span></button>
+            <button class="bg-opt" data-bg="dots" title="Puntini"><div class="bg-preview bg-p-dots"></div><span>Puntini</span></button>
+            <button class="bg-opt" data-bg="staff" title="Pentagramma"><div class="bg-preview bg-p-staff"></div><span>Penta­gramma</span></button>
+            <!-- Feature 4: Righe Primaria -->
+            <div class="bg-section-header">
+                <div class="popup-title-sub">Righe Primaria</div>
+            </div>
+            <button class="bg-opt" data-bg="lines-15-aux" title="Righe 15mm con righino — 1ª elementare"><div class="bg-preview bg-p-lines-15-aux"></div><span>1ª elem.</span></button>
+            <button class="bg-opt" data-bg="lines-12-aux" title="Righe 12mm con righino — 2ª elementare"><div class="bg-preview bg-p-lines-12-aux"></div><span>2ª elem.</span></button>
+            <button class="bg-opt" data-bg="lines-9" title="Righe 9mm — 3ª elementare"><div class="bg-preview bg-p-lines-9"></div><span>3ª elem.</span></button>
+            <button class="bg-opt" data-bg="lines-7" title="Righe 7mm — 4ª elementare"><div class="bg-preview bg-p-lines-7"></div><span>4ª elem.</span></button>
+            <button class="bg-opt" data-bg="lines-5" title="Righe 5mm — 5ª elementare / media"><div class="bg-preview bg-p-lines-5"></div><span>5ª elem.</span></button>
+        </div>
+        <!-- Sezione sfondi da Google Drive -->
+        <div id="bg-drive-section" class="bg-section" style="display:none">
+            <div class="bg-section-header">
+                <div class="popup-title-sub">Da Drive</div>
+                <button id="bg-upload-btn" class="bg-upload-btn" title="Carica un'immagine nella cartella Sfondi del Drive">+ Carica sfondo</button>
+                <input type="file" id="bg-upload-input" accept="image/*,application/pdf" style="display:none">
+            </div>
+            <div id="bg-drive-images" class="bg-drive-grid">
+                <div class="bg-drive-loading">Caricamento...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feature 2: Popup tavolozza 80 colori -->
+    <div id="color-palette-popup" class="popup-panel" style="display:none">
+        <button class="popup-close-btn" title="Chiudi">&times;</button>
+        <div class="popup-title">Scegli colore</div>
+        <div id="color-palette-grid" class="color-palette-grid"></div>
+        <div class="palette-custom-row">
+            <button id="palette-custom-btn">&#127912; Colore personalizzato</button>
+        </div>
+    </div>
+
+    <!-- Input file nascosti -->
+    <input type="file" id="file-bg-input" accept="image/*" style="display:none">
+    <input type="file" id="file-import-input" accept="image/*,application/pdf" multiple style="display:none">
+    <input type="color" id="color-picker-input" style="display:none">
+
+    <!-- Toast container -->
+    <div id="toast-container"></div>
+
+    <!-- Banner aggiornamento SW -->
+    <div id="update-banner" class="update-banner" style="display:none">
+        <span>Nuova versione disponibile!</span>
+        <button id="update-btn">Aggiorna ora</button>
+        <button id="dismiss-update" class="close-x">×</button>
+    </div>
+
+
+    <!-- Campanella foto in fullscreen — compare solo quando arrivano foto nuove -->
+    <button id="fs-photo-bell" class="exit-fs-btn fs-photo-bell-btn" title="Foto ricevute dal telefono" style="display:none">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+        </svg>
+        <span id="fs-photo-badge" class="fs-photo-badge" style="display:none"></span>
+    </button>
+
+    <!-- Pulsante exit fullscreen — semi-trasparente, solo in modalità fullscreen -->
+    <button id="btn-exit-fullscreen" class="exit-fs-btn" title="Esci dallo schermo intero (F11)" style="display:none">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+            <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/>
+        </svg>
+    </button>
+
+    <!-- Palette colori pagina — FUORI da #bg-popup, position:fixed, posizionata via JS -->
+    <div id="bg-page-color-popup" class="bg-page-color-popup" style="display:none">
+        <div class="bg-page-color-grid" id="bg-page-color-grid"></div>
+        <button class="bg-page-color-custom-btn" id="bg-page-color-custom-btn">🎨 Apri selettore colori completo</button>
+        <input type="color" id="bg-page-color" style="display:none" value="#ffffff">
+    </div>
+
+    <!-- Pannello contestuale oggetti selezionati (compatto con icone) -->
+    <div id="object-context-panel" class="ctx-panel" style="display:none">
+        <!-- Bottone ingranaggio (sempre visibile, apre/chiude la toolbar) -->
+        <button class="ctx-gear-btn" id="ctx-gear-btn" title="Opzioni selezione">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
+            </svg>
+        </button>
+        <!-- Barra icone espandibile -->
+        <div class="ctx-toolbar">
+            <!-- Ordinamento -->
+            <button class="ctx-icon-btn ctx-obj-only" data-action="bring-front" title="Porta in primo piano">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="12" height="12" rx="2" stroke-dasharray="3 2" opacity="0.5"/><rect x="9" y="9" width="12" height="12" rx="2"/></svg>
+            </button>
+            <button class="ctx-icon-btn ctx-obj-only" data-action="send-back" title="Manda indietro">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="12" height="12" rx="2"/><rect x="9" y="9" width="12" height="12" rx="2" stroke-dasharray="3 2" opacity="0.5"/></svg>
+            </button>
+            <div class="ctx-sep ctx-obj-only"></div>
+            <!-- Trasformazioni -->
+            <button class="ctx-icon-btn ctx-obj-only" data-action="flip-h" title="Specchia orizzontale">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="3" x2="12" y2="21" stroke-dasharray="2 2"/><path d="M8 8L4 12l4 4"/><path d="M16 8l4 4-4 4"/></svg>
+            </button>
+            <button class="ctx-icon-btn ctx-obj-only" data-action="flip-v" title="Specchia verticale">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12" stroke-dasharray="2 2"/><path d="M8 8l4-4 4 4"/><path d="M8 16l4 4 4-4"/></svg>
+            </button>
+            <button class="ctx-icon-btn ctx-obj-only" data-action="rot-ccw" title="Ruota -90°">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+            </button>
+            <button class="ctx-icon-btn ctx-obj-only" data-action="rot-cw" title="Ruota +90°">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg>
+            </button>
+            <button class="ctx-icon-btn ctx-obj-only" data-action="rot-180" title="Ruota 180°">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2.1l4 4-4 4"/><path d="M3 12.2v-2a4 4 0 0 1 4-4h14"/><path d="M7 21.9l-4-4 4-4"/><path d="M21 11.8v2a4 4 0 0 1-4 4H3"/></svg>
+            </button>
+            <div class="ctx-sep ctx-obj-only"></div>
+            <!-- Stile -->
+            <button class="ctx-icon-btn ctx-obj-only" data-action="border-color" title="Colore bordo">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l4-10 4 10M7.5 11h5"/><rect x="3" y="18" width="18" height="3" rx="1" fill="currentColor" stroke="none"/></svg>
+            </button>
+            <button class="ctx-icon-btn ctx-obj-only" data-action="opacity" title="Opacit&#224;">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><rect x="3" y="3" width="9" height="9" fill="currentColor" stroke="none" opacity="0.3"/><rect x="12" y="12" width="9" height="9" fill="currentColor" stroke="none" opacity="0.3"/></svg>
+            </button>
+            <div class="ctx-sep ctx-obj-only"></div>
+            <!-- Filtri -->
+            <button class="ctx-icon-btn ctx-obj-only" data-action="brightness" title="Luminosit&#224;">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+            </button>
+            <button class="ctx-icon-btn ctx-obj-only" data-action="contrast" title="Contrasto">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 000 18z" fill="currentColor" stroke="none"/></svg>
+            </button>
+            <button class="ctx-icon-btn ctx-obj-only" data-action="saturation" title="Saturazione">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2s7 7.5 7 12a7 7 0 11-14 0c0-4.5 7-12 7-12z"/></svg>
+            </button>
+            <div class="ctx-sep ctx-obj-only"></div>
+            <!-- Dimensioni -->
+            <button class="ctx-icon-btn ctx-obj-only" data-action="width" title="Larghezza">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="4" x2="4" y2="20"/><line x1="20" y1="4" x2="20" y2="20"/><path d="M4 12h16M8 8l-4 4 4 4M16 8l4 4-4 4"/></svg>
+            </button>
+            <button class="ctx-icon-btn ctx-obj-only" data-action="restore" title="Dimensioni originali">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="12" height="12" rx="1.5"/><path d="M20 10a4 4 0 10-1.5 4.5"/><path d="M20 6v4.5h-4.5"/></svg>
+            </button>
+            <div class="ctx-sep ctx-obj-only"></div>
+            <!-- Colore/riempimento tratto/forma (selezione precisa tap/lazo, anche multipla) -->
+            <button class="ctx-icon-btn ctx-stroke-only" data-action="stroke-color" title="Colore" style="display:none">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l4-10 4 10M7.5 11h5"/><rect x="3" y="18" width="18" height="3" rx="1" fill="currentColor" stroke="none"/></svg>
+            </button>
+            <button class="ctx-icon-btn ctx-stroke-only" data-action="stroke-fill" title="Riempimento" style="display:none">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 14h16"/><rect x="4.5" y="14.5" width="15" height="5" rx="1" fill="currentColor" stroke="none" opacity="0.85"/></svg>
+            </button>
+            <div class="ctx-sep ctx-stroke-only" style="display:none"></div>
+            <!-- Unisci/dividi (selezione multipla) -->
+            <button class="ctx-icon-btn ctx-stroke-only" data-action="group" title="Unisci — sposta insieme" style="display:none">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="1" width="21" height="21" rx="2.5" stroke-dasharray="3 2" opacity="0.6"/><rect x="4" y="4" width="8" height="8" rx="1.5"/><circle cx="16" cy="16" r="4"/></svg>
+            </button>
+            <button class="ctx-icon-btn ctx-stroke-only" data-action="ungroup" title="Dividi — separa di nuovo" style="display:none">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="14" width="7" height="7" rx="1.5"/><circle cx="17" cy="6" r="3.5"/></svg>
+            </button>
+            <div class="ctx-sep ctx-stroke-only" style="display:none"></div>
+            <!-- Taglia / Copia / Incolla (pixel E oggetti) -->
+            <button class="ctx-icon-btn" data-action="cut" title="Taglia (Ctrl+X)">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="20" r="2"/><circle cx="6" cy="4" r="2"/><line x1="6" y1="6" x2="6" y2="18"/><path d="M21 4L8.12 16.88M21 20L8.12 7.12"/></svg>
+            </button>
+            <button class="ctx-icon-btn" data-action="copy" title="Copia (Ctrl+C)">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+            </button>
+            <button class="ctx-icon-btn" data-action="paste" title="Incolla (Ctrl+V)">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>
+            </button>
+            <div class="ctx-sep ctx-cut-copy-sep"></div>
+            <!-- Comune a tutti -->
+            <button class="ctx-icon-btn" data-action="download" title="Scarica file" id="ctx-download-pdf" style="display:none">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 11l5 5 5-5"/><rect x="3" y="18" width="18" height="3" rx="1" fill="currentColor" stroke="none"/></svg>
+            </button>
+            <button class="ctx-icon-btn ctx-icon-btn--danger" data-action="delete" title="Elimina">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+            </button>
+        </div>
+        <!-- Popup dinamico (appare sotto la barra quando si clicca un'icona) -->
+        <div class="ctx-popup" id="ctx-popup" style="display:none"></div>
+        <!-- Campi nascosti per compatibilità con codice esistente -->
+        <input type="range" id="ctx-brightness" min="10" max="300" value="100" style="display:none">
+        <input type="range" id="ctx-contrast" min="10" max="300" value="100" style="display:none">
+        <input type="range" id="ctx-saturation" min="0" max="300" value="100" style="display:none">
+        <input type="range" id="ctx-opacity" min="10" max="100" value="100" style="display:none">
+        <input type="range" id="ctx-border-width" min="0" max="20" value="0" style="display:none">
+        <input type="color" id="ctx-border-color" value="#3b82f6" style="display:none">
+        <input type="number" id="ctx-width-input" min="10" max="5000" style="display:none">
+    </div>
+
+    <!-- Modal: selezione pagine da stampare -->
+    <div id="print-modal" class="modal-overlay" style="display:none">
+        <div class="modal-box">
+            <h3>Stampa lezione</h3>
+            <p style="font-size:0.85rem;color:var(--text-muted)">Seleziona le pagine da stampare:</p>
+
+            <label class="print-option">
+                <input type="radio" name="print-range" value="current" checked>
+                <span>Solo pagina corrente (pagina <span id="print-current-num">1</span>)</span>
+            </label>
+            <label class="print-option">
+                <input type="radio" name="print-range" value="all">
+                <span>Tutte le pagine (<span id="print-total-num">1</span> pagine)</span>
+            </label>
+            <label class="print-option">
+                <input type="radio" name="print-range" value="range">
+                <span>Seleziona pagine:
+                    <input type="text" id="print-range-input" placeholder="es. 1,3,5-7"
+                           style="margin-left:8px;width:120px;padding:2px 6px;border:1px solid var(--border);border-radius:4px;background:var(--bg-elevated);color:var(--text)">
+                </span>
+            </label>
+
+            <div class="modal-actions">
+                <button id="print-confirm-btn" class="btn-primary">Stampa</button>
+                <button id="print-cancel-btn" class="btn-secondary">Annulla</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: selezione pagine da importare da un PDF (miniature con spunte, idea di Fabio
+         14/08/2026 — meglio di un intervallo "da X a Y" perché non serve sapere in anticipo
+         cosa c'è dentro il PDF) -->
+    <div id="pdf-page-picker-modal" class="modal-overlay" style="display:none">
+        <div class="modal-box pdf-page-picker-box">
+            <h3>Importa da PDF</h3>
+            <p style="font-size:0.85rem;color:var(--text-muted)">Scegli quali pagine importare:</p>
+            <div class="pdf-page-picker-toolbar">
+                <span id="pdf-page-picker-count"></span>
+                <span class="pdf-page-picker-toolbar-btns">
+                    <button type="button" id="pdf-page-picker-all-btn" class="btn-link">Tutte</button>
+                    <button type="button" id="pdf-page-picker-none-btn" class="btn-link">Nessuna</button>
+                </span>
+            </div>
+            <div id="pdf-page-picker-grid" class="pdf-page-picker-grid"></div>
+            <div class="modal-actions">
+                <button id="pdf-page-picker-ok-btn" class="btn-primary">Importa</button>
+                <button id="pdf-page-picker-cancel-btn" class="btn-secondary">Annulla</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: conferma generica (sostituisce window.confirm — che su alcune LIM/tablet/webview
+         può bloccare l'app senza modo di chiuderlo) -->
+    <div id="confirm-modal" class="modal-overlay" style="display:none">
+        <div class="modal-box">
+            <h3 id="confirm-modal-title">Conferma</h3>
+            <p id="confirm-modal-message" style="font-size:0.9rem;color:var(--text-muted)"></p>
+            <div class="modal-actions">
+                <button id="confirm-modal-ok-btn" class="btn-primary">Conferma</button>
+                <button id="confirm-modal-cancel-btn" class="btn-secondary">Annulla</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: sposta/copia una pagina in un'altra lezione — albero di cartelle
+         identico alla libreria (non un elenco piatto): niente da caricare tutto
+         in anticipo, e navigazione familiare per Fabio. -->
+    <div id="move-page-modal" class="modal-overlay" style="display:none">
+        <div class="modal-box move-page-modal-box">
+            <h3 id="move-page-modal-title">Sposta o copia pagina</h3>
+            <div id="move-page-list" style="max-height:340px;overflow-y:auto;display:flex;flex-direction:column;gap:2px;margin-top:6px"></div>
+            <div class="modal-actions">
+                <button id="move-page-cancel-btn" class="btn-secondary">Annulla</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: nome progetto (sostituisce window.prompt, stesso rischio di blocco di confirm) -->
+    <div id="rename-modal" class="modal-overlay" style="display:none">
+        <div class="modal-box">
+            <h3 id="rename-modal-title">Nome progetto</h3>
+            <input type="text" id="rename-modal-input" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg-elevated);color:var(--text);font-size:0.9rem;margin-top:4px">
+            <div class="modal-actions">
+                <button id="rename-modal-ok-btn" class="btn-primary">Salva</button>
+                <button id="rename-modal-cancel-btn" class="btn-secondary">Annulla</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: salva prima di continuare -->
+    <div id="dirty-modal" style="display:none">
+      <div class="dirty-modal-box">
+        <p class="dirty-modal-msg">Hai modifiche non salvate.<br>Cosa vuoi fare?</p>
+        <div class="dirty-modal-btns">
+          <!-- MODIFICA 5: pulsanti extra visibili solo quando c'è un file Drive aperto -->
+          <button id="dirty-btn-overwrite" class="dirty-btn dirty-btn--primary" style="display:none">💾 Sovrascrivi</button>
+          <button id="dirty-btn-saveas" class="dirty-btn" style="display:none">📄 Salva come nuovo</button>
+          <button id="dirty-btn-save" class="dirty-btn dirty-btn--primary">💾 Salva</button>
+          <button id="dirty-btn-skip" class="dirty-btn">Continua senza salvare</button>
+          <button id="dirty-btn-cancel" class="dirty-btn dirty-btn--cancel">Annulla</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Barra basso destra: zoom e account -->
+    <div id="bottom-right-bar">
+        <!-- Pulsante zoom out -->
+        <button id="zoom-out-btn" class="bottom-bar-zoom-btn" title="Riduci zoom">−</button>
+        <!-- Display zoom (cliccabile per inserimento manuale) -->
+        <span id="zoom-display" class="bottom-bar-zoom-display" title="Clicca per impostare lo zoom">100%</span>
+        <!-- Pulsante zoom in -->
+        <button id="zoom-in-btn" class="bottom-bar-zoom-btn" title="Aumenta zoom">+</button>
+        <!-- Separatore verticale -->
+        <div class="bottom-bar-sep"></div>
+        <!-- Badge auto-save -->
+        <div class="autosave-badge" title="Salvato su Drive">✓</div>
+        <!-- Pulsante account -->
+        <div id="drive-fab" class="drive-fab bottom-account-btn" title="Connetti / disconnetti Google Drive">
+            <div id="drive-fab-inner" class="drive-fab-inner">
+                <svg id="drive-fab-icon" viewBox="0 0 24 24" width="24" height="24">
+                    <use href="#ic-user"/>
+                </svg>
+                <img id="drive-fab-photo" src="" alt="" style="display:none; width:32px; height:32px; border-radius:50%; object-fit:cover;">
+            </div>
+            <div id="drive-fab-badge" class="drive-fab-badge" style="display:none"></div>
+        </div>
+    </div>
+
+
+<!-- ===== MODAL IMPOSTAZIONI / GUIDA ===== -->
+<div id="settings-modal" class="settings-modal-overlay" style="display:none">
+    <div class="settings-modal-box">
+        <div class="settings-modal-header">
+            <div class="settings-modal-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                Impostazioni & Guida
+            </div>
+            <button class="settings-modal-close" id="settings-close">×</button>
+        </div>
+        <div class="settings-tabs">
+            <button class="settings-tab active" data-tab="preferenze">⚙️ Preferenze</button>
+            <button class="settings-tab" data-tab="info">ℹ️ Informazioni</button>
+            <button class="settings-tab" data-tab="guida">📖 Guida</button>
+            <button class="settings-tab" data-tab="contatti">💬 Contattami</button>
+            <button class="settings-tab" data-tab="novita">🆕 Novità</button>
+        </div>
+        <div class="settings-content">
+            <div class="settings-panel active" id="tab-preferenze">
+                <div class="settings-section">
+                    <div class="settings-section-title">Sfondo predefinito</div>
+                    <div class="settings-row">
+                        <span class="settings-label">All'apertura di una nuova lavagna</span>
+                        <select id="pref-default-bg" class="settings-select">
+                            <option value="white">Bianco</option>
+                            <option value="lines-8">Righe 8mm</option>
+                            <option value="lines-5">Righe 5mm</option>
+                            <option value="grid-10">Quadretti 10mm</option>
+                            <option value="grid-5">Quadretti 5mm</option>
+                            <option value="dots">Puntini</option>
+                            <optgroup id="pref-bg-personal-group" label="I tuoi sfondi personali" style="display:none"></optgroup>
+                        </select>
+                    </div>
+                </div>
+                <div class="settings-section">
+                    <div class="settings-section-title">Strumento predefinito</div>
+                    <div class="settings-row">
+                        <span class="settings-label">All'avvio dell'app</span>
+                        <select id="pref-default-tool" class="settings-select">
+                            <option value="pen">Penna</option>
+                            <option value="pencil">Matita</option>
+                            <option value="marker">Evidenziatore</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="settings-section">
+                    <div class="settings-section-title">Colore penna predefinito</div>
+                    <div class="settings-row">
+                        <span class="settings-label">Colore iniziale</span>
+                        <div class="pref-color-row" id="pref-color-row">
+                            <button class="pref-color-btn active" data-color="#000000" style="background:#000000" title="Nero"></button>
+                            <button class="pref-color-btn" data-color="#1d4ed8" style="background:#1d4ed8" title="Blu"></button>
+                            <button class="pref-color-btn" data-color="#dc2626" style="background:#dc2626" title="Rosso"></button>
+                            <button class="pref-color-btn" data-color="#16a34a" style="background:#16a34a" title="Verde"></button>
+                            <button class="pref-color-btn" data-color="#ffffff" style="background:#ffffff;border:2px solid #94a3b8" title="Bianco"></button>
+                        </div>
+                    </div>
+                </div>
+                <div class="settings-section">
+                    <div class="settings-section-title">Dimensione tratto predefinita</div>
+                    <div class="settings-row">
+                        <span class="settings-label">Dimensione iniziale</span>
+                        <div class="pref-size-row" id="pref-size-row">
+                            <button class="pref-size-btn" data-size="1" title="1"><span class="pref-size-dot" style="width:3px;height:3px"></span></button>
+                            <button class="pref-size-btn active" data-size="3" title="3"><span class="pref-size-dot" style="width:5px;height:5px"></span></button>
+                            <button class="pref-size-btn" data-size="6" title="6"><span class="pref-size-dot" style="width:8px;height:8px"></span></button>
+                            <button class="pref-size-btn" data-size="10" title="10"><span class="pref-size-dot" style="width:12px;height:12px"></span></button>
+                            <button class="pref-size-btn" data-size="16" title="16"><span class="pref-size-dot" style="width:17px;height:17px"></span></button>
+                            <button class="pref-size-btn" data-size="24" title="24"><span class="pref-size-dot" style="width:22px;height:22px"></span></button>
+                        </div>
+                    </div>
+                </div>
+                <div class="settings-actions">
+                    <button class="settings-btn-save" id="pref-save-btn">💾 Salva preferenze</button>
+                    <span class="settings-save-feedback" id="pref-save-feedback" style="display:none">✅ Salvato!</span>
+                </div>
+            </div>
+            <div class="settings-panel" id="tab-info">
+                <div class="settings-info-logo">
+                    <img src="./icon-192x192.png" alt="EduBoard" width="64" height="64" style="border-radius:14px">
+                    <div>
+                        <div class="settings-info-appname"><span style="color:#3b82f6">Edu</span>Board</div>
+                        <div class="settings-info-version" id="info-version-text">v2-088</div>
+                    </div>
+                </div>
+                <div class="settings-section">
+                    <div class="settings-info-row"><span>Sviluppatore</span><strong>EduTechLab — Rizzotto Fabio</strong></div>
+                    <div class="settings-info-row"><span>Sito</span><a href="https://edutechlab.it" target="_blank" class="settings-link">edutechlab.it</a></div>
+                    <div class="settings-info-row"><span>Privacy</span><a href="https://edutechlab.it/privacy-policy" target="_blank" class="settings-link">Privacy Policy</a></div>
+                    <div class="settings-info-row"><span>Licenza</span><span>Uso scolastico gratuito</span></div>
+                </div>
+                <div class="settings-section">
+                    <div class="settings-section-title">Tecnologie</div>
+                    <div class="settings-info-tags">
+                        <span class="settings-tag">PWA</span>
+                        <span class="settings-tag">HTML5 Canvas</span>
+                        <span class="settings-tag">Google Drive API</span>
+                        <span class="settings-tag">Service Worker</span>
+                        <span class="settings-tag">ChromeOS Flex ✓</span>
+                    </div>
+                </div>
+            </div>
+            <div class="settings-panel" id="tab-guida">
+                <!-- Contenuto generato da renderGuidaEdu() — vedi script prima di app.js -->
+            </div>
+            <div class="settings-panel" id="tab-contatti">
+                <div class="settings-section">
+                    <div class="settings-section-title">📬 Hai trovato un problema?</div>
+                    <div class="settings-guide-item">Descrivi il problema e te lo risolvo nella prossima versione.</div>
+                    <!-- Indirizzo corretto dal 14/08/2026: prima era info@edutechlab.it, casella
+                         che NON esiste — le segnalazioni inviate da qui non arrivavano a nessuno.
+                         Tolto anche il pulsante "Form sul sito": puntava a #contatti (ancora
+                         inesistente dopo il rifacimento del sito) e comunque portava al form
+                         "Richiedi una demo", che non c'entra con la segnalazione di un problema. -->
+                    <div class="settings-contact-btns">
+                        <a href="mailto:edutechlab.ita@gmail.com?subject=EduBoard%20-%20Segnalazione" class="settings-contact-btn">✉️ Scrivi una email</a>
+                    </div>
+                </div>
+                <div class="settings-section">
+                    <div class="settings-section-title">💡 Hai un'idea per migliorare EduBoard?</div>
+                    <div class="settings-guide-item">EduBoard cresce grazie ai suggerimenti dei docenti. Ogni idea è benvenuta!</div>
+                    <div class="settings-contact-btns">
+                        <a href="mailto:edutechlab.ita@gmail.com?subject=EduBoard%20-%20Suggerimento" class="settings-contact-btn settings-contact-btn--secondary">🚀 Invia un suggerimento</a>
+                    </div>
+                </div>
+            </div>
+            <div class="settings-panel" id="tab-novita">
+                <div class="settings-section">
+                    <div class="settings-changelog-item">
+                        <div class="settings-changelog-ver">v2-088 — Settembre 2026</div>
+                        <div class="settings-changelog-desc">📖 Guida: i capitoli ora sono un elenco numerato, uno sotto l'altro, invece di pillole affiancate poco leggibili</div>
+                    </div>
+                    <div class="settings-changelog-item">
+                        <div class="settings-changelog-ver">v2-087 — Settembre 2026</div>
+                        <div class="settings-changelog-desc">🎨 Nelle Impostazioni, i pallini della dimensione tratto predefinita non hanno più uno sfondo scuro che ne nascondeva la grandezza · 📖 Guida completamente riscritta: ora è a capitoli cliccabili con una casella di ricerca, e copre tutte le funzioni dell'app (incorporare pagine web, catturare la lavagna, EduConnect aggiornato...)</div>
+                    </div>
+                    <div class="settings-changelog-item">
+                        <div class="settings-changelog-ver">v2-086 — Settembre 2026</div>
+                        <div class="settings-changelog-desc">🛠️ Corretto un difetto vero: in modalità Annota il pulsante per tornare a Interagisci smetteva di rispondere ai tocchi (li intercettava la penna) — ora l'intestazione della pagina incorporata resta sempre sopra al disegno · 🔗 Tolto il pulsante Interagisci/Annota dai Link (non serviva, sono solo schede cliccabili) · ⌨️ Corretto Ctrl+V (e Ctrl+C/Ctrl+X): con lo strumento Seleziona attivo non funzionava più nei campi di testo dei modali (es. incollare un link), perché veniva scambiato per "incolla oggetto sulla lavagna"</div>
+                    </div>
+                    <div class="settings-changelog-item">
+                        <div class="settings-changelog-ver">v2-085 — Settembre 2026</div>
+                        <div class="settings-changelog-desc">🔎 Pulsanti sulle pagine incorporate ingranditi (erano troppo piccoli per toccarli con precisione) · 🔗 Nuovo pulsante "Link" per aggiungere un collegamento cliccabile, utile quando un sito rifiuta di essere incorporato · ▶️ I link YouTube vengono ora convertiti in automatico nel formato che permette l'incorporamento · 📸 La cattura schermata ora ritaglia solo l'area della lavagna, senza i margini vuoti dove stavano i menù</div>
+                    </div>
+                    <div class="settings-changelog-item">
+                        <div class="settings-changelog-ver">v2-084 — Settembre 2026</div>
+                        <div class="settings-changelog-desc">🌐 Nuovo: si possono incorporare pagine web nella lavagna (video, link, giochi interattivi) con il pulsante "Incorpora" — si trascinano, si ridimensionano e si passa tra modalità Interagisci (ci si clicca dentro) e Annota (ci si scrive sopra con la penna) · 📸 Nuovo strumento "Cattura" per fotografare la lavagna (senza i menù) e incollarla automaticamente come immagine nella lezione</div>
+                    </div>
+                    <div class="settings-changelog-item">
+                        <div class="settings-changelog-ver">v2-083 — Settembre 2026</div>
+                        <div class="settings-changelog-desc">🛠️ Corretto un difetto serio: il primo salvataggio di una lezione nuova poteva perdere le immagini/PDF importati, lasciando la pagina vuota alla riapertura · 🖊️ Aggiunta la dimensione tratto predefinita nelle Impostazioni, accanto a sfondo/strumento/colore</div>
+                    </div>
+                    <div class="settings-changelog-item">
+                        <div class="settings-changelog-ver">v2-082 — Settembre 2026</div>
+                        <div class="settings-changelog-desc">📐 Corretto per davvero l'import di più immagini insieme: restano tutte della stessa dimensione, centrate dentro l'area di stampa, senza sconfinare dal bordo. Corretta anche la dimensione delle foto ricevute dal telefono via EduConnect</div>
+                    </div>
+                    <div class="settings-changelog-item">
+                        <div class="settings-changelog-ver">v2-081 — Settembre 2026</div>
+                        <div class="settings-changelog-desc">🏷️ Importando un file in una lezione ancora "Nuova Lavagna" mai salvata, il nome della lezione diventa quello del file — come faceva OneNote. Non succede importando più file insieme, né su una lezione già nominata</div>
+                    </div>
+                    <div class="settings-changelog-item">
+                        <div class="settings-changelog-ver">v2-080 — Settembre 2026</div>
+                        <div class="settings-changelog-desc">📐 Corretto l'import di più pagine PDF o più immagini insieme: restano centrate dentro l'area di stampa, quasi sovrapposte con solo un piccolo scarto tra una e l'altra, invece di finire fuori dal foglio</div>
+                    </div>
+                    <div class="settings-changelog-item">
+                        <div class="settings-changelog-ver">v2-079 — Settembre 2026</div>
+                        <div class="settings-changelog-desc">🎨 Nelle Impostazioni, lo sfondo di default per una nuova lavagna ora può essere anche uno dei tuoi sfondi personali su Drive, non solo i pattern di serie (righe, quadretti...)</div>
+                    </div>
+                    <div class="settings-changelog-item">
+                        <div class="settings-changelog-ver">v2-078 — Settembre 2026</div>
+                        <div class="settings-changelog-desc">🖊️ La gomma non cancella più la foto di sfondo insieme ai tratti scritti sopra (utile scrivendo su una pagina di libro incollata): per cancellare un'immagine ora serve sempre selezionarla · 📐 Immagini e PDF importati entrano già ridimensionati dentro il foglio invece che a piena risoluzione: più veloce quando prepari tante lezioni di seguito · 🔄 Un aggiornamento dell'app non ricarica più la pagina se hai appena fatto una modifica non ancora salvata — entrerà alla prossima apertura</div>
+                    </div>
+                    <div class="settings-changelog-item">
+                        <div class="settings-changelog-ver">v2-077 — Settembre 2026</div>
+                        <div class="settings-changelog-desc">🖼️ Si possono importare più immagini o PDF insieme in un colpo solo (dal pulsante Importa o trascinandoli tutti insieme), invece che uno alla volta: vengono disposte leggermente sfalsate, non più impilate esattamente nello stesso punto</div>
+                    </div>
+                    <div class="settings-changelog-item">
+                        <div class="settings-changelog-ver">v2-076 — Settembre 2026</div>
+                        <div class="settings-changelog-desc">📄 Importando un PDF ora si apre un popup con le miniature di tutte le pagine e una spunta su ciascuna: scegli quali importare invece di ritrovartele tutte sul canvas. Utile con PDF lunghi — meno oggetti pesanti da spostare</div>
+                    </div>
+                    <div class="settings-changelog-item">
+                        <div class="settings-changelog-ver">v2-075 — Agosto 2026</div>
+                        <div class="settings-changelog-desc">✉️ Corretta la richiesta di assistenza in EduConnect: la mail partiva verso una casella inesistente, quindi le segnalazioni non arrivavano a nessuno</div>
+                    </div>
+                    <div class="settings-changelog-item">
+                        <div class="settings-changelog-ver">v2-074 — Agosto 2026</div>
+                        <div class="settings-changelog-desc">🚀 <strong>Spostare e ridimensionare immagini e PDF ora &egrave; fluido.</strong> Prima ogni piccolo movimento del dito faceva ridisegnare da capo tutti gli oggetti della pagina, riapplicando ogni volta i filtri di luminosit&agrave; e contrasto: con qualche pagina di PDF importata il trascinamento andava a scatti. Ora si ridisegna solo ci&ograve; che stai muovendo. Corretti anche i pulsanti di contatto nelle impostazioni, che portavano a un indirizzo email inesistente</div>
+                    </div>
+                    <div class="settings-changelog-item">
+                        <div class="settings-changelog-ver">v2-073 — Agosto 2026</div>
+                        <div class="settings-changelog-desc">🔌 L&rsquo;app non contatta più <strong>nessun sito esterno</strong> quando si apre: l&rsquo;importazione dei PDF, i caratteri di scrittura e il collegamento a Google erano scaricati da internet a ogni avvio, ora sono dentro l&rsquo;app o vengono caricati solo nel momento in cui servono davvero. Due vantaggi concreti: funziona sulle reti scolastiche che filtrano i siti esterni, anche <strong>offline</strong>, e si avvia più leggera di prima</div>
+                    </div>
+                    <div class="settings-changelog-item">
+                        <div class="settings-changelog-ver">v2-071 — Luglio 2026</div>
+                        <div class="settings-changelog-desc">🔒 Corretto un caso in cui l'avviso "modifiche non salvate" alla chiusura non compariva: se il collegamento a Drive scadeva mentre si stava disegnando con una lezione già aperta, il salvataggio automatico si fermava silenziosamente</div>
+                    </div>
+                    <div class="settings-changelog-item">
+                        <div class="settings-changelog-ver">v2-070 — Luglio 2026</div>
+                        <div class="settings-changelog-desc">👥 Corretto il cambio account: un account senza lezioni salvate ora vede subito una lavagna vuota invece del contenuto dell'account precedente</div>
+                    </div>
+                    <div class="settings-changelog-item">
+                        <div class="settings-changelog-ver">v2-069 — Luglio 2026</div>
+                        <div class="settings-changelog-desc">📱 Corretto il pulsante "Chiudi" del Timer in EduConnect: su iPhone con notch/Dynamic Island finiva nascosto sotto la fotocamera</div>
+                    </div>
+                    <div class="settings-changelog-item">
+                        <div class="settings-changelog-ver">v2-068 — Luglio 2026</div>
+                        <div class="settings-changelog-desc">🔧 Corretto un bug importante: i QR code di EduConnect puntavano sempre a produzione invece che all'ambiente in uso. Aggiunta la versione visibile nel menu account di EduConnect</div>
+                    </div>
+                    <div class="settings-changelog-item">
+                        <div class="settings-changelog-ver">v2-067 — Luglio 2026</div>
+                        <div class="settings-changelog-desc">✏️ Corretta l'anteprima dello strumento Testo: ora mostra la dimensione reale del font mentre scrivi, a qualunque livello di zoom</div>
+                    </div>
+                    <div class="settings-changelog-item">
+                        <div class="settings-changelog-ver">v2-066 — Luglio 2026</div>
+                        <div class="settings-changelog-desc">📊 L'anello attorno all'icona Drive mostra ora la percentuale reale di salvataggio. In caso di errore l'app riprova da sola più volte, e puoi toccare il pallino rosso per riprovare subito</div>
+                    </div>
+                    <div class="settings-changelog-item">
+                        <div class="settings-changelog-ver">v2-065 — Luglio 2026</div>
+                        <div class="settings-changelog-desc">🌐 Più solido con connessioni instabili: le richieste a Google Drive non restano più bloccate all'infinito, e l'aggiornamento dell'app non si ferma più se un file fatica a scaricarsi</div>
+                    </div>
+                    <div class="settings-changelog-item">
+                        <div class="settings-changelog-ver">v2-064 — Luglio 2026</div>
+                        <div class="settings-changelog-desc">🐛 Corretto "Sposta pagina": ora rimuove davvero la pagina dalla lezione di origine subito. Il picker "Sposta/copia" è più largo e si può ridimensionare trascinando l'angolo</div>
+                    </div>
+                    <div class="settings-changelog-item">
+                        <div class="settings-changelog-ver">v2-063 — Luglio 2026</div>
+                        <div class="settings-changelog-desc">📂 Il picker di "Sposta/copia pagina" ora è un vero albero di cartelle come nella libreria (prima era un elenco poco chiaro con nomi tagliati)</div>
+                    </div>
+                    <div class="settings-changelog-item">
+                        <div class="settings-changelog-ver">v2-062 — Luglio 2026</div>
+                        <div class="settings-changelog-desc">📑 Nella barra pagine ora puoi trascinare per riordinarle, e spostare/copiare una singola pagina in un'altra lezione (nuovo pulsante ⇄). In libreria, pulsante "Duplica" per copiare un'intera lezione con un tocco</div>
+                    </div>
+                    <div class="settings-changelog-item">
+                        <div class="settings-changelog-ver">v2-061 — Luglio 2026</div>
+                        <div class="settings-changelog-desc">🔴 Il Timer ridotto a icona diventa rosso lampeggiante negli ultimi 10 secondi, e rosso acceso a tempo scaduto — proprio come il quadrante normale</div>
+                    </div>
+                    <div class="settings-changelog-item">
+                        <div class="settings-changelog-ver">v2-060 — Luglio 2026</div>
+                        <div class="settings-changelog-desc">🕐 Il Timer/Cronometro ora è un vero orologio rotondo: si trascina bene anche col dito, "riduci" lo trasforma in soli numeri in sovraimpressione sulla lavagna, suono di fine più gradevole (din-don)</div>
+                    </div>
+                    <div class="settings-changelog-item">
+                        <div class="settings-changelog-ver">v2-059 — Luglio 2026</div>
+                        <div class="settings-changelog-desc">🕐 Nuovo quadrante rotondo per Timer/Cronometro: tocca sopra o sotto ai numeri per impostarli, e ora puoi metterlo a schermo intero o ridurlo a icona in alto mentre continui a scrivere</div>
+                    </div>
+                    <div class="settings-changelog-item">
+                        <div class="settings-changelog-ver">v2-058 — Luglio 2026</div>
+                        <div class="settings-changelog-desc">💾 Le modifiche appena fatte (spostamenti, ridimensionamenti) non si perdono più se ricarichi subito la pagina</div>
+                    </div>
+                    <div class="settings-changelog-item">
+                        <div class="settings-changelog-ver">v2-057 — Luglio 2026</div>
+                        <div class="settings-changelog-desc">🔔 Nuovi suoni per la notifica foto e per l'allarme del timer da telefono, più adatti alla classe</div>
+                    </div>
+                    <div class="settings-changelog-item">
+                        <div class="settings-changelog-ver">v2-055 → v2-056 — Luglio 2026</div>
+                        <div class="settings-changelog-desc">⚡ Foto e timer inviati dal telefono ora arrivano sulla lavagna all'istante, senza attese</div>
+                    </div>
+                    <div class="settings-changelog-item">
+                        <div class="settings-changelog-ver">v2-019 — Giugno 2026</div>
+                        <div class="settings-changelog-desc">🛠️ Risolto un problema grafico: il menù strumenti aperto non finisce più nascosto dietro al riquadro dello zoom su schermi più piccoli</div>
+                    </div>
+                    <div class="settings-changelog-item">
+                        <div class="settings-changelog-ver">v2-018 — Giugno 2026</div>
+                        <div class="settings-changelog-desc">🔒 Sicurezza rafforzata: i dati della connessione col telefono sono ora protetti da accessi non autorizzati</div>
+                    </div>
+                    <div class="settings-changelog-item">
+                        <div class="settings-changelog-ver">v2-011 → v2-017 — Giugno 2026</div>
+                        <div class="settings-changelog-desc">📱 EduConnect (telefono) molto più stabile: riconnessione automatica, codice LIM breve e facile da leggere, ultima lezione ritrovata anche su un'altra LIM, aggiornamenti dell'app sempre automatici</div>
+                    </div>
+                    <div class="settings-changelog-item">
+                        <div class="settings-changelog-ver">v2-001 — Giugno 2026</div>
+                        <div class="settings-changelog-desc">🚀 Nuova versione EduBoard V2: motore di disegno rinnovato (canvas più fluido e reattivo)</div>
+                    </div>
+                    <div class="settings-changelog-item">
+                        <div class="settings-changelog-ver">v106 — Maggio 2026</div>
+                        <div class="settings-changelog-desc">🔧 Fix versione nell'header, pulsante sfondo, link email Gmail</div>
+                    </div>
+                    <div class="settings-changelog-item">
+                        <div class="settings-changelog-ver">v104 — Maggio 2026</div>
+                        <div class="settings-changelog-desc">🎨 Barra basso destra con zoom e account, sfondo rapido in page bar, pannello ospite, modal connessione ridisegnato</div>
+                    </div>
+                    <div class="settings-changelog-item">
+                        <div class="settings-changelog-ver">v103 — Maggio 2026</div>
+                        <div class="settings-changelog-desc">✨ Pannello Impostazioni &amp; Guida accessibile dall'icona account</div>
+                    </div>
+                    <div class="settings-changelog-item">
+                        <div class="settings-changelog-ver">v101 — Maggio 2026</div>
+                        <div class="settings-changelog-desc">🔄 Restyle light theme completo, fix foto account, Drive 401, disconnessione automatica cambio classe</div>
+                    </div>
+                    <div class="settings-changelog-item">
+                        <div class="settings-changelog-ver">v86 — Aprile 2026</div>
+                        <div class="settings-changelog-desc">☀️ Tema chiaro, sfondi infiniti pattern, EduBoard Connect (foto + buzz dal telefono)</div>
+                    </div>
+                    <div class="settings-changelog-item">
+                        <div class="settings-changelog-ver">v63 — Aprile 2026</div>
+                        <div class="settings-changelog-desc">☁️ Backend Cloudflare Workers, foto dal telefono, una LIM per account</div>
+                    </div>
+                    <div class="settings-changelog-item">
+                        <div class="settings-changelog-ver">v44 — Marzo 2026</div>
+                        <div class="settings-changelog-desc">🛠️ Toolbar 44px, bordo A4, timer beep, Spotlight cerchio/rettangolo, Tendina</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+    <!-- Guida a capitoli con ricerca (scheda "Guida" del pannello Impostazioni).
+         Autonomo rispetto ad app.js: legge/scrive solo dentro #tab-guida, che è già
+         nel DOM sopra questo script. Aggiornare qui ad ogni nuova funzione dell'app. -->
+    <script>
+    (function(){
+        var GUIDA_EDU = [
+            {id:"disegno", ic:"✏️", t:"Strumenti di disegno", c:
+                '<div class="settings-guide-item"><strong>Penna</strong> — tratto netto e preciso, ideale per scrivere</div>' +
+                '<div class="settings-guide-item"><strong>Matita HB</strong> — tratto morbido con effetto carta</div>' +
+                '<div class="settings-guide-item"><strong>Pastello morbido</strong> — tratto ampio con bordi sfumati</div>' +
+                '<div class="settings-guide-item"><strong>Evidenziatore</strong> — semitrasparente, per sottolineare senza coprire</div>' +
+                '<div class="settings-guide-item"><strong>Gomma</strong> — due modalità: <strong>Cancella area</strong> (tocca per cancellare quello che sfiori) e <strong>Cancella tratto intero</strong> (rimuove tutto il tratto con un tocco). Non cancella le immagini importate: per quelle serve selezionarle ed eliminarle con Canc</div>' +
+                '<div class="settings-guide-item">La <strong>dimensione del tratto</strong> si sceglie dai 6 pallini nella toolbar, dal più fine al più grosso</div>'},
+
+            {id:"colori", ic:"🎨", t:"Colori e riempimento", c:
+                '<div class="settings-guide-item">Tavolozza di 10 colori pronti, più un pulsante per scegliere un <strong>colore libero</strong> qualsiasi</div>' +
+                '<div class="settings-guide-item">Su forme e tratti selezionati puoi impostare <strong>colore del bordo</strong> e <strong>colore di riempimento</strong> in modo indipendente, con uno slider per l\'intensità del riempimento — da un velo leggero a colore pieno</div>' +
+                '<div class="settings-guide-item">Colore e dimensione del tratto <strong>predefiniti</strong> per ogni nuova lavagna si scelgono in Impostazioni — vedi capitolo <em>Personalizzare l\'app</em></div>'},
+
+            {id:"forme", ic:"🔺", t:"Forme e geometria", c:
+                '<div class="settings-guide-item"><strong>Forme</strong> — linea, rettangolo, cerchio/ellisse, cerchio perfetto, triangolo, freccia (anche doppia o solo a destra), stella, rombo, pentagono, esagono, nuvoletta, cuore, parentesi graffa</div>' +
+                '<div class="settings-guide-item"><strong>Righello</strong> — trascinabile e ruotabile: il tratto scivola lungo il bordo per linee perfettamente dritte</div>' +
+                '<div class="settings-guide-item"><strong>Goniometro</strong> — trascinabile, per misurare e disegnare angoli</div>' +
+                '<div class="settings-guide-item">Selezionando più forme o tratti insieme: <strong>Unisci</strong> li fa muovere come un unico gruppo, <strong>Dividi</strong> li separa di nuovo</div>'},
+
+            {id:"selezione", ic:"✂️", t:"Selezionare, tagliare, copiare", c:
+                '<div class="settings-guide-item"><strong>Seleziona</strong> — tocca un elemento oppure traccia un lazo per prenderne più di uno insieme</div>' +
+                '<div class="settings-guide-item">Con qualcosa di selezionato compare un pannello con: porta in primo piano / manda indietro, specchia orizzontale/verticale, ruota, colore del bordo, opacità — e per le immagini anche luminosità, contrasto, saturazione e "dimensioni originali"</div>' +
+                '<div class="settings-guide-item"><strong>Taglia / Copia / Incolla</strong> — da tastiera (<kbd>Ctrl+X</kbd>/<kbd>Ctrl+C</kbd>/<kbd>Ctrl+V</kbd>) o dai pulsanti nel menu della selezione: funziona anche incollando su una pagina diversa da quella di copia</div>'},
+
+            {id:"importa", ic:"🖼️", t:"Importare immagini e PDF", c:
+                '<div class="settings-guide-item">Pulsante <strong>Importa</strong>, oppure trascina il file direttamente sulla lavagna</div>' +
+                '<div class="settings-guide-item">Puoi scegliere <strong>più file insieme</strong> (immagini e/o PDF): entrano leggermente sfalsati, mai uno esattamente sopra l\'altro</div>' +
+                '<div class="settings-guide-item">Importando un <strong>PDF</strong> si apre un popup con le miniature di ogni pagina e una spunta: scegli solo quelle che ti servono invece di ritrovartele tutte sul canvas</div>' +
+                '<div class="settings-guide-item">Le immagini entrano già adattate al foglio, mai più grandi di quanto serva</div>'},
+
+            {id:"incorpora", ic:"🌐", t:"Incorporare pagine web", c:
+                '<div class="settings-guide-item">Pulsante <strong>Incorpora</strong> — inserisce un sito, un video o un gioco interattivo come riquadro trascinabile e ridimensionabile sulla lavagna</div>' +
+                '<div class="settings-guide-item">Due modalità, dal pulsante ✏️ in alto al riquadro: <strong>Interagisci</strong> (ci clicchi/giochi dentro) e <strong>Annota</strong> (ci scrivi sopra con la penna, come su una foto ferma)</div>' +
+                '<div class="settings-guide-item">I link <strong>YouTube</strong> vengono convertiti in automatico nel formato che si lascia incorporare</div>' +
+                '<div class="settings-guide-item">Se un sito rifiuta di essere incorporato (capita spesso): pulsante <strong>Link</strong>, che apre una scheda cliccabile al posto del riquadro</div>'},
+
+            {id:"cattura", ic:"📸", t:"Catturare la lavagna", c:
+                '<div class="settings-guide-item">Pulsante <strong>Cattura</strong> — fotografa tutta la lavagna (la prima volta chiede il permesso di condividere lo schermo), ritaglia da sola i menù e incolla il risultato come immagine dentro la lezione</div>' +
+                '<div class="settings-guide-item">Utile per fissare un momento della lezione prima di continuare, o per portarsi via lo stato di un\'attività fatta con una pagina incorporata</div>'},
+
+            {id:"lezione", ic:"🎯", t:"Strumenti per la lezione", c:
+                '<div class="settings-guide-item"><strong>Timer</strong> — countdown o cronometro con quadrante rotondo: tocca sopra/sotto ai numeri per impostarlo, schermo intero o ridotto a icona</div>' +
+                '<div class="settings-guide-item"><strong>Focus (Spotlight)</strong> — scurisce lo schermo lasciando illuminata solo un\'area, per concentrare l\'attenzione</div>' +
+                '<div class="settings-guide-item"><strong>Tendina</strong> — copre la lavagna e la scopre un po\' alla volta</div>' +
+                '<div class="settings-guide-item"><strong>Puntatore laser</strong> — lascia una scia che sparisce da sola dopo pochi secondi</div>'},
+
+            {id:"econnect", ic:"📱", t:"EduConnect — collegare il telefono", c:
+                '<div class="settings-guide-item">Tocca l\'icona <strong>account</strong> in basso a destra: appare un QR da inquadrare col telefono (oppure si può accedere direttamente dal PC)</div>' +
+                '<div class="settings-guide-item">La prima volta il telefono propone di installare <strong>EduBoard Connect</strong> — una mini-app leggera, nessuno store, un tocco sola tantum</div>' +
+                '<div class="settings-guide-item">Accedi col tuo account Google <strong>una sola volta</strong>: da lì la LIM resta connessa e il telefono diventa un piccolo telecomando</div>' +
+                '<div class="settings-guide-item">Dal telefono puoi: 📷 <strong>inviare una foto</strong> direttamente sulla lavagna · ⏱️ avviare un <strong>Timer</strong> visibile sulla LIM · 🔄 <strong>cambiare account</strong> Google senza riscansionare il QR · 📱 <strong>cambiare LIM</strong> se ti sposti in un\'altra aula</div>'},
+
+            {id:"pagine", ic:"📁", t:"Pagine e lezioni", c:
+                '<div class="settings-guide-item">Ogni lezione può avere <strong>più pagine</strong>: naviga con la barra in basso, trascina una miniatura per riordinarle</div>' +
+                '<div class="settings-guide-item">Pulsante <strong>⇄</strong> su una pagina — la sposta o la copia in un\'altra lezione, scegliendo dall\'albero delle cartelle</div>' +
+                '<div class="settings-guide-item">Importando il primo file su una lezione ancora "Nuova Lavagna" mai salvata, il <strong>nome della lezione</strong> diventa quello del file — non succede importando più file insieme, né su una lezione già nominata</div>'},
+
+            {id:"libreria", ic:"📚", t:"Libreria e cartelle", c:
+                '<div class="settings-guide-item">Icona libreria (linguetta a sinistra o a destra dello schermo): mostra tutte le lezioni salvate, organizzabili in <strong>cartelle colorate</strong></div>' +
+                '<div class="settings-guide-item">Pulsante <strong>Duplica</strong> — copia un\'intera lezione con un tocco</div>' +
+                '<div class="settings-guide-item">L\'ultima lezione aperta si <strong>ritrova da sola</strong> al riavvio dell\'app, anche su un\'altra LIM se hai collegato lo stesso account</div>'},
+
+            {id:"drive", ic:"☁️", t:"Salvataggio automatico su Drive", c:
+                '<div class="settings-guide-item">Collegando il tuo account Google (icona account in basso a destra) il salvataggio diventa <strong>automatico su Drive</strong>, pochi secondi dopo l\'ultima modifica</div>' +
+                '<div class="settings-guide-item">Puoi caricare tuoi <strong>sfondi personali</strong> su Drive e sceglierli come sfondo predefinito di ogni nuova lavagna, dal pannello Sfondo</div>' +
+                '<div class="settings-guide-item">⚠️ Senza Drive collegato la lavagna resta solo nel browser di quel dispositivo: chiudendolo, il lavoro non salvato si perde — collegalo prima di una lezione importante</div>'},
+
+            {id:"stampa", ic:"🖨️", t:"Stampa e schermo intero", c:
+                '<div class="settings-guide-item">Pulsante <strong>Stampa / Salva PDF</strong> — scegli se stampare la pagina corrente, tutte le pagine, o solo un intervallo</div>' +
+                '<div class="settings-guide-item"><strong>Schermo intero</strong> (<kbd>F11</kbd>) — nasconde i menù; il nome della lezione resta visibile in un piccolo badge in alto</div>'},
+
+            {id:"tastiera", ic:"⌨️", t:"Scorciatoie da tastiera", c:
+                '<div class="settings-guide-item"><kbd>Ctrl+Z</kbd> — Annulla</div>' +
+                '<div class="settings-guide-item"><kbd>Ctrl+Y</kbd> — Ripeti</div>' +
+                '<div class="settings-guide-item"><kbd>Ctrl+S</kbd> — Salva</div>' +
+                '<div class="settings-guide-item"><kbd>Ctrl+C</kbd> / <kbd>Ctrl+X</kbd> / <kbd>Ctrl+V</kbd> — Copia / taglia / incolla ciò che hai selezionato</div>' +
+                '<div class="settings-guide-item"><kbd>F11</kbd> — Schermo intero</div>'},
+
+            {id:"preferenze", ic:"⚙️", t:"Personalizzare l\'app", c:
+                '<div class="settings-guide-item">Icona account → <strong>Impostazioni & Guida</strong> → scheda Preferenze</div>' +
+                '<div class="settings-guide-item">Si possono impostare, per ogni nuova lavagna: <strong>sfondo predefinito</strong> (anche uno dei tuoi da Drive), <strong>strumento predefinito</strong>, <strong>colore penna predefinito</strong> e <strong>dimensione tratto predefinita</strong></div>'}
+        ];
+
+        function normalizzaGuida(s){
+            return (s || "").toString().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+        }
+
+        function renderGuidaEdu(){
+            var host = document.getElementById("tab-guida");
+            if(!host || host.dataset.built) return;
+            host.dataset.built = "1";
+            host.innerHTML =
+                '<div class="guida-searchbox">' +
+                    '<span class="guida-search-icon">🔎</span>' +
+                    '<input type="search" id="guida-search-input" placeholder="Cerca nella guida — es. incorpora, timer, drive…" autocomplete="off">' +
+                    '<button type="button" class="guida-search-clear" id="guida-search-clear" title="Cancella">&times;</button>' +
+                '</div>' +
+                '<div class="guida-chips" id="guida-chips">' +
+                    GUIDA_EDU.map(function(g, i){
+                        return '<button type="button" class="guida-chip" data-gid="' + g.id + '">' +
+                            '<span class="guida-chip-num">' + (i + 1) + '.</span>' +
+                            '<span>' + g.ic + ' ' + g.t + '</span></button>';
+                    }).join("") +
+                '</div>' +
+                '<div class="settings-section" id="guida-corpo"></div>';
+
+            var capitoloAttivo = GUIDA_EDU[0].id;
+            function mostraCapitolo(id){
+                var idx = GUIDA_EDU.map(function(x){ return x.id; }).indexOf(id);
+                var g = GUIDA_EDU[idx >= 0 ? idx : 0];
+                capitoloAttivo = g.id;
+                document.getElementById("guida-corpo").innerHTML =
+                    '<div class="settings-section-title">' + (idx >= 0 ? idx + 1 : 1) + '. ' + g.ic + ' ' + g.t + '</div>' + g.c;
+                host.querySelectorAll(".guida-chip").forEach(function(b){
+                    b.classList.toggle("active", b.dataset.gid === g.id);
+                });
+            }
+
+            host.querySelectorAll(".guida-chip").forEach(function(b){
+                b.addEventListener("click", function(){ mostraCapitolo(b.dataset.gid); });
+            });
+
+            var input = host.querySelector("#guida-search-input");
+            var clearBtn = host.querySelector("#guida-search-clear");
+            var box = host.querySelector(".guida-searchbox");
+            input.addEventListener("input", function(){
+                var q = normalizzaGuida(input.value).trim();
+                box.classList.toggle("has-text", !!q);
+                var primoVisibile = null, trovate = 0;
+                GUIDA_EDU.forEach(function(g){
+                    var testo = normalizzaGuida(g.t + " " + g.c.replace(/<[^>]+>/g, " "));
+                    var ok = !q || testo.indexOf(q) >= 0;
+                    var chip = host.querySelector('[data-gid="' + g.id + '"]');
+                    if(chip) chip.style.display = ok ? "" : "none";
+                    if(ok){ trovate++; if(!primoVisibile) primoVisibile = g.id; }
+                });
+                if(!q){
+                    mostraCapitolo(capitoloAttivo);
+                } else if(primoVisibile){
+                    mostraCapitolo(primoVisibile);
+                } else {
+                    document.getElementById("guida-corpo").innerHTML =
+                        '<div class="settings-guide-item">Nessuna voce della guida parla di «' + input.value + '». Prova con una parola più semplice, oppure scrivici dalla scheda Contattami.</div>';
+                }
+            });
+            clearBtn.addEventListener("click", function(){
+                input.value = "";
+                input.dispatchEvent(new Event("input"));
+                input.focus();
+            });
+
+            mostraCapitolo(GUIDA_EDU[0].id);
+        }
+
+        if(document.readyState === "loading"){
+            document.addEventListener("DOMContentLoaded", renderGuidaEdu);
+        } else {
+            renderGuidaEdu();
+        }
+        // Ricostruisce al volo se il tab Guida viene aperto prima del DOMContentLoaded (difensivo)
+        document.addEventListener("click", function(e){
+            if(e.target.closest && e.target.closest('[data-tab="guida"]')) renderGuidaEdu();
+        });
+    })();
+    </script>
+
+    <!-- PDF.js NON è caricato qui: è una libreria da 313 KB che serve solo a chi importa
+         un PDF, mentre prima veniva scaricata da cdnjs all'avvio da chiunque aprisse la
+         lavagna, con uno script bloccante. Ora sta in locale (regola "LIBRERIE JS SEMPRE
+         LOCALI": i firewall scolastici bloccano i CDN e il SW non caches domini terzi) e
+         viene caricata su richiesta — vedi _ensurePdfJs() in app.js. -->
+    <script src="app.js"></script>
+
+    <!-- Google Identity Services: NON caricato qui.
+         Serve solo a chi collega Drive, mentre prima veniva scaricato all'avvio da
+         chiunque aprisse la lavagna — contattando Google prima di qualsiasi scelta
+         dell'utente. Ora lo carica drive.js su richiesta, vedi _ensureGis(). -->
+    <!-- QR code generator (usato da EduBoard Connect) -->
+    <script src="./qrcode.min.js"></script>
+    <!-- EduBoard Drive integration -->
+    <script src="drive.js"></script>
+    <!-- EduBoard strumenti geometrici -->
+    <script src="geometry.js"></script>
+    <!-- Restyling barra (20/09/2026) — SOLO in questa pagina di test -->
+    <script src="barra-nuova.js"></script>
+
+</body>
+</html>

@@ -3083,9 +3083,12 @@ function setupFullscreen() {
             if (btnExit) btnExit.style.display = 'flex';
             if (icon)    icon.innerHTML = '<path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/>';
             if (label)   label.textContent = 'Riduci';
-            // Modalità compatta: chiudi la toolbar automaticamente in fullscreen
-            // La linguetta (toggle) rimane visibile per riaprirla al bisogno
-            if (typeof toolbarMgr !== 'undefined' && toolbarMgr?.visible) {
+            // Modalità compatta: chiudi la toolbar automaticamente in fullscreen.
+            // La linguetta (toggle) rimane visibile per riaprirla al bisogno.
+            // ECCEZIONE (restyling barra, 20/09/2026, solo index-nuovo.html/body.v2):
+            // con la barra nuova più corta conviene tenerla sempre a portata sulla LIM,
+            // quindi lì la Presentazione NON nasconde più i comandi — decisione di Fabio.
+            if (typeof toolbarMgr !== 'undefined' && toolbarMgr?.visible && !document.body.classList.contains('v2')) {
                 toolbarMgr.hide();
             }
         } else {

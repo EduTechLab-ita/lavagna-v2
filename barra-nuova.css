@@ -1,0 +1,104 @@
+/* Restyling barra EduBoard — 20/09/2026.
+   Foglio a parte, caricato SOLO da index-nuovo.html (dopo style.css): tutte le regole
+   qui dentro sono scoped su `body.v2` così l'index.html di test (produzione futura)
+   resta invariato. Passi successivi (Magic Box, Gestione File, pannello pagine, lazo)
+   si aggiungono qui via /salva + piano in lavagna-eduboard.md. */
+
+/* ---------- STEP 2: scala 75% sulle barre, non sui pannelli/popup —
+   valore confermato da Fabio sul banco di prova (20/09/2026, provato sulla LIM). ---------- */
+body.v2 #toolbar-wrapper {
+    transform: translateX(-50%) translateY(calc(100% - 54px)) scale(.75);
+    transform-origin: bottom center;
+}
+body.v2 #toolbar-wrapper.visible {
+    transform: translateX(-50%) translateY(0) scale(.75);
+}
+body.v2 #page-bar {
+    transform: scale(.75);
+    transform-origin: bottom left;
+}
+body.v2 #bottom-right-bar {
+    transform: scale(.75);
+    transform-origin: bottom right;
+}
+
+/* Pulsante "Presentazione" iniettato da barra-nuova.js nella barra pagine —
+   stesso stile dei pulsanti icona già presenti lì (.page-bar-icon-btn). */
+body.v2 .v2-present-btn svg {
+    width: 15px;
+    height: 15px;
+}
+
+/* ---------- STEP 3: Magic Box + Gestione File —
+   pannelli nuovi, riusano .popup-panel/.popup-title/.popup-close-btn (già scuri,
+   coerenti col resto) per il guscio; qui solo il contenuto interno. Posizione e
+   apertura/chiusura gestite da barra-nuova.js (stessa formula di _togglePopup,
+   niente toccato in app.js). ---------- */
+body.v2 .v2-panel {
+    width: min(480px, calc(100vw - 32px));
+    max-height: min(64vh, 460px);
+    overflow-y: auto;
+}
+
+body.v2 .v2-tray + .v2-tray {
+    margin-top: 14px;
+}
+body.v2 .v2-tray-title {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+}
+body.v2 .v2-tray-tools {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+/* Dentro il box i pulsanti stanno in riga, non nella toolbar: niente larghezza fissa a 44px */
+body.v2 .v2-tray-tools .tool-btn,
+body.v2 .v2-tray-tools .shape-opt {
+    width: auto;
+    min-width: 64px;
+    height: auto;
+    padding: 8px 10px;
+}
+
+/* Gestione File — elenco verticale, stesso linguaggio degli altri pannelli scuri */
+body.v2 .v2-filenav {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+body.v2 .v2-filenav button {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 8px;
+    border-radius: 10px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font: inherit;
+    font-size: 13.5px;
+    color: var(--text);
+    text-align: left;
+    width: 100%;
+}
+body.v2 .v2-filenav button:hover {
+    background: var(--bg-elevated);
+}
+body.v2 .v2-filenav button svg {
+    width: 19px;
+    height: 19px;
+    flex-shrink: 0;
+}
+body.v2 .v2-filenote {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+    font-size: 12.3px;
+    line-height: 1.5;
+    color: var(--text-muted);
+}
