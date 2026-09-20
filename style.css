@@ -4306,29 +4306,43 @@ body.has-page-bar #zoom-indicator {
 .guida-searchbox.has-text .guida-search-clear { display: block; }
 .guida-chips {
     display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
+    flex-direction: column;
+    gap: 4px;
     margin-bottom: 16px;
 }
 .guida-chip {
-    background: #f1f5f9;
-    border: 1px solid transparent;
-    border-radius: 20px;
-    padding: 6px 12px;
-    font-size: 0.78rem;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 0.82rem;
     font-family: inherit;
-    color: #475569;
+    color: #334155;
     cursor: pointer;
-    white-space: nowrap;
+    text-align: left;
+    white-space: normal;
+    line-height: 1.3;
     transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
-.guida-chip:hover { background: #e2e8f0; }
+.guida-chip:hover { background: #eef2f7; }
+.guida-chip-num {
+    flex-shrink: 0;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #94a3b8;
+    min-width: 16px;
+}
 .guida-chip.active {
-    background: var(--accent-glow, rgba(59,130,246,0.2));
+    background: var(--accent-glow, rgba(59,130,246,0.15));
     border-color: var(--accent, #3b82f6);
     color: var(--accent, #3b82f6);
     font-weight: 600;
 }
+.guida-chip.active .guida-chip-num { color: var(--accent, #3b82f6); }
 
 /* Contacts tab */
 .settings-contact-btns {

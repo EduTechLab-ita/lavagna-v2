@@ -1,4 +1,4 @@
-const CACHE_NAME = 'eduboard-v2-087'; // v2-087 — Pallini dimensione tratto senza sfondo nero, Guida riscritta a capitoli con ricerca
+const CACHE_NAME = 'eduboard-v2-088'; // v2-088 — Guida: capitoli in elenco numerato invece di pillole affiancate; fetch 'reload' nell'install del SW contro cache CDN indietro
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
 const CHANGELOG  = 'EduBoard V2-083 — Corretto un difetto serio: il primo salvataggio di una lezione nuova poteva perdere le immagini/PDF importati (la pagina restava vuota alla riapertura). Aggiunta anche la dimensione tratto predefinita nelle Impostazioni.';
 
@@ -44,8 +44,12 @@ self.addEventListener('install', (event) => {
         // hotspot in montagna). Con Promise.allSettled i singoli file che falliscono
         // vengono solo saltati (verranno ritentati al prossimo aggiornamento del SW),
         // invece di far fallire in blocco tutti gli altri che erano andati a buon fine.
+        // cache: 'reload' forza un fetch pieno (bypassa la cache HTTP del browser)
+        // invece di rischiare una risposta già in cache locale — non risolve un edge
+        // CDN indietro nel momento esatto dell'installazione, ma è l'unica parte del
+        // problema che dipende da noi. Vedi episodio 20/09/2026 in lavagna-eduboard.md.
         const results = await Promise.allSettled(
-          urlsToCache.map((url) => cache.add(url))
+          urlsToCache.map((url) => cache.add(new Request(url, { cache: 'reload' })))
         );
         const failed = results
           .map((r, i) => (r.status === 'rejected' ? urlsToCache[i] : null))

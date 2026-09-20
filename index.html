@@ -26,7 +26,7 @@
                 <img src="./icon-192x192.png" alt="EduBoard" class="logo-icon">
                 <div class="logo-info">
                     <span class="logo-text"><span class="logo-edu">Edu</span><span class="logo-board">Board</span></span>
-                    <span class="logo-sub">v2-087 &nbsp;&nbsp; © EduTechLab di Rizzotto Fabio</span>
+                    <span class="logo-sub">v2-088 &nbsp;&nbsp; © EduTechLab di Rizzotto Fabio</span>
                 </div>
             </div>
             <div class="project-badge" id="project-name">Nuova Lavagna</div>
@@ -887,7 +887,7 @@
                     <img src="./icon-192x192.png" alt="EduBoard" width="64" height="64" style="border-radius:14px">
                     <div>
                         <div class="settings-info-appname"><span style="color:#3b82f6">Edu</span>Board</div>
-                        <div class="settings-info-version" id="info-version-text">v2-087</div>
+                        <div class="settings-info-version" id="info-version-text">v2-088</div>
                     </div>
                 </div>
                 <div class="settings-section">
@@ -933,6 +933,10 @@
             </div>
             <div class="settings-panel" id="tab-novita">
                 <div class="settings-section">
+                    <div class="settings-changelog-item">
+                        <div class="settings-changelog-ver">v2-088 — Settembre 2026</div>
+                        <div class="settings-changelog-desc">📖 Guida: i capitoli ora sono un elenco numerato, uno sotto l'altro, invece di pillole affiancate poco leggibili</div>
+                    </div>
                     <div class="settings-changelog-item">
                         <div class="settings-changelog-ver">v2-087 — Settembre 2026</div>
                         <div class="settings-changelog-desc">🎨 Nelle Impostazioni, i pallini della dimensione tratto predefinita non hanno più uno sfondo scuro che ne nascondeva la grandezza · 📖 Guida completamente riscritta: ora è a capitoli cliccabili con una casella di ricerca, e copre tutte le funzioni dell'app (incorporare pagine web, catturare la lavagna, EduConnect aggiornato...)</div>
@@ -1211,18 +1215,21 @@
                     '<button type="button" class="guida-search-clear" id="guida-search-clear" title="Cancella">&times;</button>' +
                 '</div>' +
                 '<div class="guida-chips" id="guida-chips">' +
-                    GUIDA_EDU.map(function(g){
-                        return '<button type="button" class="guida-chip" data-gid="' + g.id + '">' + g.ic + ' ' + g.t + '</button>';
+                    GUIDA_EDU.map(function(g, i){
+                        return '<button type="button" class="guida-chip" data-gid="' + g.id + '">' +
+                            '<span class="guida-chip-num">' + (i + 1) + '.</span>' +
+                            '<span>' + g.ic + ' ' + g.t + '</span></button>';
                     }).join("") +
                 '</div>' +
                 '<div class="settings-section" id="guida-corpo"></div>';
 
             var capitoloAttivo = GUIDA_EDU[0].id;
             function mostraCapitolo(id){
-                var g = GUIDA_EDU.filter(function(x){ return x.id === id; })[0] || GUIDA_EDU[0];
+                var idx = GUIDA_EDU.map(function(x){ return x.id; }).indexOf(id);
+                var g = GUIDA_EDU[idx >= 0 ? idx : 0];
                 capitoloAttivo = g.id;
                 document.getElementById("guida-corpo").innerHTML =
-                    '<div class="settings-section-title">' + g.ic + ' ' + g.t + '</div>' + g.c;
+                    '<div class="settings-section-title">' + (idx >= 0 ? idx + 1 : 1) + '. ' + g.ic + ' ' + g.t + '</div>' + g.c;
                 host.querySelectorAll(".guida-chip").forEach(function(b){
                     b.classList.toggle("active", b.dataset.gid === g.id);
                 });
