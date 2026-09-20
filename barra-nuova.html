@@ -91,8 +91,10 @@ body{
 .bench-head.shut #bench-toggle{position:static}
 
 /* ---------- barra principale ---------- */
+/* --ui scala SOLO le barre, non i pannelli: le barre devono occupare poco spazio
+   sulla LIM, i pannelli devono restare leggibili. Stesso criterio di myViewBoard. */
 .dock{
-  position:absolute; left:50%; bottom:16px; transform:translateX(-50%);
+  position:absolute; left:50%; bottom:16px; transform:translateX(-50%) scale(var(--ui,1)); transform-origin:bottom center;
   display:flex; align-items:center; gap:3px; padding:6px 9px;
   background:var(--bar); border:1px solid var(--bar-line); border-radius:50px;
   box-shadow:var(--shadow); z-index:30; max-width:calc(100% - 32px);
@@ -117,20 +119,56 @@ body{
 
 /* ---------- barra pagine (in basso a sinistra) ---------- */
 .pagebar{
-  position:absolute; left:16px; bottom:16px; display:flex; align-items:center; gap:2px;
+  position:absolute; left:16px; bottom:16px; transform:scale(var(--ui,1)); transform-origin:bottom left;
+  display:flex; align-items:center; gap:2px;
   padding:5px 9px; background:var(--bar); border:1px solid var(--bar-line);
   border-radius:50px; box-shadow:var(--shadow); z-index:28;
 }
 .pagebar .tb{width:38px; height:38px}
 .pagebar .tb svg{width:21px; height:21px}
 .pagechip{
-  font-size:12.5px; font-weight:600; color:var(--ink-2); padding:4px 11px;
+  font:inherit; font-size:13px; font-weight:600; color:#334155; padding:7px 14px;
   border:1px solid #e2e8f0; border-radius:999px; font-variant-numeric:tabular-nums;
+  background:#fff; cursor:pointer; transition:background .15s,border-color .15s;
 }
+.pagechip:hover{background:#f1f5f9; border-color:#cbd5e1}
+.pagechip.on{background:var(--accent-soft); border-color:var(--accent-line); color:#1d4ed8}
+
+/* pannello pagine: elenco verticale con anteprime */
+.panel-pages{width:min(330px,calc(100% - 36px))}
+.pagelist{display:flex; flex-direction:column; gap:5px}
+.pagerow{
+  display:flex; align-items:center; gap:8px; padding:7px 8px; border-radius:11px;
+  border:1px solid transparent; background:#f6f8fb;
+}
+.pagerow.current{background:var(--accent-soft); border-color:var(--accent-line)}
+.grip{color:#94a3b8; font-size:15px; cursor:grab; line-height:1; letter-spacing:-2px}
+.thumb{
+  width:56px; height:40px; border-radius:6px; background:#fff; border:1px solid #cbd5e1;
+  flex-shrink:0; overflow:hidden; display:block;
+}
+.thumb svg{width:100%; height:100%; display:block}
+.pagename{flex:1; font-size:13px; font-weight:500; color:#0f172a; min-width:0}
+.pagename em{font-style:normal; color:#64748b; font-size:11.6px}
+.rowbtn{
+  width:30px; height:30px; border:none; background:transparent; border-radius:8px;
+  cursor:pointer; color:#64748b; font-size:16px; line-height:1; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center; padding:0;
+}
+.rowbtn svg{width:19px; height:19px}
+.rowbtn:hover{background:rgba(15,23,42,.07)}
+.addpagebtn{
+  margin-top:10px; width:100%; display:flex; align-items:center; justify-content:center; gap:8px;
+  padding:10px; border-radius:11px; border:1.5px dashed #cbd5e1; background:#fff;
+  font:inherit; font-size:13px; font-weight:600; color:#475569; cursor:pointer;
+}
+.addpagebtn svg{width:19px; height:19px}
+.addpagebtn:hover{border-color:var(--accent); color:var(--accent)}
 
 /* ---------- angolo zoom + account ---------- */
 .corner{
-  position:absolute; right:16px; bottom:16px; display:flex; align-items:center; gap:2px;
+  position:absolute; right:16px; bottom:16px; transform:scale(var(--ui,1)); transform-origin:bottom right;
+  display:flex; align-items:center; gap:2px;
   padding:5px 8px; background:var(--bar); border:1px solid var(--bar-line);
   border-radius:50px; box-shadow:var(--shadow); z-index:28;
 }
@@ -300,6 +338,10 @@ body{
   color:var(--ink-2); padding:8px 6px; border-radius:8px; cursor:pointer;
 }
 .seg button.on{background:var(--card); color:var(--ink); box-shadow:var(--shadow)}
+.uirange{width:100%; accent-color:var(--accent); margin:2px 0 4px}
+.uiread{display:flex; align-items:baseline; justify-content:space-between; gap:8px}
+.uiread b{font-size:15px; color:var(--ink); font-variant-numeric:tabular-nums}
+.uiread span{font-size:12px; color:var(--ink-3); font-variant-numeric:tabular-nums}
 .ctl ul{margin:0; padding-left:17px; font-size:13.3px; line-height:1.7; color:var(--ink-2)}
 .ctl li+li{margin-top:3px}
 .ctl b{color:var(--ink)}
@@ -352,7 +394,7 @@ kbd{
   <symbol id="ic-ruler" viewBox="0 0 24 24"><rect x="1.8" y="7.6" width="20.4" height="8.8" rx="1.6" fill="#3b82f6" transform="rotate(-12 12 12)"/><g stroke="#dbeafe" stroke-width="1.3" stroke-linecap="round"><path d="M5.6 9.1v2.6M9.1 8.3v3.8M12.6 7.6v2.6M16.1 6.8v3.8M19.6 6.1v2.6"/></g></symbol>
   <symbol id="ic-protractor" viewBox="0 0 24 24"><path d="M2.6 18.2a9.4 9.4 0 0 1 18.8 0z" fill="#ffc24d"/><path d="M7.6 18.2a4.4 4.4 0 0 1 8.8 0z" fill="#fff"/><path d="M2.6 18.2h18.8" stroke="#d98e3d" stroke-width="1.5"/><g stroke="#d98e3d" stroke-width="1.1" stroke-linecap="round"><path d="M5.2 13.6l1.4 1M12 8.8v1.8M18.8 13.6l-1.4 1"/></g></symbol>
   <symbol id="ic-web" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8.2" fill="#3b82f6"/><path d="M2.8 11h16.4M11 2.8c4.4 4.6 4.4 11.8 0 16.4M11 2.8c-4.4 4.6-4.4 11.8 0 16.4" fill="none" stroke="#dbeafe" stroke-width="1.3"/><path d="M14.6 16.4l6.6 3.4-6.6 3.4z" fill="#e8763a" stroke="#fff" stroke-width="1.1" stroke-linejoin="round"/></symbol>
-  <symbol id="ic-link" viewBox="0 0 24 24"><rect x="2.6" y="4.6" width="18.8" height="14.8" rx="2.6" fill="#ffc24d"/><rect x="2.6" y="4.6" width="18.8" height="4" rx="2" fill="#e8a33d"/><path d="M9.4 14.4l1.8-1.8a2.2 2.2 0 0 1 3.1 3.1l-.9.9m-1.3-4.9l-1.8 1.8a2.2 2.2 0 0 0 3.1 3.1" fill="none" stroke="#1e3a8a" stroke-width="1.5" stroke-linecap="round"/></symbol>
+  <symbol id="ic-link" viewBox="0 0 24 24"><path d="M10 14a4.6 4.6 0 0 1 0-6.5l3.2-3.2a4.6 4.6 0 0 1 6.5 6.5l-1.7 1.7" fill="none" stroke="#3b82f6" stroke-width="2.4" stroke-linecap="round"/><path d="M14 10a4.6 4.6 0 0 1 0 6.5l-3.2 3.2a4.6 4.6 0 0 1-6.5-6.5L6 11.5" fill="none" stroke="#e8763a" stroke-width="2.4" stroke-linecap="round"/></symbol>
   <symbol id="ic-capture" viewBox="0 0 24 24"><g stroke="#3b82f6" stroke-width="1.8" stroke-linecap="round" fill="none"><path d="M2.6 7.6V4.4a1.8 1.8 0 0 1 1.8-1.8h3.2M21.4 7.6V4.4a1.8 1.8 0 0 0-1.8-1.8h-3.2M2.6 16.4v3.2a1.8 1.8 0 0 0 1.8 1.8h3.2M21.4 16.4v3.2a1.8 1.8 0 0 1-1.8 1.8h-3.2"/></g><rect x="6.4" y="8.4" width="11.2" height="7.6" rx="1.8" fill="#3b82f6"/><circle cx="12" cy="12.2" r="2.3" fill="#dbeafe"/></symbol>
   <symbol id="ic-timer" viewBox="0 0 24 24"><circle cx="12" cy="13.6" r="8" fill="#ffc24d"/><circle cx="12" cy="13.6" r="5.6" fill="#fff8e8"/><path d="M12 10.2v3.4l2.2 1.6" fill="none" stroke="#d98e3d" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><rect x="9.8" y="1.8" width="4.4" height="2.6" rx="1.1" fill="#e14434"/><rect x="11" y="4" width="2" height="2" fill="#e14434"/></symbol>
   <symbol id="ic-focus" viewBox="0 0 24 24"><rect x="2.4" y="3.6" width="19.2" height="16.8" rx="2.4" fill="#1e293b"/><circle cx="12" cy="12" r="7.4" fill="#ffe9a8" opacity=".3"/><circle cx="12" cy="12" r="4.8" fill="#ffe9a8"/></symbol>
@@ -388,17 +430,13 @@ kbd{
       <path d="M640 210h150" stroke="#f0b429" stroke-width="16" stroke-linecap="round" opacity=".55"/>
     </svg>
 
-    <!-- sfondo: pulsante staccato a sinistra, come nel riferimento -->
-    <button class="tb solo-btn" data-panel="bg" data-tip="Sfondo della pagina"><svg><use href="#ic-bg"/></svg></button>
-
     <!-- barra pagine -->
     <div class="pagebar">
       <button class="tb" id="btn-present" data-tip="Presentazione — schermo intero, i comandi restano"><svg><use href="#ic-present" id="present-use"/></svg></button>
-      <button class="tb" data-tip="Vista pagine"><svg><use href="#ic-pages"/></svg></button>
-      <button class="tb" data-tip="Sposta o copia pagina in un'altra lezione"><svg><use href="#ic-movepage"/></svg></button>
+      <button class="tb" data-panel="bg" data-tip="Sfondo della pagina"><svg><use href="#ic-bg"/></svg></button>
       <div class="sep"></div>
       <button class="tb" data-tip="Pagina precedente"><svg><use href="#ic-chevron-l"/></svg></button>
-      <span class="pagechip">2/3</span>
+      <button class="pagechip" data-panel="pages" data-tip="Tutte le pagine — riordina, elimina, sposta">2/3</button>
       <button class="tb" data-tip="Pagina successiva"><svg><use href="#ic-chevron-r"/></svg></button>
       <button class="tb" data-tip="Nuova pagina"><svg><use href="#ic-addpage"/></svg></button>
     </div>
@@ -502,6 +540,35 @@ kbd{
           <span>Colore personalizzato con HEX e contagocce</span>
         </div>
       </div>
+    </div>
+
+    <!-- PANNELLO PAGINE (si apre dal contatore 2/3) -->
+    <div class="panel panel-pages" data-for="pages">
+      <div class="panel-head"><svg><use href="#ic-pages"/></svg><h3>Pagine della lezione</h3><button class="x" data-close>&times;</button></div>
+      <div class="pagelist" id="pagelist">
+        <div class="pagerow">
+          <span class="grip" data-tip="Trascina per riordinare">⠿</span>
+          <span class="thumb"><svg viewBox="0 0 60 42"><path d="M10 26c4-8 8-8 12 0" fill="none" stroke="#1d4ed8" stroke-width="2.4" stroke-linecap="round"/><path d="M30 14h20" stroke="#0f172a" stroke-width="2.4" stroke-linecap="round"/></svg></span>
+          <span class="pagename">Pagina 1</span>
+          <button class="rowbtn" data-tip="Elimina pagina"><svg><use href="#ic-trash"/></svg></button>
+          <button class="rowbtn dots" data-tip="Copia o sposta in un'altra lezione">⋮</button>
+        </div>
+        <div class="pagerow current">
+          <span class="grip" data-tip="Trascina per riordinare">⠿</span>
+          <span class="thumb"><svg viewBox="0 0 60 42"><text x="8" y="27" font-family="Inter,sans-serif" font-size="15" font-weight="600" fill="#0f172a">3+4=</text><circle cx="48" cy="21" r="7" fill="none" stroke="#e14434" stroke-width="2.2"/></svg></span>
+          <span class="pagename">Pagina 2 <em>— sei qui</em></span>
+          <button class="rowbtn" data-tip="Elimina pagina"><svg><use href="#ic-trash"/></svg></button>
+          <button class="rowbtn dots" data-tip="Copia o sposta in un'altra lezione">⋮</button>
+        </div>
+        <div class="pagerow">
+          <span class="grip" data-tip="Trascina per riordinare">⠿</span>
+          <span class="thumb"><svg viewBox="0 0 60 42"><rect x="9" y="10" width="20" height="14" rx="2" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/><path d="M34 16h18M34 24h12" stroke="#94a3b8" stroke-width="2.2" stroke-linecap="round"/></svg></span>
+          <span class="pagename">Pagina 3</span>
+          <button class="rowbtn" data-tip="Elimina pagina"><svg><use href="#ic-trash"/></svg></button>
+          <button class="rowbtn dots" data-tip="Copia o sposta in un'altra lezione">⋮</button>
+        </div>
+      </div>
+      <button class="addpagebtn"><svg><use href="#ic-addpage"/></svg>Aggiungi una pagina</button>
     </div>
 
     <!-- PANNELLO GOMMA -->
@@ -627,6 +694,14 @@ kbd{
     </div>
 
     <div class="ctl">
+      <h2>Dimensione delle barre</h2>
+      <input type="range" id="ui-size" min="70" max="105" step="1" value="84" class="uirange">
+      <div class="uiread"><b id="ui-val">84%</b><span id="ui-touch">bersaglio 39px</span></div>
+      <p style="margin-top:7px">Muovilo <b>sulla LIM</b> finché la barra sta come vuoi, poi dimmi il numero: quello congeliamo nell'app. I pannelli non si rimpiccioliscono, restano leggibili.</p>
+      <div class="warn">Sotto i <b>32px</b> di bersaglio il dito fatica a centrare (con la penna si può scendere). Il numero che conta è quello lì sopra, non la percentuale.</div>
+    </div>
+
+    <div class="ctl">
       <h2>Dov'è la campanella</h2>
       <div class="seg" role="group" aria-label="Posizione della campanella">
         <button id="bell-a" class="on">Con l'account</button>
@@ -658,12 +733,12 @@ kbd{
 
   function closeAll(except){
     panels.forEach(function(p){ if(p !== except) p.classList.remove('open'); });
-    document.querySelectorAll('.tb[data-panel]').forEach(function(b){
+    document.querySelectorAll('[data-panel]').forEach(function(b){
       if(!except || b.getAttribute('data-panel') !== except.getAttribute('data-for')) b.classList.remove('on');
     });
   }
 
-  document.querySelectorAll('.tb[data-panel]').forEach(function(btn){
+  document.querySelectorAll('[data-panel]').forEach(function(btn){
     btn.addEventListener('click', function(e){
       e.stopPropagation();
       var name = btn.getAttribute('data-panel');
@@ -793,6 +868,21 @@ kbd{
   }
   segNew.addEventListener('click', function(){ setMode(false); });
   segOld.addEventListener('click', function(){ setMode(true); });
+
+  /* cursore dimensione barre: scala solo le barre, i pannelli restano leggibili */
+  var uiRange = document.getElementById('ui-size');
+  var uiVal = document.getElementById('ui-val'), uiTouch = document.getElementById('ui-touch');
+  function applyUi(){
+    var f = uiRange.value / 100;
+    document.documentElement.style.setProperty('--ui', f);
+    uiVal.textContent = uiRange.value + '%';
+    var px = Math.round(46 * f);
+    uiTouch.textContent = 'bersaglio ' + px + 'px';
+    uiTouch.style.color = px < 32 ? '#e14434' : '';
+    closeAll();
+  }
+  uiRange.addEventListener('input', applyUi);
+  applyUi();
 
   /* pannello note richiudibile */
   var bench = document.getElementById('bench'), benchBtn = document.getElementById('bench-toggle');
