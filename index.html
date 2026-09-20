@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>EduBoard - Lavagna Digitale</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="barra-nuova.css">
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#0f172a">
     <meta name="mobile-web-app-capable" content="yes">
@@ -17,7 +18,62 @@
     <link rel="apple-touch-icon" href="./icon-192x192.png">
     <meta name="description" content="Lavagna digitale interattiva per la scuola — EduTechLab">
 </head>
-<body>
+<body class="v2">
+
+    <!-- Sprite icone nuove (restyling barra, 20/09/2026) — inerte finché non richiamata con <use> -->
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <symbol id="ic-lasso" viewBox="0 0 24 24"><path d="M12 3.4c4.9 0 8.8 2.8 8.8 6.3 0 3.5-3.9 6.3-8.8 6.3-1.5 0-2.9-.26-4.1-.72" fill="none" stroke="#3b82f6" stroke-width="1.9" stroke-linecap="round" stroke-dasharray="3.4 2.6"/><path d="M7.9 15.28c-2.8-1.14-4.7-3.03-4.7-5.58 0-2.1 1.3-3.96 3.3-5.1" fill="none" stroke="#3b82f6" stroke-width="1.9" stroke-linecap="round" stroke-dasharray="3.4 2.6"/><path d="M7.6 15.4c.7 1.5.5 3.1-.5 4.3" fill="none" stroke="#94a3b8" stroke-width="1.7" stroke-linecap="round"/><circle cx="6.6" cy="20.6" r="1.7" fill="#ffc24d" stroke="#d98e3d" stroke-width="1"/></symbol>
+      <symbol id="ic-laser" viewBox="0 0 24 24"><rect x="2.6" y="9.4" width="10.4" height="5.2" rx="2.6" fill="#475569" transform="rotate(-14 8 12)"/><rect x="3.4" y="10.6" width="3" height="2.8" rx="1.4" fill="#94a3b8" transform="rotate(-14 8 12)"/><circle cx="14.4" cy="10.2" r="2.1" fill="#e14434"/><path d="M17.4 9.2l4.2-1.4M17.8 11.4l3.6 1M16.6 7.4l2.8-3" fill="none" stroke="#e14434" stroke-width="1.7" stroke-linecap="round"/></symbol>
+      <symbol id="ic-import" viewBox="0 0 24 24"><rect x="2.8" y="5.4" width="18.4" height="13.2" rx="2.2" fill="#eaf2ff" stroke="#3b82f6" stroke-width="1.5"/><path d="M4.4 16.8l4.4-4.8 3 3.2 2.8-2.9 4.8 5.1z" fill="#2fa36b"/><circle cx="8.2" cy="9.4" r="1.6" fill="#ffc24d"/><circle cx="18.6" cy="17.4" r="5" fill="#3b82f6"/><path d="M18.6 14.8v5.2M16.4 17.9l2.2 2.2 2.2-2.2" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="ic-bell" viewBox="0 0 24 24"><path d="M12 2.6a6.4 6.4 0 0 1 6.4 6.4v4.2l1.7 3a1 1 0 0 1-.87 1.5H4.77a1 1 0 0 1-.87-1.5l1.7-3V9A6.4 6.4 0 0 1 12 2.6z" fill="#ffc24d"/><path d="M9.5 18.4h5a2.5 2.5 0 0 1-5 0z" fill="#d98e3d"/><circle cx="18.4" cy="5.6" r="3.6" fill="#e14434"/></symbol>
+      <symbol id="ic-hand" viewBox="0 0 24 24"><path d="M7 12V6.6a1.4 1.4 0 0 1 2.8 0V11m0-.4V5.4a1.4 1.4 0 0 1 2.8 0V11m0-.6V6.2a1.4 1.4 0 0 1 2.8 0V12m0-2.2a1.4 1.4 0 0 1 2.8 0v5.3c0 3.1-2.2 5.4-5.3 5.4h-1c-2.6 0-4-1.1-5.2-3L7 14.4c-.6-1-.2-1.9.7-2.2.6-.2 1.2 0 1.6.6" fill="#ffd9a3" stroke="#d98e3d" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round"/></symbol>
+      <symbol id="ic-pen" viewBox="0 0 24 24"><path d="M9.4 2.4h5.2a1.1 1.1 0 0 1 1.1 1.1v3.1H8.3V3.5a1.1 1.1 0 0 1 1.1-1.1z" fill="#1d4ed8"/><path d="M16.4 3.9h1.5a.8.8 0 0 1 .8.8v3a.8.8 0 0 1-.8.8h-1.5z" fill="#1d4ed8"/><path d="M8.3 6.6h7.4v9.8H8.3z" fill="#cfe0fb"/><path d="M9.9 6.6h4.2v9.8H9.9z" fill="#eaf2ff"/><path d="M8.3 16.4h7.4l-2.5 3.9a1.4 1.4 0 0 1-2.4 0z" fill="#1d4ed8"/><rect x="11" y="19.6" width="2" height="2.2" rx="1" fill="#0f172a"/></symbol>
+      <symbol id="ic-pencil" viewBox="0 0 24 24"><path d="M8.6 3.6h6.8v11.2H8.6z" fill="#e8c07a"/><path d="M8.6 3.6h6.8v2.4H8.6z" fill="#f0a1a1"/><path d="M8.6 14.8h6.8L12.4 20a.5.5 0 0 1-.8 0z" fill="#f2dcb4"/><path d="M11 18.6h2l-.6 1.4a.5.5 0 0 1-.8 0z" fill="#334155"/></symbol>
+      <symbol id="ic-crayon" viewBox="0 0 24 24"><rect x="7.6" y="6.2" width="8.8" height="14.2" rx="3" fill="#f07f6a"/><rect x="7.6" y="10.4" width="8.8" height="4.2" fill="#fbe3cd"/><path d="M12 2.8c2.3 1.4 3.6 2.8 4.4 4.4H7.6C8.4 5.6 9.7 4.2 12 2.8z" fill="#d9614c"/></symbol>
+      <symbol id="ic-marker" viewBox="0 0 24 24"><rect x="7.4" y="3.4" width="9.2" height="9.4" rx="2.2" fill="#ffd93d"/><path d="M7.4 12.8h9.2v3.6H7.4z" fill="#e8b830"/><path d="M8.6 16.4h6.8v3.1a1.4 1.4 0 0 1-1.4 1.4h-4a1.4 1.4 0 0 1-1.4-1.4z" fill="#fff08a" stroke="#e8b830" stroke-width="1"/></symbol>
+      <symbol id="ic-eraser" viewBox="0 0 24 24"><path d="M12.2 2.8a2.6 2.6 0 0 1 3.7 0l5.3 5.3a2.6 2.6 0 0 1 0 3.7l-4.6 4.6-9-9z" fill="#ffc24d"/><path d="M7.6 7.4l9 9-3.9 3.9H7.2l-4.6-4.6a2.6 2.6 0 0 1 0-3.7z" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.1" stroke-linejoin="round"/></symbol>
+      <symbol id="ic-eraser-lasso" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.2" fill="none" stroke="#3b82f6" stroke-width="1.7" stroke-dasharray="3 2.6"/><path d="M12.4 7.6a1.7 1.7 0 0 1 2.4 0l2.6 2.6a1.7 1.7 0 0 1 0 2.4l-3 3h-3.6l-2.4-2.4a1.7 1.7 0 0 1 0-2.4z" fill="#ffc24d"/><path d="M10.2 10.6l4.6 4.6-1.4 1.4h-3.6l-2.4-2.4z" fill="#f8fafc" stroke="#cbd5e1" stroke-width=".8"/></symbol>
+      <symbol id="ic-eraser-stroke" viewBox="0 0 24 24"><path d="M3.4 8.6c2.6-3 5-3 7 0s4.4 3 7-.4" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round"/><path d="M12.4 13.4a1.7 1.7 0 0 1 2.4 0l2.6 2.6a1.7 1.7 0 0 1 0 2.4l-2.2 2.2h-3.6l-2.2-2.2a1.7 1.7 0 0 1 0-2.4z" fill="#ffc24d"/><path d="M10.6 16.2l4.4 4.4h-3.4l-2.2-2.2z" fill="#f8fafc" stroke="#cbd5e1" stroke-width=".8"/></symbol>
+      <symbol id="ic-trash" viewBox="0 0 24 24"><path d="M5.8 7.4h12.4l-1.1 12a2 2 0 0 1-2 1.8H8.9a2 2 0 0 1-2-1.8z" fill="#ffc24d"/><path d="M9.8 10.6v7M14.2 10.6v7" stroke="#d98e3d" stroke-width="1.5" stroke-linecap="round"/><path d="M4.4 6.4h15.2" stroke="#e14434" stroke-width="2" stroke-linecap="round"/><path d="M9.6 3.4h4.8v3h-4.8z" fill="#e14434"/></symbol>
+      <symbol id="ic-shapes" viewBox="0 0 24 24"><rect x="2.6" y="11" width="11" height="10.4" rx="2" fill="#ffc24d"/><circle cx="15.6" cy="7.8" r="5.2" fill="#3b82f6"/></symbol>
+      <symbol id="ic-text" viewBox="0 0 24 24"><path d="M4.4 4.6h15.2v3.4h-1.9V6.5h-4.3v13h2.2v1.9H8.4v-1.9h2.2v-13H6.3v1.5H4.4z" fill="#334155"/></symbol>
+      <symbol id="ic-select" viewBox="0 0 24 24"><rect x="3.2" y="3.2" width="17.6" height="17.6" rx="2.6" fill="none" stroke="#3b82f6" stroke-width="1.7" stroke-dasharray="3.2 2.8"/><path d="M10 8.4l6.6 3.9-2.9.7-.8 2.9z" fill="#fff" stroke="#1e293b" stroke-width="1.2" stroke-linejoin="round"/></symbol>
+      <symbol id="ic-bg" viewBox="0 0 24 24"><rect x="3.2" y="4.8" width="17.6" height="14.4" rx="2.6" fill="#eaf2ff" stroke="#3b82f6" stroke-width="1.6"/><circle cx="8.4" cy="9.6" r="1.8" fill="#ffc24d"/><path d="M4.6 17.6l4.6-5.2 3.2 3.4 2.8-3 4.2 4.8z" fill="#2fa36b"/></symbol>
+      <symbol id="ic-folder" viewBox="0 0 24 24"><path d="M2.8 6.6a2 2 0 0 1 2-2h4.3l2 2.4h8.1a2 2 0 0 1 2 2v2.2H2.8z" fill="#e8a33d"/><path d="M2.8 9.6h18.4v8.2a2 2 0 0 1-2 2H4.8a2 2 0 0 1-2-2z" fill="#ffc24d"/></symbol>
+      <symbol id="ic-magic" viewBox="0 0 24 24"><g transform="rotate(16 9 9)"><rect x="5.6" y="2.6" width="3.4" height="9" rx=".7" fill="#3b82f6"/><g stroke="#dbeafe" stroke-width=".9" stroke-linecap="round"><path d="M6.3 4.4h1.2M6.3 6.2h1.9M6.3 8h1.2M6.3 9.8h1.9"/></g></g><path d="M17.4 3.2l4.2 7.3h-8.4z" fill="#2fa36b"/><path d="M17.4 6.2l2.5 4.3h-5z" fill="#eafaf1"/><path d="M4.2 10.2h15.6l-1.2 8.6a2 2 0 0 1-2 1.8H7.4a2 2 0 0 1-2-1.8z" fill="#ffc24d"/><path d="M3.2 8.2h17.6v2.6H3.2z" fill="#e8a33d"/><path d="M7.4 10.2h3.4l-.8 10.4h-1.4a2 2 0 0 1-2-1.8z" fill="#f2b455"/><path d="M12.4 1l.85 2.3 2.3.85-2.3.85-.85 2.3-.85-2.3L9.25 4.15l2.3-.85z" fill="#e14434"/><path d="M20.4 4.6l.45 1.25 1.25.45-1.25.45-.45 1.25-.45-1.25L18.7 6.3l1.25-.45z" fill="#f0b429"/></symbol>
+      <symbol id="ic-undo" viewBox="0 0 24 24"><path d="M9.4 6.2L4.6 11l4.8 4.8" fill="none" stroke="#64748b" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M4.6 11h8.8a5.6 5.6 0 0 1 0 11.2H9" fill="none" stroke="#64748b" stroke-width="1.9" stroke-linecap="round"/></symbol>
+      <symbol id="ic-redo" viewBox="0 0 24 24"><path d="M14.6 6.2L19.4 11l-4.8 4.8" fill="none" stroke="#64748b" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M19.4 11h-8.8a5.6 5.6 0 0 0 0 11.2H15" fill="none" stroke="#64748b" stroke-width="1.9" stroke-linecap="round"/></symbol>
+      <symbol id="ic-ruler" viewBox="0 0 24 24"><rect x="1.8" y="7.6" width="20.4" height="8.8" rx="1.6" fill="#3b82f6" transform="rotate(-12 12 12)"/><g stroke="#dbeafe" stroke-width="1.3" stroke-linecap="round"><path d="M5.6 9.1v2.6M9.1 8.3v3.8M12.6 7.6v2.6M16.1 6.8v3.8M19.6 6.1v2.6"/></g></symbol>
+      <symbol id="ic-protractor" viewBox="0 0 24 24"><path d="M2.6 18.2a9.4 9.4 0 0 1 18.8 0z" fill="#ffc24d"/><path d="M7.6 18.2a4.4 4.4 0 0 1 8.8 0z" fill="#fff"/><path d="M2.6 18.2h18.8" stroke="#d98e3d" stroke-width="1.5"/><g stroke="#d98e3d" stroke-width="1.1" stroke-linecap="round"><path d="M5.2 13.6l1.4 1M12 8.8v1.8M18.8 13.6l-1.4 1"/></g></symbol>
+      <symbol id="ic-web" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8.2" fill="#3b82f6"/><path d="M2.8 11h16.4M11 2.8c4.4 4.6 4.4 11.8 0 16.4M11 2.8c-4.4 4.6-4.4 11.8 0 16.4" fill="none" stroke="#dbeafe" stroke-width="1.3"/><path d="M14.6 16.4l6.6 3.4-6.6 3.4z" fill="#e8763a" stroke="#fff" stroke-width="1.1" stroke-linejoin="round"/></symbol>
+      <symbol id="ic-link" viewBox="0 0 24 24"><path d="M10 14a4.6 4.6 0 0 1 0-6.5l3.2-3.2a4.6 4.6 0 0 1 6.5 6.5l-1.7 1.7" fill="none" stroke="#3b82f6" stroke-width="2.4" stroke-linecap="round"/><path d="M14 10a4.6 4.6 0 0 1 0 6.5l-3.2 3.2a4.6 4.6 0 0 1-6.5-6.5L6 11.5" fill="none" stroke="#e8763a" stroke-width="2.4" stroke-linecap="round"/></symbol>
+      <symbol id="ic-capture" viewBox="0 0 24 24"><g stroke="#3b82f6" stroke-width="1.8" stroke-linecap="round" fill="none"><path d="M2.6 7.6V4.4a1.8 1.8 0 0 1 1.8-1.8h3.2M21.4 7.6V4.4a1.8 1.8 0 0 0-1.8-1.8h-3.2M2.6 16.4v3.2a1.8 1.8 0 0 0 1.8 1.8h3.2M21.4 16.4v3.2a1.8 1.8 0 0 1-1.8 1.8h-3.2"/></g><rect x="6.4" y="8.4" width="11.2" height="7.6" rx="1.8" fill="#3b82f6"/><circle cx="12" cy="12.2" r="2.3" fill="#dbeafe"/></symbol>
+      <symbol id="ic-timer" viewBox="0 0 24 24"><circle cx="12" cy="13.6" r="8" fill="#ffc24d"/><circle cx="12" cy="13.6" r="5.6" fill="#fff8e8"/><path d="M12 10.2v3.4l2.2 1.6" fill="none" stroke="#d98e3d" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><rect x="9.8" y="1.8" width="4.4" height="2.6" rx="1.1" fill="#e14434"/><rect x="11" y="4" width="2" height="2" fill="#e14434"/></symbol>
+      <symbol id="ic-focus" viewBox="0 0 24 24"><rect x="2.4" y="3.6" width="19.2" height="16.8" rx="2.4" fill="#1e293b"/><circle cx="12" cy="12" r="7.4" fill="#ffe9a8" opacity=".3"/><circle cx="12" cy="12" r="4.8" fill="#ffe9a8"/></symbol>
+      <symbol id="ic-curtain" viewBox="0 0 24 24"><rect x="2.4" y="3.2" width="19.2" height="3" rx="1.2" fill="#475569"/><path d="M3.6 6.2h16.8v7.6H3.6z" fill="#3b82f6"/><path d="M3.6 13.8h16.8l-2.1 2.1H5.7z" fill="#1d4ed8"/><path d="M12 16.4v3.4" stroke="#475569" stroke-width="1.5" stroke-linecap="round"/><circle cx="12" cy="20.4" r="1.4" fill="#475569"/></symbol>
+      <symbol id="ic-new" viewBox="0 0 24 24"><path d="M5.4 3.4h8.4l5 5v12.2a1.8 1.8 0 0 1-1.8 1.8H5.4a1.8 1.8 0 0 1-1.8-1.8V5.2a1.8 1.8 0 0 1 1.8-1.8z" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/><path d="M12 11v6M9 14h6" stroke="#3b82f6" stroke-width="1.8" stroke-linecap="round"/></symbol>
+      <symbol id="ic-open" viewBox="0 0 24 24"><path d="M2.8 6.6a2 2 0 0 1 2-2h4.3l2 2.4h8.1a2 2 0 0 1 2 2v2.2H2.8z" fill="#e8a33d"/><path d="M2.8 9.6h18.4v8.2a2 2 0 0 1-2 2H4.8a2 2 0 0 1-2-2z" fill="#ffc24d"/></symbol>
+      <symbol id="ic-save" viewBox="0 0 24 24"><path d="M4.4 3.6h12.2l3.8 3.8v13a1.6 1.6 0 0 1-1.6 1.6H4.4a1.6 1.6 0 0 1-1.6-1.6V5.2a1.6 1.6 0 0 1 1.6-1.6z" fill="#3b82f6"/><rect x="7" y="3.6" width="8" height="6" rx=".8" fill="#dbeafe"/><rect x="6.4" y="13" width="11.2" height="6.6" rx="1" fill="#fff"/></symbol>
+      <symbol id="ic-print" viewBox="0 0 24 24"><rect x="6" y="2.8" width="12" height="5.4" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.3"/><rect x="2.8" y="8.2" width="18.4" height="8" rx="1.8" fill="#3b82f6"/><rect x="6" y="14" width="12" height="7.2" fill="#fff" stroke="#3b82f6" stroke-width="1.3"/><circle cx="18" cy="11.4" r="1.1" fill="#dbeafe"/></symbol>
+      <symbol id="ic-export" viewBox="0 0 24 24"><path d="M4.4 9.4v9.4a1.8 1.8 0 0 0 1.8 1.8h11.6a1.8 1.8 0 0 0 1.8-1.8V9.4" fill="none" stroke="#3b82f6" stroke-width="1.8" stroke-linecap="round"/><path d="M12 15V3.4M7.8 7.2L12 3l4.2 4.2" fill="none" stroke="#e8763a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="ic-drive" viewBox="0 0 24 24"><path d="M8.6 2.8h6.8l6.4 11.1h-6.8z" fill="#ffc24d"/><path d="M2.2 13.9L8.6 2.8l3.4 5.9-6.4 11.1z" fill="#2fa36b"/><path d="M5.6 19.8l3.4-5.9h12.8l-3.4 5.9z" fill="#3b82f6"/></symbol>
+      <symbol id="ic-disk" viewBox="0 0 24 24"><rect x="2.4" y="7.4" width="19.2" height="9.2" rx="2.6" fill="#cbd5e1" stroke="#64748b" stroke-width="1.3"/><circle cx="17.4" cy="12" r="1.5" fill="#475569"/><path d="M5.4 10.4h6" stroke="#64748b" stroke-width="1.4" stroke-linecap="round"/></symbol>
+      <symbol id="ic-qr" viewBox="0 0 24 24"><g fill="#334155"><rect x="3" y="3" width="7" height="7" rx="1.2"/><rect x="14" y="3" width="7" height="7" rx="1.2"/><rect x="3" y="14" width="7" height="7" rx="1.2"/></g><g fill="#fff"><rect x="5" y="5" width="3" height="3"/><rect x="16" y="5" width="3" height="3"/><rect x="5" y="16" width="3" height="3"/></g><g fill="#3b82f6"><rect x="14" y="14" width="3" height="3"/><rect x="18" y="18" width="3" height="3"/><rect x="14" y="19" width="2" height="2"/><rect x="19" y="14" width="2" height="2"/></g></symbol>
+      <symbol id="ic-chevron-l" viewBox="0 0 24 24"><path d="M14.6 5.4L8 12l6.6 6.6" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="ic-chevron-r" viewBox="0 0 24 24"><path d="M9.4 5.4L16 12l-6.6 6.6" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="ic-minus" viewBox="0 0 24 24"><path d="M5 12h14" stroke="#475569" stroke-width="2.1" stroke-linecap="round"/></symbol>
+      <symbol id="ic-plus" viewBox="0 0 24 24"><path d="M5 12h14M12 5v14" stroke="#475569" stroke-width="2.1" stroke-linecap="round"/></symbol>
+      <symbol id="ic-fit" viewBox="0 0 24 24"><g stroke="#475569" stroke-width="1.9" stroke-linecap="round" fill="none"><path d="M3.4 8.6V4.8a1.4 1.4 0 0 1 1.4-1.4h3.8M20.6 8.6V4.8a1.4 1.4 0 0 0-1.4-1.4h-3.8M3.4 15.4v3.8a1.4 1.4 0 0 0 1.4 1.4h3.8M20.6 15.4v3.8a1.4 1.4 0 0 1-1.4 1.4h-3.8"/></g><rect x="8" y="8" width="8" height="8" rx="1.4" fill="#cbd5e1"/></symbol>
+      <symbol id="ic-user" viewBox="0 0 24 24"><circle cx="12" cy="8.4" r="4.2" fill="#64748b"/><path d="M3.8 21.2a8.2 8.2 0 0 1 16.4 0z" fill="#64748b"/></symbol>
+      <symbol id="ic-youtube" viewBox="0 0 24 24"><rect x="1.6" y="4.8" width="20.8" height="14.4" rx="4.2" fill="#e14434"/><path d="M10 8.9l6 3.1-6 3.1z" fill="#fff"/></symbol>
+      <symbol id="ic-movepage" viewBox="0 0 24 24"><path d="M3.4 9.4h13m0 0l-3.4-3.4M16.4 9.4L13 12.8" fill="none" stroke="#3b82f6" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M20.6 14.6h-13m0 0l3.4-3.4M7.6 14.6L11 18" fill="none" stroke="#94a3b8" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="ic-pages" viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="1.4" fill="#3b82f6"/><rect x="13" y="3" width="8" height="8" rx="1.4" fill="#93c5fd"/><rect x="3" y="13" width="8" height="8" rx="1.4" fill="#93c5fd"/><rect x="13" y="13" width="8" height="8" rx="1.4" fill="#3b82f6"/></symbol>
+      <symbol id="ic-addpage" viewBox="0 0 24 24"><rect x="3.4" y="3.4" width="17.2" height="17.2" rx="2.6" fill="none" stroke="#475569" stroke-width="1.7"/><path d="M12 8.4v7.2M8.4 12h7.2" stroke="#475569" stroke-width="1.9" stroke-linecap="round"/></symbol>
+      <symbol id="ic-present" viewBox="0 0 24 24"><rect x="2.4" y="3.2" width="19.2" height="12.8" rx="1.8" fill="#e8763a"/><rect x="4.4" y="5.2" width="15.2" height="8.8" rx="1" fill="#fff3e6"/><path d="M10.4 7.4l4.6 2.6-4.6 2.6z" fill="#e8763a"/><path d="M12 16v3.2M8 21.2l4-2 4 2" fill="none" stroke="#475569" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="ic-present-on" viewBox="0 0 24 24"><rect x="2.4" y="3.2" width="19.2" height="12.8" rx="1.8" fill="#3b82f6"/><rect x="4.4" y="5.2" width="15.2" height="8.8" rx="1" fill="#eaf2ff"/><path d="M10.4 7.4l4.6 2.6-4.6 2.6z" fill="#3b82f6"/><path d="M12 16v3.2M8 21.2l4-2 4 2" fill="none" stroke="#3b82f6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    </defs>
+    </svg>
 
     <!-- Header -->
     <header id="app-header">
@@ -32,16 +88,14 @@
             <div class="project-badge" id="project-name">Nuova Lavagna</div>
         </div>
         <div class="header-right">
-            <button class="hdr-btn" id="btn-install-pwa" title="Installa EduBoard su questo PC" style="display:none">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><polyline points="8 21 12 17 16 21"/><line x1="12" y1="17" x2="12" y2="3"/><polyline points="9 7 12 4 15 7"/></svg>
-                <span>Installa</span>
-            </button>
+            <!-- btn-install-pwa (20/09/2026): spostato dentro il Magic Box, vedi #v2-magic-panel —
+                 stesso pulsante reale, non un duplicato: qui non c'è più nulla. -->
             <button class="hdr-btn" id="btn-new-board-header" title="Nuova Lavagna">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
+                <svg viewBox="0 0 24 24"><use href="#ic-new"/></svg>
                 <span>Nuova</span>
             </button>
             <button class="hdr-btn" id="btn-export" title="Stampa / Salva PDF (come OneNote)">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                <svg viewBox="0 0 24 24"><use href="#ic-print"/></svg>
                 <span>Stampa</span>
             </button>
             <!-- Feature 5: Fullscreen -->
@@ -51,13 +105,8 @@
                 </svg>
                 <span id="fullscreen-label">Espandi</span>
             </button>
-            <!-- Campanella notifiche foto -->
-            <div id="photo-bell-wrap" style="position:relative;display:inline-flex;align-items:center;">
-                <button id="photo-bell-btn" class="photo-bell-btn" title="Foto ricevute dal telefono" style="display:none">
-                    🔔
-                </button>
-                <span id="photo-bell-badge" class="photo-bell-badge" style="display:none">0</span>
-            </div>
+            <!-- photo-bell-wrap (20/09/2026): spostata in #bottom-right-bar, accanto
+                 all'account — vedi decisione nel banco. Stesso nodo, non un duplicato. -->
             <!-- Stato Drive testuale -->
             <div id="drive-status-header" class="drive-status-header">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" id="drive-status-icon" style="display:none">
@@ -66,7 +115,7 @@
                 <span id="drive-status-text">Non connesso</span>
             </div>
             <button class="hdr-btn hdr-btn--primary" id="btn-save" title="Salva la lavagna nel browser (localmente). Se Drive è connesso, salva anche sul tuo Google Drive.">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                <svg viewBox="0 0 24 24"><use href="#ic-save"/></svg>
                 <span>Salva</span>
             </button>
         </div>
@@ -138,24 +187,24 @@
             <div id="quick-strip">
                 <!-- Icona dinamica: cambia in base all'ultimo strumento di scrittura usato -->
                 <button class="tool-btn qab-btn active" id="qab-writing-tool" data-tool="pen" title="Penna">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                    <svg viewBox="0 0 24 24"><use href="#ic-pen"/></svg>
                 </button>
                 <button class="tool-btn qab-btn" data-tool="eraser" title="Gomma">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 20H7L3 16l10-10 7 7-3.5 3.5"/><path d="M6 20L18 8"/></svg>
+                    <svg viewBox="0 0 24 24"><use href="#ic-eraser"/></svg>
                 </button>
                 <div class="qab-sep"></div>
                 <button class="qab-btn" id="qab-undo" title="Annulla (Ctrl+Z)">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="22" height="22"><path d="M3 7v6h6"/><path d="M3 13A9 9 0 1 0 5.17 7"/></svg>
+                    <svg viewBox="0 0 24 24" width="22" height="22"><use href="#ic-undo"/></svg>
                 </button>
                 <button class="qab-btn" id="qab-redo" title="Ripristina (Ctrl+Y)">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="22" height="22"><path d="M21 7v6h-6"/><path d="M21 13a9 9 0 1 1-2.17-6"/></svg>
+                    <svg viewBox="0 0 24 24" width="22" height="22"><use href="#ic-redo"/></svg>
                 </button>
                 <div class="qab-sep"></div>
                 <button class="tool-btn qab-btn" data-tool="pan" title="Mano — sposta la lavagna">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0M6 14a2 2 0 0 0-2 2V16a8 8 0 0 0 8 8h2A8 8 0 0 0 22 16v-5"/></svg>
+                    <svg viewBox="0 0 24 24"><use href="#ic-hand"/></svg>
                 </button>
                 <button class="tool-btn qab-btn" data-tool="select" title="Seleziona oggetti">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 3l14 9-7 1-4 7z"/></svg>
+                    <svg viewBox="0 0 24 24"><use href="#ic-lasso"/></svg>
                 </button>
             </div>
             <!-- Toggle — sempre visibile, fuori dal quick strip -->
@@ -210,6 +259,13 @@
                         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12 C6 6 10 6 12 12 C14 18 18 18 21 12"/><line x1="18" y1="6" x2="22" y2="10"/><line x1="22" y1="6" x2="18" y2="10"/></svg>
                         Tratto
                     </button>
+                    <!-- Gomma di selezione (lazo), 20/09/2026: cerchia a mano libera e
+                         cancella solo ciò che sta dentro. app.js la collega da solo
+                         (_setupEraserMode legge data-mode da qualunque .eraser-mode-btn). -->
+                    <button class="eraser-mode-btn" data-mode="lasso" title="Gomma di selezione — cerchia e cancella">
+                        <svg viewBox="0 0 24 24"><use href="#ic-eraser-lasso"/></svg>
+                        Lazo
+                    </button>
                 </div>
             </div>
                 <!-- Freccia chiudi toolbar — affiancata alle opzioni, stessa estetica del ^ per aprire -->
@@ -223,119 +279,66 @@
             <!-- Riga strumenti principali -->
             <div class="toolbar-row main-row">
 
-                <!-- Gruppo 1: Penne -->
+                <!-- Gruppo A: Seleziona / Mano (restyling 20/09/2026 — stesso ordine del banco) -->
                 <div class="tool-group">
-                    <button class="tool-btn active" data-tool="pen" title="Penna">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-                        <span>Penna</span>
-                    </button>
-                    <button class="tool-btn" data-tool="pencil" title="Matita HB">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
-                        <span>Matita</span>
-                    </button>
-                    <button class="tool-btn" data-tool="pastel" title="Pastello morbido">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9.06 11.9l8.07-8.06a2.85 2.85 0 1 1 4.03 4.03l-8.06 8.08"/><path d="M7.07 14.94c-1.66 0-3 1.35-3 3.02 0 1.33-2.5 1.52-2 2.02 1.08 1.1 2.49 2.02 4 2.02 2.2 0 4-1.8 4-4.04a3.01 3.01 0 0 0-3-3.02z"/></svg>
-                        <span>Pastello</span>
-                    </button>
-                    <button class="tool-btn" data-tool="marker" title="Evidenziatore">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="8" width="18" height="8" rx="3"/><path d="M21 12H3"/></svg>
-                        <span>Evidenz.</span>
-                    </button>
-                    <button class="tool-btn" data-tool="eraser" title="Gomma">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 20H7L3 16l10-10 7 7-3.5 3.5"/><path d="M6.0001 20L18 8"/></svg>
-                        <span>Gomma</span>
-                    </button>
-                </div>
-
-                <div class="tool-separator"></div>
-
-                <!-- Gruppo 2: Speciali -->
-                <div class="tool-group">
-                    <button class="tool-btn" data-tool="laser" title="Puntatore laser">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3" fill="currentColor"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg>
-                        <span>Laser</span>
-                    </button>
-                    <button class="tool-btn" data-tool="text" title="Testo">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
-                        <span>Testo</span>
-                    </button>
-                    <button class="tool-btn" data-tool="shape" title="Forme" id="shape-tool-btn">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><circle cx="17.5" cy="6.5" r="3.5"/><polygon points="12 14 20 22 4 22"/></svg>
-                        <span>Forme</span>
-                    </button>
-                    <button class="tool-btn" data-tool="geo" title="Strumenti geometrici" id="geo-tool-btn">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="12" y1="2" x2="7" y2="20"/><line x1="12" y1="2" x2="17" y2="20"/><line x1="8.5" y1="12" x2="15.5" y2="12"/><circle cx="12" cy="2" r="1.5" fill="currentColor"/></svg>
-                        <span>Geometria</span>
-                    </button>
                     <button class="tool-btn" data-tool="select" title="Seleziona e sposta oggetti" id="select-tool-btn">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                            <path d="M5 3l14 9-7 1-4 7z"/>
-                        </svg>
+                        <svg viewBox="0 0 24 24"><use href="#ic-lasso"/></svg>
                         <span>Seleziona</span>
                     </button>
                     <button class="tool-btn" data-tool="pan" title="Mano — sposta la lavagna">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0M6 14a2 2 0 0 0-2 2V16a8 8 0 0 0 8 8h2A8 8 0 0 0 22 16v-5"/>
-                      </svg>
-                      <span>Mano</span>
+                        <svg viewBox="0 0 24 24"><use href="#ic-hand"/></svg>
+                        <span>Mano</span>
                     </button>
                 </div>
 
                 <div class="tool-separator"></div>
 
-                <!-- Gruppo 3: Sfondo + Azioni -->
+                <!-- Gruppo B: Penna (pannello con Penna/Matita/Pastello/Evidenz./Laser) / Gomma / Forme / Testo -->
                 <div class="tool-group">
-                    <button class="tool-btn" data-tool="background" title="Sfondo" id="bg-tool-btn">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>
+                    <button class="tool-btn active" id="v2-pen-btn" title="Penna, matita, pastello, evidenziatore, laser">
+                        <svg viewBox="0 0 24 24"><use href="#ic-pen" id="v2-pen-trigger-use"/></svg>
+                        <span>Penna</span>
+                    </button>
+                    <button class="tool-btn" data-tool="eraser" title="Gomma">
+                        <svg viewBox="0 0 24 24"><use href="#ic-eraser"/></svg>
+                        <span>Gomma</span>
+                    </button>
+                    <button class="tool-btn" data-tool="shape" title="Forme" id="shape-tool-btn">
+                        <svg viewBox="0 0 24 24"><use href="#ic-shapes"/></svg>
+                        <span>Forme</span>
+                    </button>
+                    <button class="tool-btn" data-tool="text" title="Testo">
+                        <svg viewBox="0 0 24 24"><use href="#ic-text"/></svg>
+                        <span>Testo</span>
+                    </button>
+                </div>
+
+                <div class="tool-separator"></div>
+
+                <!-- Gruppo C: Importa / Nuova / Gestione File / Magic Box — Sfondo nascosto (resta
+                     SOLO in barra pagine, questo nodo serve solo da bersaglio al proxy di là) -->
+                <div class="tool-group">
+                    <button class="tool-btn" data-tool="background" title="Sfondo" id="bg-tool-btn" style="display:none">
+                        <svg viewBox="0 0 24 24"><use href="#ic-bg"/></svg>
                         <span>Sfondo</span>
                     </button>
                     <button class="tool-btn" data-tool="import-media" title="Importa immagine o PDF nella lavagna" id="import-media-btn">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                            <rect x="3" y="3" width="18" height="18" rx="2"/>
-                            <path d="M3 9l4-4 4 4"/>
-                            <path d="M7 5v10"/>
-                            <circle cx="17" cy="9" r="2.5"/>
-                            <path d="M21 15l-3.5-3.5L14 15"/>
+                        <svg viewBox="0 0 24 24">
+                            <use href="#ic-import"/>
                         </svg>
                         <span>Importa</span>
                     </button>
-                    <button class="tool-btn" data-tool="embed-web" title="Incorpora una pagina web (video, giochi interattivi) dentro alla lavagna" id="embed-web-btn">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                            <circle cx="12" cy="12" r="9"/>
-                            <path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>
-                        </svg>
-                        <span>Incorpora</span>
+                    <button class="tool-btn" id="v2-new-board-btn" title="Crea una nuova lavagna">
+                        <svg viewBox="0 0 24 24"><use href="#ic-new"/></svg>
+                        <span>Nuova</span>
                     </button>
-                    <button class="tool-btn" data-tool="embed-link" title="Aggiungi un link cliccabile (utile se una pagina non si lascia incorporare, es. molti video YouTube)" id="embed-link-btn">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                            <path d="M9.5 14.5l5-5M8 15.5l-1.5 1.5a3.2 3.2 0 0 1-4.5-4.5L5.5 9M16 8.5L17.5 7a3.2 3.2 0 0 1 4.5 4.5L18.5 15"/>
-                        </svg>
-                        <span>Link</span>
+                    <button class="tool-btn" id="v2-file-btn" title="Gestione File — apri, salva, stampa">
+                        <svg viewBox="0 0 24 24"><use href="#ic-folder"/></svg>
+                        <span>File</span>
                     </button>
-                    <button class="tool-btn action-btn" id="btn-capture-board" title="Cattura la lavagna come immagine (chiede il permesso di condividere lo schermo)">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                            <path d="M4 8V6a2 2 0 0 1 2-2h2M4 16v2a2 2 0 0 0 2 2h2M20 8V6a2 2 0 0 0-2-2h-2M20 16v2a2 2 0 0 1-2 2h-2"/>
-                            <circle cx="12" cy="12" r="3.2"/>
-                        </svg>
-                        <span>Cattura</span>
-                    </button>
-                </div>
-
-                <div class="tool-separator"></div>
-
-                <!-- Gruppo 3b: Didattica -->
-                <div class="tool-group">
-                    <button class="tool-btn action-btn" id="btn-timer" title="Timer countdown / cronometro">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 3"/><path d="M9.5 2.5h5M12 2.5v3"/></svg>
-                        <span>Timer</span>
-                    </button>
-                    <button class="tool-btn action-btn" id="btn-spotlight" title="Spotlight — evidenzia area schermo">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
-                        <span>Focus</span>
-                    </button>
-                    <button class="tool-btn action-btn" id="btn-tendina" title="Tendina — copri e rivela la lavagna">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="2" width="20" height="10" rx="1" fill="currentColor" opacity="0.4"/><rect x="2" y="2" width="20" height="20" rx="1"/><line x1="2" y1="12" x2="22" y2="12" stroke-dasharray="3,2"/><path d="M8 15l4 4 4-4"/></svg>
-                        <span>Tendina</span>
+                    <button class="tool-btn" id="v2-magic-btn" title="Magic Box — righello, goniometro, web e altro">
+                        <svg viewBox="0 0 24 24"><use href="#ic-magic"/></svg>
+                        <span>Magic Box</span>
                     </button>
                 </div>
 
@@ -344,15 +347,15 @@
                 <!-- Gruppo 4: Undo/Redo/Cancella -->
                 <div class="tool-group">
                     <button class="tool-btn action-btn" id="btn-undo" title="Annulla (Ctrl+Z)">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7v6h6"/><path d="M3 13A9 9 0 1 0 5.17 7"/></svg>
+                        <svg viewBox="0 0 24 24"><use href="#ic-undo"/></svg>
                         <span>Annulla</span>
                     </button>
                     <button class="tool-btn action-btn" id="btn-redo" title="Ripeti (Ctrl+Y)">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 7v6h-6"/><path d="M21 13A9 9 0 1 1 18.83 7"/></svg>
+                        <svg viewBox="0 0 24 24"><use href="#ic-redo"/></svg>
                         <span>Ripeti</span>
                     </button>
                     <button class="tool-btn action-btn danger-btn" id="btn-clear" title="Cancella tutto">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                        <svg viewBox="0 0 24 24"><use href="#ic-trash"/></svg>
                         <span>Cancella</span>
                     </button>
                 </div>
@@ -362,34 +365,219 @@
         </div><!-- end floating-toolbar -->
     </div><!-- end toolbar-wrapper -->
 
+    <!-- ===== PANNELLO PENNA (restyling 20/09/2026) =====
+         Consolida in un solo pulsante di barra (#v2-pen-btn) i 5 strumenti di scrittura,
+         come nel banco. I pulsanti dentro sono gli STESSI di sempre (stesso id/data-tool),
+         solo spostati qui dal main-row — nessuna funzione riscritta. -->
+    <div id="v2-pen-panel" class="v2-panel popup-panel">
+        <button class="popup-close-btn" title="Chiudi">&times;</button>
+        <div class="v2-panel-head">
+            <svg viewBox="0 0 24 24"><use href="#ic-pen"/></svg>
+            <div class="popup-title">Strumenti di scrittura</div>
+        </div>
+        <div class="v2-trayv">
+            <div class="v2-trayv-title">Tipo di tratto</div>
+            <div class="v2-row">
+                <button class="tool-btn active" data-tool="pen" title="Penna">
+                    <svg viewBox="0 0 24 24"><use href="#ic-pen"/></svg>
+                    <span>Penna</span>
+                </button>
+                <button class="tool-btn" data-tool="pencil" title="Matita HB">
+                    <svg viewBox="0 0 24 24"><use href="#ic-pencil"/></svg>
+                    <span>Matita</span>
+                </button>
+                <button class="tool-btn" data-tool="pastel" title="Pastello morbido">
+                    <svg viewBox="0 0 24 24"><use href="#ic-crayon"/></svg>
+                    <span>Pastello</span>
+                </button>
+                <button class="tool-btn" data-tool="marker" title="Evidenziatore">
+                    <svg viewBox="0 0 24 24"><use href="#ic-marker"/></svg>
+                    <span>Evidenz.</span>
+                </button>
+                <button class="tool-btn" data-tool="laser" title="Puntatore laser">
+                    <svg viewBox="0 0 24 24"><use href="#ic-laser"/></svg>
+                    <span>Laser</span>
+                </button>
+            </div>
+        </div>
+        <!-- I due vassoi qui sotto ospitano i nodi VERI dell'app (#options-sizes e
+             #options-colors): barra-nuova.js li sposta qui all'apertura e li rimette
+             al loro posto alla chiusura. Stessi nodi, stessi listener di app.js. -->
+        <div class="v2-trayv">
+            <div class="v2-trayv-title">Spessore della punta</div>
+            <div class="v2-row v2-options-slot" id="v2-slot-sizes"></div>
+        </div>
+        <div class="v2-trayv">
+            <div class="v2-trayv-title">Ultimi colori usati</div>
+            <div class="v2-row v2-options-slot" id="v2-slot-colors"></div>
+        </div>
+    </div>
+
+    <!-- ===== PANNELLO TESTO ===== -->
+    <div id="v2-text-panel" class="v2-panel popup-panel">
+        <button class="popup-close-btn" title="Chiudi">&times;</button>
+        <div class="v2-panel-head">
+            <svg viewBox="0 0 24 24"><use href="#ic-text"/></svg>
+            <div class="popup-title">Testo</div>
+        </div>
+        <div class="v2-trayv">
+            <div class="v2-trayv-title">Colore</div>
+            <div class="v2-row v2-options-slot" id="v2-slot-text-colors"></div>
+        </div>
+        <div class="v2-filenote" style="margin-top:10px">Grandezza, grassetto e corsivo compaiono accanto al testo mentre scrivi.</div>
+    </div>
+
+    <!-- ===== PANNELLO PAGINE (si apre dal contatore N/M, come nel banco) ===== -->
+    <div id="v2-pages-panel" class="v2-panel popup-panel">
+        <button class="popup-close-btn" title="Chiudi">&times;</button>
+        <div class="v2-panel-head">
+            <svg viewBox="0 0 24 24"><use href="#ic-pages"/></svg>
+            <div class="popup-title">Pagine della lezione</div>
+        </div>
+        <div class="v2-pagelist" id="v2-pagelist"></div>
+        <button class="v2-addpagebtn" id="v2-pages-add">
+            <svg viewBox="0 0 24 24"><use href="#ic-addpage"/></svg>Aggiungi una pagina
+        </button>
+    </div>
+
+    <!-- ===== PANNELLO GOMMA (restyling 20/09/2026) ===== -->
+    <div id="v2-eraser-panel" class="v2-panel popup-panel">
+        <button class="popup-close-btn" title="Chiudi">&times;</button>
+        <div class="v2-panel-head">
+            <svg viewBox="0 0 24 24"><use href="#ic-eraser"/></svg>
+            <div class="popup-title">Gomma</div>
+        </div>
+        <div class="v2-trayv">
+            <div class="v2-trayv-title">Modo</div>
+            <div class="v2-row v2-options-slot" id="v2-slot-eraser-modes"></div>
+        </div>
+        <div class="v2-trayv">
+            <div class="v2-trayv-title">Dimensione</div>
+            <div class="v2-row v2-options-slot" id="v2-slot-eraser-sizes"></div>
+        </div>
+    </div>
+
+    <!-- ===== MAGIC BOX (restyling 20/09/2026) =====
+         Pannello nuovo, gestito da barra-nuova.js: raccoglie strumenti che prima
+         stavano sparsi in riga. I pulsanti dentro sono gli STESSI di sempre (stessi
+         id/data-tool), solo spostati qui — nessuna funzione riscritta. -->
+    <div id="v2-magic-panel" class="v2-panel popup-panel">
+        <button class="popup-close-btn" title="Chiudi">&times;</button>
+        <div class="v2-panel-head">
+            <svg viewBox="0 0 24 24"><use href="#ic-magic"/></svg>
+            <div class="popup-title" style="margin:0">Magic Box</div>
+        </div>
+
+        <div class="v2-tray">
+            <div class="v2-tray-txt">
+                <strong>Strumenti geometrici</strong>
+                <span>Disegna dritto e misura gli angoli.</span>
+            </div>
+            <div class="v2-tray-tools">
+                <button class="shape-opt" id="btn-geo-ruler" title="Righello draggabile e ruotabile">
+                    <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="4" y="14" width="32" height="12" rx="2"/>
+                        <line x1="10" y1="14" x2="10" y2="20"/>
+                        <line x1="16" y1="14" x2="16" y2="22"/>
+                        <line x1="22" y1="14" x2="22" y2="20"/>
+                        <line x1="28" y1="14" x2="28" y2="22"/>
+                    </svg>
+                    <span>Righello</span>
+                </button>
+                <button class="shape-opt" id="btn-geo-protractor" title="Goniometro draggabile">
+                    <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M6 32 A16 16 0 0 1 34 32"/>
+                        <line x1="6" y1="32" x2="34" y2="32"/>
+                        <line x1="20" y1="32" x2="20" y2="16"/>
+                    </svg>
+                    <span>Goniometro</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="v2-tray">
+            <div class="v2-tray-txt">
+                <strong>Contenuti web</strong>
+                <span>Porta un sito o un video dentro la lezione.</span>
+            </div>
+            <div class="v2-tray-tools">
+                <!-- YouTube a sé (20/09/2026): converte da solo qualunque forma di link
+                     (watch, youtu.be, shorts, live) nel formato /embed/, l'unico che
+                     YouTube lascia incorporare. Il mappamondo resta per i siti normali. -->
+                <button class="tool-btn" id="v2-youtube-btn" title="Incorpora un video di YouTube">
+                    <svg viewBox="0 0 24 24"><use href="#ic-youtube"/></svg>
+                    <span>YouTube</span>
+                </button>
+                <button class="tool-btn" data-tool="embed-web" title="Incorpora una pagina web (video, giochi interattivi) dentro alla lavagna" id="embed-web-btn">
+                    <svg viewBox="0 0 24 24"><use href="#ic-web"/></svg>
+                    <span>Incorpora</span>
+                </button>
+                <button class="tool-btn" data-tool="embed-link" title="Aggiungi un link cliccabile (utile se una pagina non si lascia incorporare, es. molti video YouTube)" id="embed-link-btn">
+                    <svg viewBox="0 0 24 24"><use href="#ic-link"/></svg>
+                    <span>Link</span>
+                </button>
+                <button class="tool-btn action-btn" id="btn-capture-board" title="Cattura la lavagna come immagine (chiede il permesso di condividere lo schermo)">
+                    <svg viewBox="0 0 24 24"><use href="#ic-capture"/></svg>
+                    <span>Cattura</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="v2-tray">
+            <div class="v2-tray-txt">
+                <strong>Strumenti per la lezione</strong>
+                <span>Gestisci tempo e attenzione della classe.</span>
+            </div>
+            <div class="v2-tray-tools">
+                <button class="tool-btn action-btn" id="btn-timer" title="Timer countdown / cronometro">
+                    <svg viewBox="0 0 24 24"><use href="#ic-timer"/></svg>
+                    <span>Timer</span>
+                </button>
+                <button class="tool-btn action-btn" id="btn-spotlight" title="Spotlight — evidenzia area schermo">
+                    <svg viewBox="0 0 24 24"><use href="#ic-focus"/></svg>
+                    <span>Focus</span>
+                </button>
+                <button class="tool-btn action-btn" id="btn-tendina" title="Tendina — copri e rivela la lavagna">
+                    <svg viewBox="0 0 24 24"><use href="#ic-curtain"/></svg>
+                    <span>Tendina</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Installa (20/09/2026): stesso pulsante che stava in header, spostato qui su
+             richiesta di Fabio — resta nascosto (display:none) finché il browser non
+             offre davvero l'installazione PWA, esattamente come faceva in header. -->
+        <button class="hdr-btn" id="btn-install-pwa" title="Installa EduBoard su questo PC" style="display:none; margin-top:9px; width:100%; justify-content:center">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><polyline points="8 21 12 17 16 21"/><line x1="12" y1="17" x2="12" y2="3"/><polyline points="9 7 12 4 15 7"/></svg>
+            <span>Installa EduBoard su questo PC</span>
+        </button>
+    </div>
+
+    <!-- ===== GESTIONE FILE (restyling 20/09/2026) =====
+         Scorciatoie a funzioni GIÀ ESISTENTI (Nuova/Apri libreria/Stampa/Salva) —
+         niente di nuovo dietro: ogni pulsante richiama il pulsante vero, non lo sostituisce.
+         La libreria lezioni con salvataggio automatico resta identica. -->
+    <div id="v2-file-panel" class="v2-panel popup-panel">
+        <button class="popup-close-btn" title="Chiudi">&times;</button>
+        <div class="v2-panel-head">
+            <svg viewBox="0 0 24 24"><use href="#ic-folder"/></svg>
+            <div class="popup-title" style="margin:0">Gestione File</div>
+        </div>
+        <div class="v2-filenav">
+            <button id="v2-file-new"><svg viewBox="0 0 24 24"><use href="#ic-new"/></svg>Crea nuova lavagna</button>
+            <button id="v2-file-open"><svg viewBox="0 0 24 24"><use href="#ic-open"/></svg>Apri libreria lezioni</button>
+            <button id="v2-file-print"><svg viewBox="0 0 24 24"><use href="#ic-print"/></svg>Stampa / Esporta PDF</button>
+            <button id="v2-file-save"><svg viewBox="0 0 24 24"><use href="#ic-save"/></svg>Salva</button>
+        </div>
+    </div>
+
     <!-- Popup: Strumenti geometrici -->
     <div id="geo-popup" class="popup-panel" style="display:none">
         <button class="popup-close-btn" title="Chiudi">&times;</button>
         <div class="popup-title">Strumenti geometrici</div>
-        <div class="shape-grid">
-            <button class="shape-opt" id="btn-geo-ruler" title="Righello draggabile e ruotabile">
-                <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="4" y="14" width="32" height="12" rx="2"/>
-                    <line x1="10" y1="14" x2="10" y2="20"/>
-                    <line x1="16" y1="14" x2="16" y2="22"/>
-                    <line x1="22" y1="14" x2="22" y2="20"/>
-                    <line x1="28" y1="14" x2="28" y2="22"/>
-                </svg>
-                <span>Righello</span>
-            </button>
-            <button class="shape-opt" id="btn-geo-protractor" title="Goniometro draggabile">
-                <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M6 32 A16 16 0 0 1 34 32"/>
-                    <line x1="6" y1="32" x2="34" y2="32"/>
-                    <line x1="20" y1="32" x2="20" y2="16"/>
-                </svg>
-                <span>Goniometro</span>
-            </button>
-            <!-- Compasso rimosso dal menu geo: la funzionalità cerchio è ora nelle Forme geometriche -->
-        </div>
-        <div class="shape-fill-row" style="font-size:0.75rem;color:var(--text-muted);padding:4px 8px 0">
-            Clicca per mostrare/nascondere. Trascina per spostare.
-        </div>
+        <!-- Righello e Goniometro (20/09/2026): spostati dentro il Magic Box, si veda
+             #v2-magic-panel più sotto — questo popup non viene più aperto da nessun
+             pulsante, resta inerte. -->
     </div>
 
     <!-- Popup: Selezione forme -->
@@ -781,6 +969,24 @@
 
     <!-- Barra basso destra: zoom e account -->
     <div id="bottom-right-bar">
+        <!-- Campanella notifiche foto (spostata dall'header, 20/09/2026) — stesso nodo -->
+        <div id="photo-bell-wrap" style="position:relative;display:inline-flex;align-items:center;">
+            <button id="photo-bell-btn" class="photo-bell-btn" title="Foto ricevute dal telefono" style="display:none">
+                🔔
+            </button>
+            <span id="photo-bell-badge" class="photo-bell-badge" style="display:none">0</span>
+        </div>
+        <!-- Freccia di ritraibilità (restyling 20/09/2026): comprime il gruppo zoom,
+             lascia solo l'account — gestita da barra-nuova.js/css, nessun elemento sotto tocca -->
+        <button id="v2-zoom-fold" class="page-bar-icon-btn" title="Nascondi lo zoom">
+            <svg viewBox="0 0 24 24"><use href="#ic-chevron-r" id="v2-zoom-fold-use"/></svg>
+        </button>
+        <span id="v2-zoomgroup" class="v2-zoomgroup">
+        <!-- Adatta alla pagina (20/09/2026) — richiama la stessa funzione reale già
+             usata dal pulsante "Adatta alla larghezza" dentro il popup dello zoom -->
+        <button id="v2-zoom-fit" class="page-bar-icon-btn" title="Adatta alla pagina">
+            <svg viewBox="0 0 24 24"><use href="#ic-fit"/></svg>
+        </button>
         <!-- Pulsante zoom out -->
         <button id="zoom-out-btn" class="bottom-bar-zoom-btn" title="Riduci zoom">−</button>
         <!-- Display zoom (cliccabile per inserimento manuale) -->
@@ -791,12 +997,12 @@
         <div class="bottom-bar-sep"></div>
         <!-- Badge auto-save -->
         <div class="autosave-badge" title="Salvato su Drive">✓</div>
+        </span>
         <!-- Pulsante account -->
         <div id="drive-fab" class="drive-fab bottom-account-btn" title="Connetti / disconnetti Google Drive">
             <div id="drive-fab-inner" class="drive-fab-inner">
-                <svg id="drive-fab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="24" height="24">
-                    <circle cx="12" cy="8" r="4"/>
-                    <path d="M6 20c0-3.314 2.686-6 6-6s6 2.686 6 6"/>
+                <svg id="drive-fab-icon" viewBox="0 0 24 24" width="24" height="24">
+                    <use href="#ic-user"/>
                 </svg>
                 <img id="drive-fab-photo" src="" alt="" style="display:none; width:32px; height:32px; border-radius:50%; object-fit:cover;">
             </div>
@@ -933,6 +1139,10 @@
             </div>
             <div class="settings-panel" id="tab-novita">
                 <div class="settings-section">
+                    <div class="settings-changelog-item">
+                        <div class="settings-changelog-ver">v2-092 — Settembre 2026 · barra nuova</div>
+                        <div class="settings-changelog-desc">🧰 <strong>La barra degli strumenti è cambiata.</strong> Adesso è una sola barra fissa in basso: toccando un'icona si apre sopra di essa un pannello con tutte le varianti di quello strumento (penne, gomma, testo, forme, pagine). <strong>Nessuna funzione è stata tolta</strong>, sono solo raccolte per tipo, e i pannelli si chiudono ritoccando la stessa icona · 🩹 Nuova <strong>gomma a lazo</strong>: cerchi un'area e cancelli solo quello che ci sta dentro · 📄 Il pulsante <strong>Tutte le pagine</strong> mostra le anteprime delle pagine: si trascinano per riordinarle e col menù a tre puntini si duplicano o si spostano · 📚 La <strong>libreria</strong> non si ricarica più ad ogni apertura: resta con le cartelle come le hai lasciate e si posiziona sulla lezione in corso, evidenziata · ✏️ Rinominando una lezione il nome cambia subito ovunque, senza ricaricare la pagina · 📋 Una lezione duplicata compare subito sotto l'originale, non in fondo alla cartella</div>
+                    </div>
                     <div class="settings-changelog-item">
                         <div class="settings-changelog-ver">v2-088 — Settembre 2026</div>
                         <div class="settings-changelog-desc">📖 Guida: i capitoli ora sono un elenco numerato, uno sotto l'altro, invece di pillole affiancate poco leggibili</div>
@@ -1117,13 +1327,23 @@
     <script>
     (function(){
         var GUIDA_EDU = [
+            {id:"barra", ic:"🧰", t:"La barra degli strumenti (nuova)", c:
+                '<div class="settings-guide-item">La barra è <strong>una sola, fissa in basso</strong>. Toccando un\'icona si apre <strong>sopra la barra</strong> un pannello con tutte le varianti di quello strumento; si richiude toccando la <strong>✕</strong> oppure <strong>ritoccando la stessa icona</strong>. <strong>Nessuna funzione è stata tolta</strong>: sono solo raccolte per tipo</div>' +
+                '<div class="settings-guide-item"><strong>✏️ Scrittura</strong> — penna, matita, pastello, evidenziatore, spessore della punta e ultimi colori usati</div>' +
+                '<div class="settings-guide-item"><strong>🩹 Gomma</strong> — modo di cancellazione e dimensione</div>' +
+                '<div class="settings-guide-item"><strong>T Testo</strong> · <strong>🔺 Forme</strong> · <strong>📐 Strumenti geometrici</strong> (righello e goniometro, dentro Magic Box)</div>' +
+                '<div class="settings-guide-item"><strong>✨ Magic Box</strong> — tutto quello che si aggiunge alla lezione: <em>Incorpora</em>, <em>Link</em>, <em>YouTube</em>, <em>Timer</em>, <em>Focus</em>, <em>Tendina</em>, <em>Righello</em>, <em>Goniometro</em></div>' +
+                '<div class="settings-guide-item"><strong>📁 Gestione File</strong> — <em>Crea nuova lavagna</em>, <em>Salva</em>, <em>Apri libreria lezioni</em>, <em>Cattura</em>, <em>Stampa / Esporta PDF</em></div>' +
+                '<div class="settings-guide-item">In basso a destra restano <strong>schermo intero</strong>, <strong>adatta alla vista</strong>, la <strong>campanella</strong> degli avvisi e l\'<strong>icona account</strong>. A sinistra, la barra delle <strong>pagine</strong> con lo zoom</div>'},
+
             {id:"disegno", ic:"✏️", t:"Strumenti di disegno", c:
                 '<div class="settings-guide-item"><strong>Penna</strong> — tratto netto e preciso, ideale per scrivere</div>' +
                 '<div class="settings-guide-item"><strong>Matita HB</strong> — tratto morbido con effetto carta</div>' +
                 '<div class="settings-guide-item"><strong>Pastello morbido</strong> — tratto ampio con bordi sfumati</div>' +
                 '<div class="settings-guide-item"><strong>Evidenziatore</strong> — semitrasparente, per sottolineare senza coprire</div>' +
-                '<div class="settings-guide-item"><strong>Gomma</strong> — due modalità: <strong>Cancella area</strong> (tocca per cancellare quello che sfiori) e <strong>Cancella tratto intero</strong> (rimuove tutto il tratto con un tocco). Non cancella le immagini importate: per quelle serve selezionarle ed eliminarle con Canc</div>' +
-                '<div class="settings-guide-item">La <strong>dimensione del tratto</strong> si sceglie dai 6 pallini nella toolbar, dal più fine al più grosso</div>'},
+                '<div class="settings-guide-item">I quattro tratti stanno tutti nel pannello <strong>✏️ Scrittura</strong>, sotto "Tipo di tratto"</div>' +
+                '<div class="settings-guide-item"><strong>Gomma</strong> — tre modalità, nel pannello 🩹 Gomma: <strong>Cancella area</strong> (cancella quello che sfiori), <strong>Cancella tratto intero</strong> (rimuove tutto il tratto con un tocco) e <strong>Gomma a lazo</strong> (cerchi una zona e cancelli solo quello che ci sta dentro). Non cancella le immagini importate: per quelle serve selezionarle ed eliminarle con Canc</div>' +
+                '<div class="settings-guide-item">La <strong>dimensione del tratto</strong> si sceglie dai pallini sotto "Spessore della punta", dal più fine al più grosso</div>'},
 
             {id:"colori", ic:"🎨", t:"Colori e riempimento", c:
                 '<div class="settings-guide-item">Tavolozza di 10 colori pronti, più un pulsante per scegliere un <strong>colore libero</strong> qualsiasi</div>' +
@@ -1148,16 +1368,17 @@
                 '<div class="settings-guide-item">Le immagini entrano già adattate al foglio, mai più grandi di quanto serva</div>'},
 
             {id:"incorpora", ic:"🌐", t:"Incorporare pagine web", c:
-                '<div class="settings-guide-item">Pulsante <strong>Incorpora</strong> — inserisce un sito, un video o un gioco interattivo come riquadro trascinabile e ridimensionabile sulla lavagna</div>' +
+                '<div class="settings-guide-item">Dal pannello <strong>✨ Magic Box</strong>, voce <strong>Incorpora</strong> — inserisce un sito, un video o un gioco interattivo come riquadro trascinabile e ridimensionabile sulla lavagna. Accanto c\'è <strong>YouTube</strong>, per incollare direttamente il link di un video</div>' +
                 '<div class="settings-guide-item">Due modalità, dal pulsante ✏️ in alto al riquadro: <strong>Interagisci</strong> (ci clicchi/giochi dentro) e <strong>Annota</strong> (ci scrivi sopra con la penna, come su una foto ferma)</div>' +
                 '<div class="settings-guide-item">I link <strong>YouTube</strong> vengono convertiti in automatico nel formato che si lascia incorporare</div>' +
-                '<div class="settings-guide-item">Se un sito rifiuta di essere incorporato (capita spesso): pulsante <strong>Link</strong>, che apre una scheda cliccabile al posto del riquadro</div>'},
+                '<div class="settings-guide-item">Se un sito rifiuta di essere incorporato (capita spesso): voce <strong>Link</strong> nello stesso pannello, che apre una scheda cliccabile al posto del riquadro</div>'},
 
             {id:"cattura", ic:"📸", t:"Catturare la lavagna", c:
-                '<div class="settings-guide-item">Pulsante <strong>Cattura</strong> — fotografa tutta la lavagna (la prima volta chiede il permesso di condividere lo schermo), ritaglia da sola i menù e incolla il risultato come immagine dentro la lezione</div>' +
+                '<div class="settings-guide-item">Pannello <strong>📁 Gestione File</strong>, voce <strong>Cattura</strong> — fotografa tutta la lavagna (la prima volta chiede il permesso di condividere lo schermo), ritaglia da sola i menù e incolla il risultato come immagine dentro la lezione</div>' +
                 '<div class="settings-guide-item">Utile per fissare un momento della lezione prima di continuare, o per portarsi via lo stato di un\'attività fatta con una pagina incorporata</div>'},
 
             {id:"lezione", ic:"🎯", t:"Strumenti per la lezione", c:
+                '<div class="settings-guide-item">Stanno tutti nel pannello <strong>✨ Magic Box</strong>, sotto "Strumenti per la lezione"</div>' +
                 '<div class="settings-guide-item"><strong>Timer</strong> — countdown o cronometro con quadrante rotondo: tocca sopra/sotto ai numeri per impostarlo, schermo intero o ridotto a icona</div>' +
                 '<div class="settings-guide-item"><strong>Focus (Spotlight)</strong> — scurisce lo schermo lasciando illuminata solo un\'area, per concentrare l\'attenzione</div>' +
                 '<div class="settings-guide-item"><strong>Tendina</strong> — copre la lavagna e la scopre un po\' alla volta</div>' +
@@ -1170,13 +1391,15 @@
                 '<div class="settings-guide-item">Dal telefono puoi: 📷 <strong>inviare una foto</strong> direttamente sulla lavagna · ⏱️ avviare un <strong>Timer</strong> visibile sulla LIM · 🔄 <strong>cambiare account</strong> Google senza riscansionare il QR · 📱 <strong>cambiare LIM</strong> se ti sposti in un\'altra aula</div>'},
 
             {id:"pagine", ic:"📁", t:"Pagine e lezioni", c:
-                '<div class="settings-guide-item">Ogni lezione può avere <strong>più pagine</strong>: naviga con la barra in basso, trascina una miniatura per riordinarle</div>' +
-                '<div class="settings-guide-item">Pulsante <strong>⇄</strong> su una pagina — la sposta o la copia in un\'altra lezione, scegliendo dall\'albero delle cartelle</div>' +
+                '<div class="settings-guide-item">Ogni lezione può avere <strong>più pagine</strong>: si passa da una all\'altra con le frecce <strong>‹ ›</strong> in basso a sinistra, e col <strong>+</strong> se ne aggiunge una</div>' +
+                '<div class="settings-guide-item">Il pulsante <strong>Tutte le pagine</strong> apre l\'elenco con l\'<strong>anteprima</strong> di ogni pagina: <strong>trascina una riga</strong> per riordinarle (una linea grigia mostra dove finirà) e usa il menù <strong>⋯</strong> per <strong>duplicare</strong> la pagina o <strong>spostarla in un\'altra lezione</strong></div>' +
                 '<div class="settings-guide-item">Importando il primo file su una lezione ancora "Nuova Lavagna" mai salvata, il <strong>nome della lezione</strong> diventa quello del file — non succede importando più file insieme, né su una lezione già nominata</div>'},
 
             {id:"libreria", ic:"📚", t:"Libreria e cartelle", c:
                 '<div class="settings-guide-item">Icona libreria (linguetta a sinistra o a destra dello schermo): mostra tutte le lezioni salvate, organizzabili in <strong>cartelle colorate</strong></div>' +
-                '<div class="settings-guide-item">Pulsante <strong>Duplica</strong> — copia un\'intera lezione con un tocco</div>' +
+                '<div class="settings-guide-item">Pulsante <strong>Duplica</strong> — copia un\'intera lezione con un tocco: la copia compare <strong>subito sotto l\'originale</strong></div>' +
+                '<div class="settings-guide-item">La libreria <strong>resta come l\'hai lasciata</strong>: si carica alla prima apertura e da lì in poi riappare con le stesse cartelle aperte e nella stessa posizione, con la <strong>lezione in corso evidenziata al centro</strong>. Si aggiorna da sola quando sei tu a cambiare qualcosa (salvi, rinomini, duplichi, sposti, elimini)</div>' +
+                '<div class="settings-guide-item">Per <strong>rinominare</strong> una lezione: la matita ✏️ accanto al nome in libreria, oppure un clic sul nome della lezione in alto sulla lavagna (si conferma con Invio). In entrambi i casi il nome cambia subito dappertutto</div>' +
                 '<div class="settings-guide-item">L\'ultima lezione aperta si <strong>ritrova da sola</strong> al riavvio dell\'app, anche su un\'altra LIM se hai collegato lo stesso account</div>'},
 
             {id:"drive", ic:"☁️", t:"Salvataggio automatico su Drive", c:
@@ -1300,6 +1523,8 @@
     <script src="drive.js"></script>
     <!-- EduBoard strumenti geometrici -->
     <script src="geometry.js"></script>
+    <!-- Restyling barra (20/09/2026) — SOLO in questa pagina di test -->
+    <script src="barra-nuova.js"></script>
 
 </body>
 </html>

@@ -3206,7 +3206,7 @@ function setupFullscreen() {
             if (label)   label.textContent = 'Riduci';
             // Modalità compatta: chiudi la toolbar automaticamente in fullscreen.
             // La linguetta (toggle) rimane visibile per riaprirla al bisogno.
-            // ECCEZIONE (restyling barra, 20/09/2026, solo index-nuovo.html/body.v2):
+            // ECCEZIONE (restyling barra, 20/09/2026, solo body.v2):
             // con la barra nuova più corta conviene tenerla sempre a portata sulla LIM,
             // quindi lì la Presentazione NON nasconde più i comandi — decisione di Fabio.
             if (typeof toolbarMgr !== 'undefined' && toolbarMgr?.visible && !document.body.classList.contains('v2')) {

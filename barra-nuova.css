@@ -1,5 +1,5 @@
 /* Restyling barra EduBoard — 20/09/2026.
-   Foglio a parte, caricato SOLO da index-nuovo.html (dopo style.css): tutte le regole
+   Foglio a parte, caricato da index.html (dopo style.css): tutte le regole
    qui dentro sono scoped su `body.v2` così l'index.html di test (produzione futura)
    resta invariato. Passi successivi (Magic Box, Gestione File, pannello pagine, lazo)
    si aggiungono qui via /salva + piano in lavagna-eduboard.md. */

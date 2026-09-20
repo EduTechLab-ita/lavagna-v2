@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-091'; // v2-091 — Rinomina dal nome in alto: aggiorna subito anche l'etichetta in libreria (come la matita) e la memoria dell'ultima lezione
+const CACHE_NAME = 'eduboard-v2-092'; // v2-092 — BARRA STRUMENTI NUOVA in produzione (index.html è la pagina del restyling), gomma lazo, pannello pagine con anteprime, libreria che resta com'è
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-083 — Corretto un difetto serio: il primo salvataggio di una lezione nuova poteva perdere le immagini/PDF importati (la pagina restava vuota alla riapertura). Aggiunta anche la dimensione tratto predefinita nelle Impostazioni.';
+const CHANGELOG  = 'EduBoard V2-092 — La barra degli strumenti è nuova: una sola barra fissa in basso, e gli strumenti si aprono a pannello sopra di essa (penne, gomma, testo, forme, pagine). Nessuna funzione è stata tolta, sono solo raccolte per tipo. Novità: gomma a lazo per cancellare un\'area, pannello "Tutte le pagine" con le anteprime, il trascinamento per riordinarle e il menù a tre puntini per duplicarle. La libreria ora resta aperta come l\'hai lasciata e si posiziona sulla lezione in corso. Se qualcosa non lo ritrovi: icona account → Impostazioni & Guida.';
 
 const urlsToCache = [
   '.',
@@ -8,6 +8,11 @@ const urlsToCache = [
   './app.js',
   './style.css',
   './drive.js',
+  // Barra nuova (restyling 20/09/2026): reggono TUTTO l'aspetto della barra
+  // strumenti. Senza precaricarli, la prima apertura su rete scolastica lenta o
+  // offline mostrerebbe l'app senza la barra nuova.
+  './barra-nuova.css',
+  './barra-nuova.js',
   './geometry.js',
   './manifest.json',
   './icon-192x192.png',

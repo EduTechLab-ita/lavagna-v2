@@ -1,5 +1,5 @@
 // barra-nuova.js — Restyling barra EduBoard (20/09/2026).
-// Caricato SOLO da index-nuovo.html, DOPO app.js/drive.js/geometry.js.
+// Caricato da index.html, DOPO app.js/drive.js/geometry.js.
 // Additivo e reversibile: non modifica app.js. La #page-bar viene ricostruita
 // da zero da PageManager._updatePageBar() ad ogni pagina aggiunta/rimossa/rinominata
 // (bar.innerHTML = '') — qui la si osserva e si riapplicano icona nuova + pulsante
