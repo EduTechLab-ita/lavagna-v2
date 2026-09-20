@@ -1,4 +1,4 @@
-const CACHE_NAME = 'eduboard-v2-088'; // v2-088 — Guida: capitoli in elenco numerato invece di pillole affiancate; fetch 'reload' nell'install del SW contro cache CDN indietro
+const CACHE_NAME = 'eduboard-v2-089'; // v2-089 — Libreria: si carica una volta sola e resta com'è (niente ricostruzione ad ogni apertura), rinomina visibile subito, lezione aperta evidenziata e centrata
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
 const CHANGELOG  = 'EduBoard V2-083 — Corretto un difetto serio: il primo salvataggio di una lezione nuova poteva perdere le immagini/PDF importati (la pagina restava vuota alla riapertura). Aggiunta anche la dimensione tratto predefinita nelle Impostazioni.';
 

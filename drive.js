@@ -1154,11 +1154,14 @@ class LibraryManager {
             this.panel.classList.remove('open');
         } else {
             this.panel.classList.add('open');
+            const giaPronto = this._treeLoaded && this.treeEl?.hasChildNodes();
             this.refresh();
-            // Evidenzia la lezione corrente ogni volta che il pannello si apre.
-            // _highlightCurrentLesson ha già i retry interni per gestire il tree ancora in caricamento.
+            // Evidenzia e centra la lezione corrente ogni volta che il pannello si apre.
+            // Se l'albero è già in piedi si fa subito, così all'apertura la lezione è
+            // già evidenziata e al centro; altrimenti ci pensano i retry interni.
             if (this.currentFileId) {
-                setTimeout(() => this._highlightCurrentLesson(), 400);
+                if (giaPronto) this._highlightCurrentLesson();
+                else setTimeout(() => this._highlightCurrentLesson(), 400);
             }
         }
     }
@@ -1193,7 +1196,13 @@ class LibraryManager {
         // — aggiorna in background senza disturbare l'utente.
         if (this._treeLoaded && this.treeEl.hasChildNodes()) {
             this._refreshLock = false;
-            this._backgroundRefresh('eduboard-lib-cache', savedScroll);
+            // ⚠️ 20/09/2026 — La libreria si carica UNA SOLA VOLTA (richiesta di Fabio).
+            // Da qui in poi l'albero resta esattamente come lui l'ha lasciato: stesse
+            // cartelle aperte, stessa posizione di scorrimento. Non si ricostruisce più
+            // ad ogni riapertura, perché la ricostruzione ripartiva dalla cartella madre
+            // riaprendo tutto a scatti e perdendo evidenziazione e scorrimento.
+            // L'aggiornamento avviene solo quando è lui a modificare qualcosa
+            // (nuova cartella / salva / duplica / elimina / sposta → _forceRefresh).
             return;
         }
 
@@ -1217,13 +1226,13 @@ class LibraryManager {
         const _renderFromData = async () => {
             await this.drive._ensureLessonsFolder();
             this.treeEl.innerHTML = '';
-            await this.renderTree(this.drive.lessonsFolderId, this.treeEl, 0);
+            await this._renderCompleto(this.treeEl);
             if (!this.treeEl.hasChildNodes()) {
                 this.treeEl.innerHTML = '<div class="tree-empty">Nessuna lezione salvata.</div>';
             }
             if (this.currentFileId) {
-                // Espansione cartelle di primo livello è asincrona — attendi il DOM
-                setTimeout(() => this._highlightCurrentLesson(), 300);
+                // L'albero ora è completo: si può evidenziare e centrare subito.
+                this._highlightCurrentLesson();
             } else {
                 this.treeEl.scrollTop = savedScroll;
             }
@@ -1289,6 +1298,28 @@ class LibraryManager {
         // mostra l'albero esistente immediatamente (zero flash) e fa bg refresh.
     }
 
+    /** renderTree che attende anche l'apertura di tutte le cartelle espanse, così
+     *  l'albero entra nel DOM già completo: niente apertura "a scatti" e lo
+     *  scorrimento ripristinato dopo lo scambio resta quello giusto, perché
+     *  l'altezza del contenuto non cambia più dopo. */
+    async _renderCompleto(container) {
+        this._attendiEspansioni = true;
+        this._espansioniInCorso = [];
+        try {
+            await this.renderTree(this.drive.lessonsFolderId, container, 0);
+            // Ogni espansione può aggiungerne altre annidate mentre si risolve:
+            // si continua finché la coda non è vuota (con un limite di sicurezza).
+            for (let giro = 0; giro < 12 && this._espansioniInCorso.length; giro++) {
+                const inCoda = this._espansioniInCorso;
+                this._espansioniInCorso = [];
+                await Promise.all(inCoda);
+            }
+        } finally {
+            this._attendiEspansioni = false;
+            this._espansioniInCorso = [];
+        }
+    }
+
     /** Aggiornamento silenzioso da Drive in background dopo render da cache. */
     async _backgroundRefresh(cacheKey, savedScroll) {
         // Non fare background refresh se è già stato fatto da meno di 3 minuti
@@ -1307,7 +1338,7 @@ class LibraryManager {
             // Render in container temporaneo: l'albero corrente rimane visibile
             // mentre si scaricano i dati da Drive — zero flash/collasso.
             const tmpContainer = document.createElement('div');
-            await this.renderTree(this.drive.lessonsFolderId, tmpContainer, 0);
+            await this._renderCompleto(tmpContainer);
             if ((this._bgRefreshToken || 0) !== myToken) return; // annullato durante renderTree
             const scrollPos = this.treeEl.scrollTop;
             if (!tmpContainer.hasChildNodes()) {
@@ -1342,7 +1373,7 @@ class LibraryManager {
      * genitrici e fa scroll fino all'elemento.
      * Se il file non è ancora nel DOM (cartella non caricata), espande tutto l'albero e riprova.
      */
-    async _highlightCurrentLesson(retries = 6) {
+    async _highlightCurrentLesson(retries = 3) {
         if (!this.currentFileId) return;
         const panel = this.treeEl;
         if (!panel) return;
@@ -1350,14 +1381,57 @@ class LibraryManager {
         // Prima prova: cerca nel DOM già caricato
         if (this._applyHighlight(panel)) return;
         // Non trovato: le cartelle async potrebbero non essere ancora nel DOM.
-        // Riprova ogni 400ms fino a retries volte prima di forzare l'espansione.
         if (retries > 0) {
             setTimeout(() => this._highlightCurrentLesson(retries - 1), 400);
             return;
         }
-        // Ultimo tentativo → espandi forzatamente tutti i nodi non ancora caricati e riprova
-        await this._forceExpandAll(panel);
+        // ⚠️ 20/09/2026 — Qui prima si chiamava _forceExpandAll, che apriva TUTTE le
+        // cartelle dell'albero una dopo l'altra: era questo a far sembrare che la
+        // libreria si "riaprisse tutta da capo" (segnalato da Fabio). Ora si apre solo
+        // il percorso che porta alla lezione corrente, e nient'altro.
+        await this._espandiVersoLezione(panel);
         this._applyHighlight(panel);
+    }
+
+    /** Apre SOLO le cartelle che contengono la lezione corrente, risalendo la catena
+     *  dei genitori su Drive. Se qualcosa non riesce, non apre nulla. */
+    async _espandiVersoLezione(panel) {
+        try {
+            const radice = this.drive.lessonsFolderId;
+            if (!radice) return;
+            // Risali la catena: lezione → cartella → ... → cartella radice
+            const catena = [];
+            let id = this.currentFileId;
+            for (let salto = 0; salto < 10; salto++) {
+                const meta = await this.drive._apiFetch(
+                    `https://www.googleapis.com/drive/v3/files/${id}?fields=parents`
+                );
+                const padre = meta?.parents?.[0];
+                if (!padre || padre === radice) break;
+                catena.unshift(padre);
+                id = padre;
+            }
+            if (!catena.length) return;
+            // Apri dall'alto verso il basso: ogni cartella va caricata prima di
+            // poter trovare nel DOM la sua sottocartella.
+            for (const [livello, folderId] of catena.entries()) {
+                this._expandedFolders.add(folderId);
+                const sub = panel.querySelector(`.tree-subtree[data-folder-id="${folderId}"]`);
+                if (!sub) continue;
+                sub.style.display = 'block';
+                const riga = sub.previousElementSibling;
+                const icona = riga?.querySelector('.tree-icon');
+                if (icona) icona.textContent = '📂';
+                if (sub.dataset.loaded === 'false') {
+                    sub.dataset.loaded = 'true';
+                    sub.innerHTML = '';
+                    await this.renderTree(folderId, sub, livello + 1);
+                }
+            }
+            this._saveExpandedFolders();
+        } catch (_) {
+            // Nessun percorso trovato: meglio non evidenziare che aprire tutto.
+        }
     }
 
     /** Cerca currentFileId nel DOM, applica l'highlight e apre i folder genitori. Ritorna true se trovato. */
@@ -1382,7 +1456,9 @@ class LibraryManager {
                 }
                 p = p.parentElement;
             }
-            setTimeout(() => item.scrollIntoView({ block: 'center', behavior: 'smooth' }), 150);
+            // Centratura immediata (non "smooth"): all'apertura della libreria la
+            // lezione deve risultare già al centro, senza vederla scorrere.
+            setTimeout(() => item.scrollIntoView({ block: 'center', behavior: 'auto' }), 60);
             found = true;
         });
         return found;
@@ -1503,7 +1579,11 @@ class LibraryManager {
 
             // Espandi solo le cartelle che l'utente ha aperto esplicitamente.
             if (this._expandedFolders.has(folder.id)) {
-                expandFolder(); // non awaita per non bloccare il render iniziale
+                const espansione = expandFolder(); // non awaita per non bloccare il render iniziale
+                // Durante una ricostruzione silenziosa invece serve aspettarle tutte,
+                // altrimenti l'albero viene messo a schermo ancora incompleto e si vede
+                // aprirsi una cartella per volta (vedi _renderCompleto, 20/09/2026).
+                if (this._attendiEspansioni) this._espansioniInCorso.push(espansione);
             }
 
             // Pulsanti contestuali cartella (rinomina/elimina) — stopPropagation interno
@@ -1890,6 +1970,9 @@ class LibraryManager {
                 );
                 const etichetta = riga?.querySelector('.tree-label');
                 if (etichetta) etichetta.textContent = newName.replace(/\.json$/, '');
+                // Allinea anche il nome usato dai pulsanti della riga (duplica/elimina/rinomina),
+                // altrimenti resterebbero fermi a quello vecchio fino al prossimo aggiornamento.
+                if (riga?._entry) riga._entry.name = newName.replace(/\.json$/, '');
 
                 // Se è la lezione aperta in questo momento, il nome in alto si aggiorna
                 // subito: prima restava quello vecchio e sembrava che non avesse salvato.
@@ -1902,7 +1985,12 @@ class LibraryManager {
                     }
                 }
                 toast('Rinominato!', 'success');
-                this._forceRefresh();
+                // ⚠️ NIENTE _forceRefresh() qui (20/09/2026). L'etichetta è già stata
+                // aggiornata qui sopra; ricostruire l'albero rileggeva da Drive, che per
+                // qualche istante restituisce ancora il nome VECCHIO e lo rimetteva a
+                // schermo: sembrava che la rinomina non fosse stata salvata e serviva
+                // ricaricare la pagina (segnalato da Fabio).
+                this._lastBgRefresh = 0; // il prossimo aggiornamento vero potrà partire subito
             } catch (err) {
                 toast('Errore rinomina: ' + err.message, 'error');
             }
@@ -2115,6 +2203,10 @@ class LibraryManager {
 
     /** Aggiunge pulsanti Rinomina/Elimina (+ Duplica per le lezioni) a un tree-item. */
     _addContextButtons(item, entry, type) {
+        // Riferimento raggiungibile dal DOM: dopo una rinomina "ottimistica" (senza
+        // ricostruire l'albero) serve per tenere aggiornato il nome usato da
+        // duplica/elimina/rinomina di questa stessa riga.
+        item._entry = entry;
         const actionsEl = item.querySelector('.tree-actions');
         actionsEl.innerHTML = `
             ${type === 'lesson' ? '<button class="tree-btn" title="Duplica" data-action="duplicate">📋</button>' : ''}
@@ -2751,11 +2843,9 @@ class DriveConnectButton {
                 if (libraryPanel) {
                     libraryPanel.classList.add('open');
                     if (typeof libraryMgr !== 'undefined' && libraryMgr) {
-                        if (libraryMgr._treeLoaded) {
-                            libraryMgr._backgroundRefresh('eduboard-lib-cache', libraryMgr.treeEl?.scrollTop || 0);
-                        } else {
-                            libraryMgr.refresh();
-                        }
+                        // Già caricata → si riapre esattamente com'era, si centra e basta.
+                        if (libraryMgr._treeLoaded) libraryMgr._highlightCurrentLesson();
+                        else libraryMgr.refresh();
                     }
                 }
             });
@@ -3592,12 +3682,12 @@ function initDrive() {
                 panel.classList.toggle('from-right', side === 'right');
                 panel.classList.add('open');
                 if (typeof libraryMgr !== 'undefined' && libraryMgr) {
-                    // Se già caricata: mostra subito senza "Caricamento...", poi aggiorna in bg
-                    if (libraryMgr._treeLoaded) {
-                        libraryMgr._backgroundRefresh('eduboard-lib-cache', libraryMgr.treeEl?.scrollTop || 0);
-                    } else {
-                        libraryMgr.refresh();
-                    }
+                    // ⚠️ 20/09/2026 — Qui (apertura dalla freccetta) prima partiva sempre
+                    // un _backgroundRefresh: l'albero veniva ricostruito da capo dalla
+                    // cartella madre ad ogni apertura. Ora la libreria si carica una sola
+                    // volta e poi resta com'è: si limita a rievidenziare e ricentrare.
+                    if (libraryMgr._treeLoaded) libraryMgr._highlightCurrentLesson();
+                    else libraryMgr.refresh();
                 }
             }
             _syncLibraryTabArrows(panel);
