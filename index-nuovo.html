@@ -364,29 +364,73 @@
         <button class="popup-close-btn" title="Chiudi">&times;</button>
         <div class="v2-panel-head">
             <svg viewBox="0 0 24 24"><use href="#ic-pen"/></svg>
-            <div class="popup-title" style="margin:0">Strumenti di scrittura</div>
+            <div class="popup-title">Strumenti di scrittura</div>
         </div>
-        <div class="v2-tray-tools">
-            <button class="tool-btn active" data-tool="pen" title="Penna">
-                <svg viewBox="0 0 24 24"><use href="#ic-pen"/></svg>
-                <span>Penna</span>
-            </button>
-            <button class="tool-btn" data-tool="pencil" title="Matita HB">
-                <svg viewBox="0 0 24 24"><use href="#ic-pencil"/></svg>
-                <span>Matita</span>
-            </button>
-            <button class="tool-btn" data-tool="pastel" title="Pastello morbido">
-                <svg viewBox="0 0 24 24"><use href="#ic-crayon"/></svg>
-                <span>Pastello</span>
-            </button>
-            <button class="tool-btn" data-tool="marker" title="Evidenziatore">
-                <svg viewBox="0 0 24 24"><use href="#ic-marker"/></svg>
-                <span>Evidenz.</span>
-            </button>
-            <button class="tool-btn" data-tool="laser" title="Puntatore laser">
-                <svg viewBox="0 0 24 24"><use href="#ic-laser"/></svg>
-                <span>Laser</span>
-            </button>
+        <div class="v2-trayv">
+            <div class="v2-trayv-title">Tipo di tratto</div>
+            <div class="v2-row">
+                <button class="tool-btn active" data-tool="pen" title="Penna">
+                    <svg viewBox="0 0 24 24"><use href="#ic-pen"/></svg>
+                    <span>Penna</span>
+                </button>
+                <button class="tool-btn" data-tool="pencil" title="Matita HB">
+                    <svg viewBox="0 0 24 24"><use href="#ic-pencil"/></svg>
+                    <span>Matita</span>
+                </button>
+                <button class="tool-btn" data-tool="pastel" title="Pastello morbido">
+                    <svg viewBox="0 0 24 24"><use href="#ic-crayon"/></svg>
+                    <span>Pastello</span>
+                </button>
+                <button class="tool-btn" data-tool="marker" title="Evidenziatore">
+                    <svg viewBox="0 0 24 24"><use href="#ic-marker"/></svg>
+                    <span>Evidenz.</span>
+                </button>
+                <button class="tool-btn" data-tool="laser" title="Puntatore laser">
+                    <svg viewBox="0 0 24 24"><use href="#ic-laser"/></svg>
+                    <span>Laser</span>
+                </button>
+            </div>
+        </div>
+        <!-- I due vassoi qui sotto ospitano i nodi VERI dell'app (#options-sizes e
+             #options-colors): barra-nuova.js li sposta qui all'apertura e li rimette
+             al loro posto alla chiusura. Stessi nodi, stessi listener di app.js. -->
+        <div class="v2-trayv">
+            <div class="v2-trayv-title">Spessore della punta</div>
+            <div class="v2-row v2-options-slot" id="v2-slot-sizes"></div>
+        </div>
+        <div class="v2-trayv">
+            <div class="v2-trayv-title">Ultimi colori usati</div>
+            <div class="v2-row v2-options-slot" id="v2-slot-colors"></div>
+        </div>
+    </div>
+
+    <!-- ===== PANNELLO PAGINE (si apre dal contatore N/M, come nel banco) ===== -->
+    <div id="v2-pages-panel" class="v2-panel popup-panel">
+        <button class="popup-close-btn" title="Chiudi">&times;</button>
+        <div class="v2-panel-head">
+            <svg viewBox="0 0 24 24"><use href="#ic-pages"/></svg>
+            <div class="popup-title">Pagine della lezione</div>
+        </div>
+        <div class="v2-pagelist" id="v2-pagelist"></div>
+        <button class="v2-addpagebtn" id="v2-pages-add">
+            <svg viewBox="0 0 24 24"><use href="#ic-addpage"/></svg>Aggiungi una pagina
+        </button>
+    </div>
+
+    <!-- ===== PANNELLO GOMMA (restyling 20/09/2026) ===== -->
+    <div id="v2-eraser-panel" class="v2-panel popup-panel">
+        <button class="popup-close-btn" title="Chiudi">&times;</button>
+        <div class="v2-panel-head">
+            <svg viewBox="0 0 24 24"><use href="#ic-eraser"/></svg>
+            <div class="popup-title">Gomma</div>
+        </div>
+        <div class="v2-trayv">
+            <div class="v2-trayv-title">Modo</div>
+            <div class="v2-row v2-options-slot" id="v2-slot-eraser-modes"></div>
+        </div>
+        <div class="v2-trayv">
+            <div class="v2-trayv-title">Dimensione</div>
+            <div class="v2-row v2-options-slot" id="v2-slot-eraser-sizes"></div>
         </div>
     </div>
 
