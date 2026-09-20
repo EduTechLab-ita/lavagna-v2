@@ -13,14 +13,11 @@ body.v2 #toolbar-wrapper {
 body.v2 #toolbar-wrapper.visible {
     transform: translateX(-50%) translateY(0) scale(.75);
 }
-body.v2 #page-bar {
-    transform: scale(.75);
-    transform-origin: bottom left;
-}
-body.v2 #bottom-right-bar {
-    transform: scale(.75);
-    transform-origin: bottom right;
-}
+/* #page-bar e #bottom-right-bar NON si scalano (20/09/2026, corretto dopo confronto
+   dal vivo coi numeri del banco): le loro icone native (28px/26px/30px) sono già
+   vicine al bersaglio del banco (38px×75%=28,5px, 34px×75%=25,5px) — scalarle ANCORA
+   del 75% le rimpiccioliva sotto il bersaglio invece di avvicinarle. Il dock invece
+   resta scalato: le sue icone (46px) erano più lontane dal bersaglio. */
 
 /* Pulsante "Presentazione" iniettato da barra-nuova.js nella barra pagine —
    stesso stile dei pulsanti icona già presenti lì (.page-bar-icon-btn). */
@@ -43,6 +40,51 @@ body.v2 #toolbar-toggle-open {
 }
 body.v2 #toolbar-controls-row {
     justify-content: center;
+}
+
+/* ---------- STEP 4: UNA pillola sola, come nel banco ----------
+   Oggi ogni .tool-group è una pillola bianca A SÉ (sfondo/bordo/ombra propri) con
+   uno spazio vuoto fra l'una e l'altra; nel banco tutta la barra è UN'UNICA pillola
+   con separatori sottili fra i gruppi. Si sposta lo stile pillola da .tool-group al
+   contenitore .main-row (struttura identica, solo l'aspetto cambia), e si riaccende
+   .tool-separator (oggi display:none) come sottile linea verticale — esattamente
+   .sep del banco. Le etichette di testo spariscono SEMPRE (non solo in "compact"):
+   nel banco la barra principale è sempre e solo icone. */
+body.v2 .main-row {
+    gap: 3px;
+    padding: 6px 9px;
+    background: rgba(255, 255, 255, .97);
+    border: 1px solid rgba(15, 23, 42, .08);
+    border-radius: 50px;
+    box-shadow: 0 4px 16px rgba(15, 23, 42, .10);
+}
+body.v2 .tool-group {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    border-radius: 0;
+    padding: 0;
+    gap: 3px;
+}
+body.v2 .tool-separator {
+    display: block;
+    width: 1px;
+    height: 26px;
+    background: #e2e8f0;
+    margin: 0 4px;
+    flex-shrink: 0;
+}
+body.v2 .tool-btn {
+    width: 46px;
+    height: 46px;
+    flex-direction: row;
+}
+body.v2 .tool-btn span {
+    display: none;
+}
+body.v2 .tool-btn svg {
+    width: 30px;
+    height: 30px;
 }
 
 /* Gruppo zoom ritraibile — stesso pattern del banco (.corner .fold) */
@@ -73,6 +115,14 @@ body.v2 #btn-fullscreen,
 body.v2 #btn-save {
     display: none;
 }
+/* Nome lezione centrato in header, staccato da logo/account (richiesta 20/09/2026) */
+body.v2 #project-name {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    max-width: min(320px, 40vw);
+}
 
 /* ---------- STEP 3: Magic Box + Gestione File —
    pannelli BIANCHI a due colonne (testo + icone), come nel banco approvato
@@ -90,6 +140,20 @@ body.v2 .v2-panel {
     border-color: rgba(15, 23, 42, 0.10);
     box-shadow: 0 22px 60px rgba(15, 23, 42, 0.22);
     color: #0f172a;
+    /* Apertura con dissolvenza + scivolata verso l'alto, come nel banco (.panel.open) —
+       il pannello resta SEMPRE nel DOM/flusso (mai display:none): la visibilità e
+       l'interazione sono governate da opacità/pointer-events, cosa che la transizione
+       CSS richiede per animare. barra-nuova.js aggiunge/toglie solo la classe .v2-open. */
+    display: block !important;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(-50%) translateY(8px);
+    transition: opacity .18s ease, transform .18s ease;
+}
+body.v2 .v2-panel.v2-open {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateX(-50%) translateY(0);
 }
 body.v2 .v2-panel .popup-title {
     color: #64748b;

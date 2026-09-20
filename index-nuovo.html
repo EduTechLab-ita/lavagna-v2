@@ -103,13 +103,8 @@
                 </svg>
                 <span id="fullscreen-label">Espandi</span>
             </button>
-            <!-- Campanella notifiche foto -->
-            <div id="photo-bell-wrap" style="position:relative;display:inline-flex;align-items:center;">
-                <button id="photo-bell-btn" class="photo-bell-btn" title="Foto ricevute dal telefono" style="display:none">
-                    🔔
-                </button>
-                <span id="photo-bell-badge" class="photo-bell-badge" style="display:none">0</span>
-            </div>
+            <!-- photo-bell-wrap (20/09/2026): spostata in #bottom-right-bar, accanto
+                 all'account — vedi decisione nel banco. Stesso nodo, non un duplicato. -->
             <!-- Stato Drive testuale -->
             <div id="drive-status-header" class="drive-status-header">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" id="drive-status-icon" style="display:none">
@@ -207,7 +202,7 @@
                     <svg viewBox="0 0 24 24"><use href="#ic-hand"/></svg>
                 </button>
                 <button class="tool-btn qab-btn" data-tool="select" title="Seleziona oggetti">
-                    <svg viewBox="0 0 24 24"><use href="#ic-select"/></svg>
+                    <svg viewBox="0 0 24 24"><use href="#ic-lasso"/></svg>
                 </button>
             </div>
             <!-- Toggle — sempre visibile, fuori dal quick strip -->
@@ -275,65 +270,46 @@
             <!-- Riga strumenti principali -->
             <div class="toolbar-row main-row">
 
-                <!-- Gruppo 1: Penne -->
+                <!-- Gruppo A: Seleziona / Mano (restyling 20/09/2026 — stesso ordine del banco) -->
                 <div class="tool-group">
-                    <button class="tool-btn active" data-tool="pen" title="Penna">
-                        <svg viewBox="0 0 24 24"><use href="#ic-pen"/></svg>
+                    <button class="tool-btn" data-tool="select" title="Seleziona e sposta oggetti" id="select-tool-btn">
+                        <svg viewBox="0 0 24 24"><use href="#ic-lasso"/></svg>
+                        <span>Seleziona</span>
+                    </button>
+                    <button class="tool-btn" data-tool="pan" title="Mano — sposta la lavagna">
+                        <svg viewBox="0 0 24 24"><use href="#ic-hand"/></svg>
+                        <span>Mano</span>
+                    </button>
+                </div>
+
+                <div class="tool-separator"></div>
+
+                <!-- Gruppo B: Penna (pannello con Penna/Matita/Pastello/Evidenz./Laser) / Gomma / Forme / Testo -->
+                <div class="tool-group">
+                    <button class="tool-btn active" id="v2-pen-btn" title="Penna, matita, pastello, evidenziatore, laser">
+                        <svg viewBox="0 0 24 24"><use href="#ic-pen" id="v2-pen-trigger-use"/></svg>
                         <span>Penna</span>
-                    </button>
-                    <button class="tool-btn" data-tool="pencil" title="Matita HB">
-                        <svg viewBox="0 0 24 24"><use href="#ic-pencil"/></svg>
-                        <span>Matita</span>
-                    </button>
-                    <button class="tool-btn" data-tool="pastel" title="Pastello morbido">
-                        <svg viewBox="0 0 24 24"><use href="#ic-crayon"/></svg>
-                        <span>Pastello</span>
-                    </button>
-                    <button class="tool-btn" data-tool="marker" title="Evidenziatore">
-                        <svg viewBox="0 0 24 24"><use href="#ic-marker"/></svg>
-                        <span>Evidenz.</span>
                     </button>
                     <button class="tool-btn" data-tool="eraser" title="Gomma">
                         <svg viewBox="0 0 24 24"><use href="#ic-eraser"/></svg>
                         <span>Gomma</span>
                     </button>
-                </div>
-
-                <div class="tool-separator"></div>
-
-                <!-- Gruppo 2: Speciali -->
-                <div class="tool-group">
-                    <button class="tool-btn" data-tool="laser" title="Puntatore laser">
-                        <svg viewBox="0 0 24 24"><use href="#ic-laser"/></svg>
-                        <span>Laser</span>
+                    <button class="tool-btn" data-tool="shape" title="Forme" id="shape-tool-btn">
+                        <svg viewBox="0 0 24 24"><use href="#ic-shapes"/></svg>
+                        <span>Forme</span>
                     </button>
                     <button class="tool-btn" data-tool="text" title="Testo">
                         <svg viewBox="0 0 24 24"><use href="#ic-text"/></svg>
                         <span>Testo</span>
                     </button>
-                    <button class="tool-btn" data-tool="shape" title="Forme" id="shape-tool-btn">
-                        <svg viewBox="0 0 24 24"><use href="#ic-shapes"/></svg>
-                        <span>Forme</span>
-                    </button>
-                    <button class="tool-btn" data-tool="select" title="Seleziona e sposta oggetti" id="select-tool-btn">
-                        <svg viewBox="0 0 24 24">
-                            <use href="#ic-select"/>
-                        </svg>
-                        <span>Seleziona</span>
-                    </button>
-                    <button class="tool-btn" data-tool="pan" title="Mano — sposta la lavagna">
-                      <svg viewBox="0 0 24 24">
-                        <use href="#ic-hand"/>
-                      </svg>
-                      <span>Mano</span>
-                    </button>
                 </div>
 
                 <div class="tool-separator"></div>
 
-                <!-- Gruppo 3: Sfondo + Azioni -->
+                <!-- Gruppo C: Importa / Nuova / Gestione File / Magic Box — Sfondo nascosto (resta
+                     SOLO in barra pagine, questo nodo serve solo da bersaglio al proxy di là) -->
                 <div class="tool-group">
-                    <button class="tool-btn" data-tool="background" title="Sfondo" id="bg-tool-btn">
+                    <button class="tool-btn" data-tool="background" title="Sfondo" id="bg-tool-btn" style="display:none">
                         <svg viewBox="0 0 24 24"><use href="#ic-bg"/></svg>
                         <span>Sfondo</span>
                     </button>
@@ -343,12 +319,6 @@
                         </svg>
                         <span>Importa</span>
                     </button>
-                </div>
-
-                <div class="tool-separator"></div>
-
-                <!-- Gruppo 3b: Nuova / Gestione File / Magic Box (restyling 20/09/2026) -->
-                <div class="tool-group">
                     <button class="tool-btn" id="v2-new-board-btn" title="Crea una nuova lavagna">
                         <svg viewBox="0 0 24 24"><use href="#ic-new"/></svg>
                         <span>Nuova</span>
@@ -386,11 +356,45 @@
         </div><!-- end floating-toolbar -->
     </div><!-- end toolbar-wrapper -->
 
+    <!-- ===== PANNELLO PENNA (restyling 20/09/2026) =====
+         Consolida in un solo pulsante di barra (#v2-pen-btn) i 5 strumenti di scrittura,
+         come nel banco. I pulsanti dentro sono gli STESSI di sempre (stesso id/data-tool),
+         solo spostati qui dal main-row — nessuna funzione riscritta. -->
+    <div id="v2-pen-panel" class="v2-panel popup-panel">
+        <button class="popup-close-btn" title="Chiudi">&times;</button>
+        <div class="v2-panel-head">
+            <svg viewBox="0 0 24 24"><use href="#ic-pen"/></svg>
+            <div class="popup-title" style="margin:0">Strumenti di scrittura</div>
+        </div>
+        <div class="v2-tray-tools">
+            <button class="tool-btn active" data-tool="pen" title="Penna">
+                <svg viewBox="0 0 24 24"><use href="#ic-pen"/></svg>
+                <span>Penna</span>
+            </button>
+            <button class="tool-btn" data-tool="pencil" title="Matita HB">
+                <svg viewBox="0 0 24 24"><use href="#ic-pencil"/></svg>
+                <span>Matita</span>
+            </button>
+            <button class="tool-btn" data-tool="pastel" title="Pastello morbido">
+                <svg viewBox="0 0 24 24"><use href="#ic-crayon"/></svg>
+                <span>Pastello</span>
+            </button>
+            <button class="tool-btn" data-tool="marker" title="Evidenziatore">
+                <svg viewBox="0 0 24 24"><use href="#ic-marker"/></svg>
+                <span>Evidenz.</span>
+            </button>
+            <button class="tool-btn" data-tool="laser" title="Puntatore laser">
+                <svg viewBox="0 0 24 24"><use href="#ic-laser"/></svg>
+                <span>Laser</span>
+            </button>
+        </div>
+    </div>
+
     <!-- ===== MAGIC BOX (restyling 20/09/2026) =====
          Pannello nuovo, gestito da barra-nuova.js: raccoglie strumenti che prima
          stavano sparsi in riga. I pulsanti dentro sono gli STESSI di sempre (stessi
          id/data-tool), solo spostati qui — nessuna funzione riscritta. -->
-    <div id="v2-magic-panel" class="v2-panel popup-panel" style="display:none">
+    <div id="v2-magic-panel" class="v2-panel popup-panel">
         <button class="popup-close-btn" title="Chiudi">&times;</button>
         <div class="v2-panel-head">
             <svg viewBox="0 0 24 24"><use href="#ic-magic"/></svg>
@@ -479,7 +483,7 @@
          Scorciatoie a funzioni GIÀ ESISTENTI (Nuova/Apri libreria/Stampa/Salva) —
          niente di nuovo dietro: ogni pulsante richiama il pulsante vero, non lo sostituisce.
          La libreria lezioni con salvataggio automatico resta identica. -->
-    <div id="v2-file-panel" class="v2-panel popup-panel" style="display:none">
+    <div id="v2-file-panel" class="v2-panel popup-panel">
         <button class="popup-close-btn" title="Chiudi">&times;</button>
         <div class="v2-panel-head">
             <svg viewBox="0 0 24 24"><use href="#ic-folder"/></svg>
@@ -892,12 +896,24 @@
 
     <!-- Barra basso destra: zoom e account -->
     <div id="bottom-right-bar">
+        <!-- Campanella notifiche foto (spostata dall'header, 20/09/2026) — stesso nodo -->
+        <div id="photo-bell-wrap" style="position:relative;display:inline-flex;align-items:center;">
+            <button id="photo-bell-btn" class="photo-bell-btn" title="Foto ricevute dal telefono" style="display:none">
+                🔔
+            </button>
+            <span id="photo-bell-badge" class="photo-bell-badge" style="display:none">0</span>
+        </div>
         <!-- Freccia di ritraibilità (restyling 20/09/2026): comprime il gruppo zoom,
              lascia solo l'account — gestita da barra-nuova.js/css, nessun elemento sotto tocca -->
         <button id="v2-zoom-fold" class="page-bar-icon-btn" title="Nascondi lo zoom">
             <svg viewBox="0 0 24 24"><use href="#ic-chevron-r" id="v2-zoom-fold-use"/></svg>
         </button>
         <span id="v2-zoomgroup" class="v2-zoomgroup">
+        <!-- Adatta alla pagina (20/09/2026) — richiama la stessa funzione reale già
+             usata dal pulsante "Adatta alla larghezza" dentro il popup dello zoom -->
+        <button id="v2-zoom-fit" class="page-bar-icon-btn" title="Adatta alla pagina">
+            <svg viewBox="0 0 24 24"><use href="#ic-fit"/></svg>
+        </button>
         <!-- Pulsante zoom out -->
         <button id="zoom-out-btn" class="bottom-bar-zoom-btn" title="Riduci zoom">−</button>
         <!-- Display zoom (cliccabile per inserimento manuale) -->
