@@ -625,6 +625,70 @@ body.v2 .v2-pagerow.v2-current {
     background: rgba(59, 130, 246, .15);
     border-color: rgba(59, 130, 246, .40);
 }
+body.v2 .v2-pagerow.v2-dragging {
+    opacity: .6;
+    box-shadow: 0 6px 18px rgba(15, 23, 42, .18);
+}
+/* Maniglia di trascinamento (banco: .grip) */
+body.v2 .v2-grip {
+    color: #94a3b8;
+    font-size: 15px;
+    line-height: 1;
+    letter-spacing: -2px;
+    cursor: grab;
+    touch-action: none;
+    flex-shrink: 0;
+    padding: 0 2px;
+}
+body.v2 .v2-grip:active {
+    cursor: grabbing;
+}
+/* Anteprima della pagina (banco: .thumb) */
+body.v2 .v2-thumb {
+    width: 56px;
+    height: 40px;
+    border-radius: 6px;
+    background: #fff;
+    border: 1px solid #cbd5e1;
+    flex-shrink: 0;
+    overflow: hidden;
+    display: block;
+    object-fit: contain;
+}
+/* Menù ⋮ di riga */
+body.v2 .v2-rowmenu {
+    position: fixed;
+    z-index: 300;
+    background: #fff;
+    border: 1px solid rgba(15, 23, 42, .10);
+    border-radius: 12px;
+    box-shadow: 0 18px 44px rgba(15, 23, 42, .22);
+    padding: 6px;
+    min-width: 232px;
+}
+body.v2 .v2-rowmenu button {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+    padding: 9px 10px;
+    border: none;
+    background: transparent;
+    border-radius: 9px;
+    cursor: pointer;
+    font: inherit;
+    font-size: 13.5px;
+    color: #0f172a;
+    text-align: left;
+}
+body.v2 .v2-rowmenu button:hover {
+    background: #f1f5f9;
+}
+body.v2 .v2-rowmenu svg {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+}
 body.v2 .v2-pagename {
     flex: 1;
     font-size: 13px;

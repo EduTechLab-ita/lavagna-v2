@@ -66,6 +66,7 @@
       <symbol id="ic-plus" viewBox="0 0 24 24"><path d="M5 12h14M12 5v14" stroke="#475569" stroke-width="2.1" stroke-linecap="round"/></symbol>
       <symbol id="ic-fit" viewBox="0 0 24 24"><g stroke="#475569" stroke-width="1.9" stroke-linecap="round" fill="none"><path d="M3.4 8.6V4.8a1.4 1.4 0 0 1 1.4-1.4h3.8M20.6 8.6V4.8a1.4 1.4 0 0 0-1.4-1.4h-3.8M3.4 15.4v3.8a1.4 1.4 0 0 0 1.4 1.4h3.8M20.6 15.4v3.8a1.4 1.4 0 0 1-1.4 1.4h-3.8"/></g><rect x="8" y="8" width="8" height="8" rx="1.4" fill="#cbd5e1"/></symbol>
       <symbol id="ic-user" viewBox="0 0 24 24"><circle cx="12" cy="8.4" r="4.2" fill="#64748b"/><path d="M3.8 21.2a8.2 8.2 0 0 1 16.4 0z" fill="#64748b"/></symbol>
+      <symbol id="ic-movepage" viewBox="0 0 24 24"><path d="M3.4 9.4h13m0 0l-3.4-3.4M16.4 9.4L13 12.8" fill="none" stroke="#3b82f6" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M20.6 14.6h-13m0 0l3.4-3.4M7.6 14.6L11 18" fill="none" stroke="#94a3b8" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
       <symbol id="ic-pages" viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="1.4" fill="#3b82f6"/><rect x="13" y="3" width="8" height="8" rx="1.4" fill="#93c5fd"/><rect x="3" y="13" width="8" height="8" rx="1.4" fill="#93c5fd"/><rect x="13" y="13" width="8" height="8" rx="1.4" fill="#3b82f6"/></symbol>
       <symbol id="ic-addpage" viewBox="0 0 24 24"><rect x="3.4" y="3.4" width="17.2" height="17.2" rx="2.6" fill="none" stroke="#475569" stroke-width="1.7"/><path d="M12 8.4v7.2M8.4 12h7.2" stroke="#475569" stroke-width="1.9" stroke-linecap="round"/></symbol>
       <symbol id="ic-present" viewBox="0 0 24 24"><rect x="2.4" y="3.2" width="19.2" height="12.8" rx="1.8" fill="#e8763a"/><rect x="4.4" y="5.2" width="15.2" height="8.8" rx="1" fill="#fff3e6"/><path d="M10.4 7.4l4.6 2.6-4.6 2.6z" fill="#e8763a"/><path d="M12 16v3.2M8 21.2l4-2 4 2" fill="none" stroke="#475569" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
@@ -257,6 +258,13 @@
                         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12 C6 6 10 6 12 12 C14 18 18 18 21 12"/><line x1="18" y1="6" x2="22" y2="10"/><line x1="22" y1="6" x2="18" y2="10"/></svg>
                         Tratto
                     </button>
+                    <!-- Gomma di selezione (lazo), 20/09/2026: cerchia a mano libera e
+                         cancella solo ciò che sta dentro. app.js la collega da solo
+                         (_setupEraserMode legge data-mode da qualunque .eraser-mode-btn). -->
+                    <button class="eraser-mode-btn" data-mode="lasso" title="Gomma di selezione — cerchia e cancella">
+                        <svg viewBox="0 0 24 24"><use href="#ic-eraser-lasso"/></svg>
+                        Lazo
+                    </button>
                 </div>
             </div>
                 <!-- Freccia chiudi toolbar — affiancata alle opzioni, stessa estetica del ^ per aprire -->
@@ -402,6 +410,20 @@
             <div class="v2-trayv-title">Ultimi colori usati</div>
             <div class="v2-row v2-options-slot" id="v2-slot-colors"></div>
         </div>
+    </div>
+
+    <!-- ===== PANNELLO TESTO ===== -->
+    <div id="v2-text-panel" class="v2-panel popup-panel">
+        <button class="popup-close-btn" title="Chiudi">&times;</button>
+        <div class="v2-panel-head">
+            <svg viewBox="0 0 24 24"><use href="#ic-text"/></svg>
+            <div class="popup-title">Testo</div>
+        </div>
+        <div class="v2-trayv">
+            <div class="v2-trayv-title">Colore</div>
+            <div class="v2-row v2-options-slot" id="v2-slot-text-colors"></div>
+        </div>
+        <div class="v2-filenote" style="margin-top:10px">Grandezza, grassetto e corsivo compaiono accanto al testo mentre scrivi.</div>
     </div>
 
     <!-- ===== PANNELLO PAGINE (si apre dal contatore N/M, come nel banco) ===== -->

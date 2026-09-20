@@ -100,19 +100,191 @@
         chip.textContent = (pageManager.currentIndex + 1) + '/' + pageManager.pages.length;
     }
 
-    // Elenco pagine del pannello: righe vere, che richiamano i metodi veri di
-    // PageManager (goToPage/deletePage) — nessuna logica di pagine riscritta qui.
+    // ---- Anteprima di una pagina ----
+    // I dati ci sono già: ogni pagina salva `drawImageData` (l'intero canvas) e
+    // `captureRect` (dove stava il foglio dentro quel canvas). Si ritaglia il foglio
+    // e lo si rimpicciolisce. Per la pagina CORRENTE il dato salvato è vecchio —
+    // si fotografa il canvas vivo, altrimenti l'anteprima mostrerebbe com'era prima.
+    function buildPageThumb(index, imgEl) {
+        const pm = pageManager;
+        const isCurrent = index === pm.currentIndex;
+        const drawCanvas = document.getElementById('draw-canvas');
+        let src = null, rect = null;
+        if (isCurrent && drawCanvas && drawCanvas.width) {
+            src = drawCanvas.toDataURL('image/png');
+            if (typeof bgMgr !== 'undefined' && bgMgr) {
+                const r = bgMgr._getPageRect(drawCanvas.width, drawCanvas.height);
+                rect = { px: r.px, py: r.py, pw: r.pw, ph: r.ph };
+            }
+        } else {
+            src = pm.pages[index]?.drawImageData || null;
+            rect = pm.pages[index]?.captureRect || null;
+        }
+        if (!src) return;                       // pagina mai disegnata: resta il riquadro bianco
+        const img = new Image();
+        img.onload = () => {
+            const TW = 112, TH = 80;            // doppio della misura a schermo, per la nitidezza
+            const r = (rect && rect.pw) ? rect : { px: 0, py: 0, pw: img.width, ph: img.height };
+
+            // 1) ritaglia il foglio a piena risoluzione
+            let cur = document.createElement('canvas');
+            cur.width = Math.max(1, Math.round(r.pw));
+            cur.height = Math.max(1, Math.round(r.ph));
+            cur.getContext('2d').drawImage(img, r.px, r.py, r.pw, r.ph, 0, 0, cur.width, cur.height);
+
+            // 2) dimezza a passi fino a sfiorare la misura finale. Rimpicciolire di colpo
+            //    da 2160px a 112px fa sparire le linee sottili (si mediano col bianco e
+            //    restano quasi invisibili): a passi invece restano leggibili.
+            while (cur.width / 2 > TW) {
+                const n = document.createElement('canvas');
+                n.width = Math.round(cur.width / 2);
+                n.height = Math.round(cur.height / 2);
+                const nx = n.getContext('2d');
+                nx.imageSmoothingQuality = 'high';
+                nx.drawImage(cur, 0, 0, n.width, n.height);
+                cur = n;
+            }
+
+            // 3) ultimo passo dentro il riquadro dell'anteprima
+            const c = document.createElement('canvas');
+            c.width = TW; c.height = TH;
+            const ctx = c.getContext('2d');
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(0, 0, TW, TH);
+            ctx.imageSmoothingQuality = 'high';
+            const s = Math.min(TW / cur.width, TH / cur.height);
+            const dw = cur.width * s, dh = cur.height * s;
+            ctx.drawImage(cur, (TW - dw) / 2, (TH - dh) / 2, dw, dh);
+            imgEl.src = c.toDataURL();
+        };
+        img.src = src;
+    }
+
+    function closeRowMenu() {
+        document.querySelectorAll('.v2-rowmenu').forEach(m => m.remove());
+    }
+
+    // ⋮ di riga: duplica la pagina, oppure la sposta in un'altra lezione (quest'ultima
+    // è la funzione che l'app aveva già sul vecchio pulsante ⇄).
+    function openRowMenu(index, anchor) {
+        closeRowMenu();
+        const menu = document.createElement('div');
+        menu.className = 'v2-rowmenu';
+        menu.innerHTML =
+            '<button data-act="dup"><svg viewBox="0 0 24 24"><use href="#ic-pages"/></svg>Duplica questa pagina</button>' +
+            '<button data-act="move"><svg viewBox="0 0 24 24"><use href="#ic-movepage"/></svg>Sposta o copia in un\'altra lezione</button>';
+        document.body.appendChild(menu);
+        const r = anchor.getBoundingClientRect();
+        menu.style.left = Math.min(r.left, window.innerWidth - menu.offsetWidth - 12) + 'px';
+        menu.style.top = Math.max(12, r.top - menu.offsetHeight - 6) + 'px';
+        menu.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const act = e.target.closest('button')?.dataset.act;
+            if (act === 'dup') duplicatePage(index);
+            if (act === 'move') {
+                closeV2Panels();
+                window.libraryMgr?.openMovePageModal(index);
+            }
+            closeRowMenu();
+        });
+    }
+
+    function duplicatePage(index) {
+        const pm = pageManager;
+        if (!pm || !pm.pages[index]) return;
+        // Se si duplica la pagina aperta, prima se ne fotografa lo stato attuale
+        if (index === pm.currentIndex) pm.pages[index] = pm._captureCurrentPage();
+        pm.pages.splice(index + 1, 0, JSON.parse(JSON.stringify(pm.pages[index])));
+        if (pm.currentIndex > index) pm.currentIndex++;
+        pm._updatePageBar();
+        CONFIG.isDirty = true;
+        window.autoSaveMgr?.onDirty();
+        renderPagesPanel();
+        toast?.('Pagina duplicata', 'success');
+    }
+
+    // Trascinamento con Pointer Events (non HTML5 drag&drop: quello col dito sulla LIM
+    // non funziona). Si riordinano le righe nel DOM mentre si trascina, e al rilascio
+    // si applica lo stesso ordine all'array vero delle pagine.
+    function setupRowDrag(row, list) {
+        const grip = row.querySelector('.v2-grip');
+        if (!grip) return;
+        grip.addEventListener('pointerdown', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            grip.setPointerCapture(e.pointerId);
+            row.classList.add('v2-dragging');
+
+            const onMove = (ev) => {
+                const rows = Array.from(list.querySelectorAll('.v2-pagerow'));
+                for (const other of rows) {
+                    if (other === row) continue;
+                    const b = other.getBoundingClientRect();
+                    if (ev.clientY > b.top && ev.clientY < b.bottom) {
+                        const before = ev.clientY < b.top + b.height / 2;
+                        list.insertBefore(row, before ? other : other.nextSibling);
+                        break;
+                    }
+                }
+            };
+            const onUp = () => {
+                grip.removeEventListener('pointermove', onMove);
+                grip.removeEventListener('pointerup', onUp);
+                row.classList.remove('v2-dragging');
+                applyRowOrder(list);
+            };
+            grip.addEventListener('pointermove', onMove);
+            grip.addEventListener('pointerup', onUp);
+        });
+    }
+
+    function applyRowOrder(list) {
+        const pm = pageManager;
+        if (!pm) return;
+        const order = Array.from(list.querySelectorAll('.v2-pagerow')).map(r => parseInt(r.dataset.idx, 10));
+        if (order.some(isNaN) || order.length !== pm.pages.length) return;
+        const unchanged = order.every((v, i) => v === i);
+        if (unchanged) return;
+        const current = pm.pages[pm.currentIndex];
+        const old = pm.pages.slice();
+        pm.pages = order.map(i => old[i]);
+        pm.currentIndex = pm.pages.indexOf(current);
+        pm._updatePageBar();
+        CONFIG.isDirty = true;
+        window.autoSaveMgr?.onDirty();
+        renderPagesPanel();
+    }
+
+    // Elenco pagine del pannello, come nel banco: maniglia, anteprima, nome, cestino, ⋮.
+    // Tutte le azioni passano dai metodi veri di PageManager — niente logica duplicata.
     function renderPagesPanel() {
         const list = document.getElementById('v2-pagelist');
         if (!list || typeof pageManager === 'undefined' || !pageManager) return;
+        closeRowMenu();
         list.innerHTML = '';
         pageManager.pages.forEach((p, i) => {
+            const isCurrent = i === pageManager.currentIndex;
             const row = document.createElement('div');
-            row.className = 'v2-pagerow' + (i === pageManager.currentIndex ? ' v2-current' : '');
+            row.className = 'v2-pagerow' + (isCurrent ? ' v2-current' : '');
+            row.dataset.idx = i;
+
+            const grip = document.createElement('span');
+            grip.className = 'v2-grip';
+            grip.title = 'Trascina per riordinare';
+            grip.textContent = '⠿';
+            row.appendChild(grip);
+
+            const thumb = document.createElement('img');
+            thumb.className = 'v2-thumb';
+            thumb.alt = '';
+            row.appendChild(thumb);
+            buildPageThumb(i, thumb);
+
             const name = document.createElement('span');
             name.className = 'v2-pagename';
-            name.innerHTML = 'Pagina ' + (i + 1) + (i === pageManager.currentIndex ? ' <em>— sei qui</em>' : '');
+            name.innerHTML = 'Pagina ' + (i + 1) + (isCurrent ? ' <em>— sei qui</em>' : '');
             row.appendChild(name);
+
             if (pageManager.pages.length > 1) {
                 const del = document.createElement('button');
                 del.className = 'v2-rowbtn';
@@ -125,10 +297,22 @@
                 });
                 row.appendChild(del);
             }
+
+            const dots = document.createElement('button');
+            dots.className = 'v2-rowbtn';
+            dots.title = 'Duplica, sposta in un\'altra lezione';
+            dots.textContent = '⋮';
+            dots.addEventListener('click', (e) => {
+                e.stopPropagation();
+                openRowMenu(i, dots);
+            });
+            row.appendChild(dots);
+
             row.addEventListener('click', () => {
                 pageManager.goToPage(i);
                 renderPagesPanel();
             });
+            setupRowDrag(row, list);
             list.appendChild(row);
         });
     }
@@ -228,7 +412,7 @@
 
     // Per penna, gomma e forme le opzioni vivono nel rispettivo pannello: la pillola
     // sotto la barra non deve comparire (resta solo per il Testo, che pannello non ha).
-    const OWNED_BY_PANEL = PEN_FAMILY.concat(['eraser', 'shape']);
+    const OWNED_BY_PANEL = PEN_FAMILY.concat(['eraser', 'shape', 'text']);
     function syncOptionsRowVisibility() {
         const row = document.getElementById('tool-options-row');
         if (!row || typeof CONFIG === 'undefined') return;
@@ -266,7 +450,8 @@
 
     function closeV2Panels() {
         let any = false;
-        ['v2-magic-panel', 'v2-file-panel', 'v2-pen-panel', 'v2-eraser-panel', 'v2-pages-panel'].forEach(id => {
+        closeRowMenu();
+        ['v2-magic-panel', 'v2-file-panel', 'v2-pen-panel', 'v2-eraser-panel', 'v2-pages-panel', 'v2-text-panel'].forEach(id => {
             const el = document.getElementById(id);
             if (el && el.classList.contains('v2-open')) { el.classList.remove('v2-open'); any = true; }
         });
@@ -291,6 +476,8 @@
                 moveOptionsInto({ 'options-sizes': 'v2-slot-sizes', 'options-colors': 'v2-slot-colors' });
             } else if (id === 'v2-eraser-panel') {
                 moveOptionsInto({ 'eraser-mode-btns': 'v2-slot-eraser-modes', 'options-sizes': 'v2-slot-eraser-sizes' });
+            } else if (id === 'v2-text-panel') {
+                moveOptionsInto({ 'options-colors': 'v2-slot-text-colors' });
             }
             positionV2Panel(panel, btn);
             panel.classList.add('v2-open');
@@ -329,6 +516,14 @@
                 openV2Panel('v2-eraser-panel', eraserBtn);
             });
         }
+        // Testo: stesso trattamento di Penna/Gomma/Forme — il colore sta nel suo
+        // pannello invece che in una barretta sempre accesa sotto la barra.
+        const textBtn = document.querySelector('.main-row .tool-btn[data-tool="text"]');
+        textBtn?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openV2Panel('v2-text-panel', textBtn);
+        });
+
         document.getElementById('v2-magic-btn')?.addEventListener('click', (e) => {
             e.stopPropagation();
             openV2Panel('v2-magic-panel', e.currentTarget);
@@ -416,7 +611,14 @@
             renderPagesPanel();
         });
 
+        // Confermata (o annullata) la scritta, il pannello Testo si chiude da solo:
+        // prima restava aperto sopra la lavagna anche a testo inserito.
+        document.getElementById('txt-confirm')?.addEventListener('click', closeV2Panels);
+        document.getElementById('txt-cancel')?.addEventListener('click', closeV2Panels);
+
         document.addEventListener('click', (e) => {
+            if (e.target.closest && e.target.closest('.v2-rowmenu')) return;
+            closeRowMenu();
             if (e.target.closest && (e.target.closest('#toolbar-wrapper') ||
                                      e.target.closest('#page-bar') ||
                                      e.target.closest('.v2-panel'))) return;

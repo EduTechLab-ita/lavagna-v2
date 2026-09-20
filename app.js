@@ -1108,6 +1108,14 @@ class CanvasManager {
     _onStart(e) {
         const { x, y } = this.getCoords(e);
 
+        // Gomma-lazo: si cerchia a mano libera e al rilascio sparisce solo ciò che sta
+        // dentro. Come la gomma-tratto NON tocca gli oggetti importati (immagini/PDF):
+        // quelli si eliminano con Seleziona + Canc, scelta già presa il 19/09/2026.
+        if (CONFIG.currentTool === 'eraser' && CONFIG.eraserMode === 'lasso') {
+            this._eraserLassoPath = [{ x, y }];
+            return;
+        }
+
         // Modalità gomma-tratto: premi e scorri per cancellare (stile OneNote)
         // Cancella in un tocco solo un tratto/forma intera — MAI un oggetto importato
         if (CONFIG.currentTool === 'eraser' && CONFIG.eraserMode === 'stroke') {
@@ -1169,6 +1177,15 @@ class CanvasManager {
     }
 
     _onMove(e) {
+        // Gomma-lazo: accumula il tracciato e lo disegna tratteggiato sull'overlay
+        if (CONFIG.currentTool === 'eraser' && CONFIG.eraserMode === 'lasso') {
+            if (!this._eraserLassoPath) return;
+            const p = this.getCoords(e);
+            this._eraserLassoPath.push({ x: p.x, y: p.y });
+            this._drawEraserLasso();
+            return;
+        }
+
         // Gomma-tratto: se sto premendo → cancella subito; altrimenti → evidenzia hover
         if (CONFIG.currentTool === 'eraser' && CONFIG.eraserMode === 'stroke') {
             const { x, y } = this.getCoords(e);
@@ -1234,6 +1251,12 @@ class CanvasManager {
     }
 
     _onEnd(e) {
+        // Gomma-lazo: al rilascio si cancella ciò che è racchiuso nel tracciato
+        if (CONFIG.currentTool === 'eraser' && CONFIG.eraserMode === 'lasso') {
+            this._commitEraserLasso();
+            return;
+        }
+
         // Gomma-tratto: rilascia la modalità press-and-swipe
         if (CONFIG.currentTool === 'eraser' && CONFIG.eraserMode === 'stroke' && this._erasingStrokes) {
             this._erasingStrokes = false;
@@ -1440,6 +1463,50 @@ class CanvasManager {
         this._pageStrokes.splice(strokeIndex, 1);
         this._redrawAllStrokes();
 
+        CONFIG.isDirty = true;
+        window.autoSaveMgr?.onDirty();
+    }
+
+    // ── Gomma-lazo (20/09/2026) ────────────────────────────────────────────────
+    // Disegna il tracciato mentre lo si traccia. Stesso tratteggio azzurro del lazo
+    // di selezione, così il gesto si riconosce subito come "cerchia e togli".
+    _drawEraserLasso() {
+        const oc = this.overlayCanvas, ctx = this.overlayCtx;
+        if (!oc || !ctx || !this._eraserLassoPath || this._eraserLassoPath.length < 2) return;
+        ctx.clearRect(0, 0, oc.width, oc.height);
+        ctx.save();
+        ctx.strokeStyle = '#3b82f6';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6, 4]);
+        ctx.beginPath();
+        ctx.moveTo(this._eraserLassoPath[0].x, this._eraserLassoPath[0].y);
+        for (let i = 1; i < this._eraserLassoPath.length; i++) {
+            ctx.lineTo(this._eraserLassoPath[i].x, this._eraserLassoPath[i].y);
+        }
+        ctx.closePath();
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    // Al rilascio: toglie i tratti/forme il cui centro cade dentro il tracciato.
+    // Riusa _findItemsInLasso() del lazo di SELEZIONE (stesso criterio, stesso
+    // punto-in-poligono) invece di riscriverne uno proprio.
+    _commitEraserLasso() {
+        const path = this._eraserLassoPath;
+        this._eraserLassoPath = null;
+        if (this.overlayCtx && this.overlayCanvas) {
+            this.overlayCtx.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height);
+        }
+        if (!path || path.length < 3 || typeof selectMgr === 'undefined' || !selectMgr) return;
+        const strokes = selectMgr._findItemsInLasso(path).filter(it => it.type === 'stroke');
+        if (!strokes.length) return;
+
+        this._saveUndo();
+        strokes.forEach(it => {
+            const idx = this._pageStrokes.indexOf(it.ref);
+            if (idx >= 0) this._pageStrokes.splice(idx, 1);
+        });
+        this._redrawAllStrokes();
         CONFIG.isDirty = true;
         window.autoSaveMgr?.onDirty();
     }
@@ -1665,6 +1732,15 @@ class CanvasManager {
     clear() {
         this._saveUndo();
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        // I tratti vanno tolti anche dall'elenco VETTORIALE, non solo dai pixel:
+        // altrimenti la gomma-a-tratto continua a riconoscerli e, passandoci sopra,
+        // fa ricomparire l'evidenziazione di righe che non ci sono più
+        // (segnalato da Fabio il 20/09/2026). L'undo li riporta indietro lo stesso,
+        // perché _saveUndo() qui sopra ne ha già preso la fotografia.
+        this._pageStrokes = [];
+        if (this.overlayCtx && this.overlayCanvas) {
+            this.overlayCtx.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height);
+        }
         this.laser.clear();
     }
 
@@ -1998,6 +2074,7 @@ class ToolbarManager {
         let cursor = cursorMap[CONFIG.currentTool] || 'default';
         // Modalità gomma-tratto: usa cursore puntatore per indicare "clicca per cancellare"
         if (CONFIG.currentTool === 'eraser' && CONFIG.eraserMode === 'stroke') cursor = 'pointer';
+        if (CONFIG.currentTool === 'eraser' && CONFIG.eraserMode === 'lasso')  cursor = 'crosshair';
         if (canvas) canvas.style.cursor = cursor;
     }
 
@@ -7903,7 +7980,11 @@ class SpotlightTool {
         // Drag area — 1 dito: sposta; 2 dita: ridimensiona (pinch)
         const dragArea = document.createElement('div');
         dragArea.id = 'spotlight-drag-area';
-        dragArea.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:161;display:none;cursor:none;touch-action:none;';
+        // cursor:crosshair, non 'none': col mouse il puntatore spariva dentro l'area
+        // scurita e non si capiva più dove si era, quindi non si riuscivano a centrare
+        // i comandi del Focus (segnalato da Fabio il 20/09/2026). Sulla LIM a tocco
+        // non cambia nulla, il cursore lì non esiste comunque.
+        dragArea.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:161;display:none;cursor:crosshair;touch-action:none;';
         document.body.appendChild(dragArea);
         this._dragArea = dragArea;
 
