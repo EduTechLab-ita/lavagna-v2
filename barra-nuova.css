@@ -29,43 +29,160 @@ body.v2 .v2-present-btn svg {
     height: 15px;
 }
 
+/* ---------- STEP 3b: barra fissa, niente più "espandi/richiudi" ----------
+   barra-nuova.js tiene toolbarMgr sempre nello stato aperto: qui si nascondono
+   solo i controlli dell'apri/chiudi che non servono più (quick-strip/mini-bar
+   erano l'alternativa "chiusa", la freccetta ∨ serviva a richiudere). La
+   pillola colori/dimensioni (#tool-options-row) NON si tocca: resta gestita
+   da app.js, che la mostra/nasconde da solo secondo lo strumento scelto. */
+body.v2 #toolbar-top-row {
+    display: none;
+}
+body.v2 #toolbar-toggle-open {
+    display: none;
+}
+body.v2 #toolbar-controls-row {
+    justify-content: center;
+}
+
+/* Gruppo zoom ritraibile — stesso pattern del banco (.corner .fold) */
+body.v2 .v2-zoomgroup {
+    display: inline-flex;
+    align-items: center;
+    overflow: hidden;
+    max-width: 260px;
+    transition: max-width .28s ease, opacity .2s ease;
+}
+body.v2 .v2-zoomgroup.v2-folded {
+    max-width: 0;
+    opacity: 0;
+}
+body.v2 #v2-zoom-fold svg {
+    width: 15px;
+    height: 15px;
+}
+
+/* ---------- STEP 3d: header sfoltito (decisione di Fabio, 20/09/2026) ----------
+   Nuova/Stampa/Espandi/Salva sono ormai duplicati (Gestione File + barra pagine):
+   si NASCONDONO con CSS, non si cancellano dal markup — Gestione File e la barra
+   pagine cliccano ancora questi stessi pulsanti veri (proxy in barra-nuova.js).
+   Resta in header solo il nome/stato della connessione account. */
+body.v2 #btn-new-board-header,
+body.v2 #btn-export,
+body.v2 #btn-fullscreen,
+body.v2 #btn-save {
+    display: none;
+}
+
 /* ---------- STEP 3: Magic Box + Gestione File —
-   pannelli nuovi, riusano .popup-panel/.popup-title/.popup-close-btn (già scuri,
-   coerenti col resto) per il guscio; qui solo il contenuto interno. Posizione e
-   apertura/chiusura gestite da barra-nuova.js (stessa formula di _togglePopup,
+   pannelli BIANCHI a due colonne (testo + icone), come nel banco approvato
+   (banco-barra-2026-09-20.html, .mbsec/.mbsec-txt/.mbsec-tools). Il guscio riusa
+   posizione/ombra/raggio di .popup-panel, ma qui si sovrascrivono TUTTI i colori
+   con valori espliciti (non var(--text)/var(--bg-elevated) dell'app, pensati per
+   un pannello scuro): sono le stesse costanti hex del banco, non quelle dell'app.
+   Apertura/chiusura gestite da barra-nuova.js (stessa formula di _togglePopup,
    niente toccato in app.js). ---------- */
 body.v2 .v2-panel {
     width: min(480px, calc(100vw - 32px));
     max-height: min(64vh, 460px);
     overflow-y: auto;
+    background: #ffffff;
+    border-color: rgba(15, 23, 42, 0.10);
+    box-shadow: 0 22px 60px rgba(15, 23, 42, 0.22);
+    color: #0f172a;
+}
+body.v2 .v2-panel .popup-title {
+    color: #64748b;
+}
+body.v2 .v2-panel .popup-close-btn {
+    background: rgba(15, 23, 42, 0.06);
+    color: #94a3b8;
+}
+body.v2 .v2-panel .popup-close-btn:hover {
+    background: #f1f5f9;
+    color: #0f172a;
 }
 
-body.v2 .v2-tray + .v2-tray {
-    margin-top: 14px;
+body.v2 .v2-panel-head {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin-bottom: 13px;
 }
-body.v2 .v2-tray-title {
-    font-size: 0.7rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--text-muted);
-    margin-bottom: 8px;
+body.v2 .v2-panel-head svg {
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0;
+}
+
+/* Ogni tray: testo descrittivo a sinistra, icone a destra — stesso schema del banco */
+body.v2 .v2-tray {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    padding: 11px;
+    border-radius: 13px;
+    background: #f6f8fb;
+}
+body.v2 .v2-tray + .v2-tray {
+    margin-top: 9px;
+}
+body.v2 .v2-tray-txt {
+    flex: 1;
+    min-width: 112px;
+}
+body.v2 .v2-tray-txt strong {
+    display: block;
+    font-size: 14px;
+    margin-bottom: 2px;
+    color: #0f172a;
+}
+body.v2 .v2-tray-txt span {
+    display: block;
+    font-size: 12.2px;
+    color: #64748b;
+    line-height: 1.45;
 }
 body.v2 .v2-tray-tools {
     display: flex;
+    gap: 4px;
     flex-wrap: wrap;
-    gap: 8px;
 }
-/* Dentro il box i pulsanti stanno in riga, non nella toolbar: niente larghezza fissa a 44px */
+/* Icone compatte come nel banco (.pick): l'etichetta di testo del pulsante resta
+   nel DOM (accessibilità/title) ma qui è visiva solo l'icona. */
 body.v2 .v2-tray-tools .tool-btn,
 body.v2 .v2-tray-tools .shape-opt {
-    width: auto;
-    min-width: 64px;
-    height: auto;
-    padding: 8px 10px;
+    width: 46px;
+    height: 46px;
+    min-width: 0;
+    padding: 0;
+    border-radius: 12px;
+    background: transparent;
+    border: 1px solid transparent;
+    color: #0f172a;
+}
+body.v2 .v2-tray-tools .tool-btn:hover,
+body.v2 .v2-tray-tools .shape-opt:hover {
+    background: #e9eef6;
+    border-color: transparent;
+}
+body.v2 .v2-tray-tools .tool-btn.active,
+body.v2 .v2-tray-tools .tool-btn.geo-active,
+body.v2 .v2-tray-tools .shape-opt.geo-active {
+    background: rgba(59, 130, 246, .15);
+    border-color: rgba(59, 130, 246, .4);
+}
+body.v2 .v2-tray-tools .tool-btn svg,
+body.v2 .v2-tray-tools .shape-opt svg {
+    width: 29px;
+    height: 29px;
+}
+body.v2 .v2-tray-tools .tool-btn span,
+body.v2 .v2-tray-tools .shape-opt span {
+    display: none;
 }
 
-/* Gestione File — elenco verticale, stesso linguaggio degli altri pannelli scuri */
+/* Gestione File — elenco verticale bianco, stesso linguaggio del Magic Box */
 body.v2 .v2-filenav {
     display: flex;
     flex-direction: column;
@@ -82,12 +199,12 @@ body.v2 .v2-filenav button {
     cursor: pointer;
     font: inherit;
     font-size: 13.5px;
-    color: var(--text);
+    color: #0f172a;
     text-align: left;
     width: 100%;
 }
 body.v2 .v2-filenav button:hover {
-    background: var(--bg-elevated);
+    background: #f1f5f9;
 }
 body.v2 .v2-filenav button svg {
     width: 19px;
@@ -97,8 +214,8 @@ body.v2 .v2-filenav button svg {
 body.v2 .v2-filenote {
     margin-top: 10px;
     padding-top: 10px;
-    border-top: 1px solid var(--border);
+    border-top: 1px solid #e2e8f0;
     font-size: 12.3px;
     line-height: 1.5;
-    color: var(--text-muted);
+    color: #64748b;
 }

@@ -163,4 +163,57 @@
     } else {
         setupV2Panels();
     }
+
+    // ------------------------------------------------------------------
+    // STEP 3b: la barra non si allarga più — resta fissa, sono i pulsanti
+    // (Penna/Gomma/Forme) a far apparire il loro pannello sopra, esattamente
+    // come già fa il Magic Box. `#tool-options-row` (colori+dimensioni) è
+    // già una "pillola" bianca gestita da app.js (_updateOptionsRow mostra/
+    // nasconde SOLO quel nodo secondo lo strumento) — qui non se ne tocca la
+    // logica: si tiene semplicemente `toolbarMgr` sempre nello stato "aperto"
+    // (stesso stato che oggi si raggiunge solo cliccando la freccetta), così
+    // quella pillola può comparire senza dover prima espandere tutta la barra.
+    // ------------------------------------------------------------------
+    function keepToolbarOpen() {
+        if (typeof toolbarMgr === 'undefined' || !toolbarMgr) return;
+        toolbarMgr.hide = function () {}; // su questa pagina la barra non si richiude mai
+        toolbarMgr.show();
+
+        // Difetto preesistente in app.js, invisibile finché la barra si apriva solo a
+        // richiesta: lo strumento "pan" (Mano) non richiama _updateOptionsRow(), quindi
+        // se la pillola colori/dimensioni era aperta resta visibile anche con la Mano
+        // selezionata. Rete di sicurezza generica (nessuna riga toccata in app.js):
+        // dopo OGNI click su un tool-btn, si ririchiama la funzione già esistente —
+        // è idempotente, legge solo CONFIG.currentTool e aggiorna il display.
+        document.querySelectorAll('.tool-btn[data-tool]').forEach(btn => {
+            btn.addEventListener('click', () => toolbarMgr._updateOptionsRow());
+        });
+    }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', keepToolbarOpen);
+    } else {
+        keepToolbarOpen();
+    }
+
+    // ------------------------------------------------------------------
+    // STEP 3c: freccia di ritraibilità sul gruppo zoom (#bottom-right-bar) —
+    // stesso pattern del banco di prova (.corner .fold → .zoomgroup ritratto).
+    // ------------------------------------------------------------------
+    function setupZoomFold() {
+        const btn = document.getElementById('v2-zoom-fold');
+        const group = document.getElementById('v2-zoomgroup');
+        const use = document.getElementById('v2-zoom-fold-use');
+        if (!btn || !group) return;
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const folded = group.classList.toggle('v2-folded');
+            use?.setAttribute('href', folded ? '#ic-chevron-l' : '#ic-chevron-r');
+            btn.title = folded ? 'Mostra lo zoom' : 'Nascondi lo zoom';
+        });
+    }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', setupZoomFold);
+    } else {
+        setupZoomFold();
+    }
 })();

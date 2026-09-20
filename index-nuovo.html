@@ -86,10 +86,8 @@
             <div class="project-badge" id="project-name">Nuova Lavagna</div>
         </div>
         <div class="header-right">
-            <button class="hdr-btn" id="btn-install-pwa" title="Installa EduBoard su questo PC" style="display:none">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><polyline points="8 21 12 17 16 21"/><line x1="12" y1="17" x2="12" y2="3"/><polyline points="9 7 12 4 15 7"/></svg>
-                <span>Installa</span>
-            </button>
+            <!-- btn-install-pwa (20/09/2026): spostato dentro il Magic Box, vedi #v2-magic-panel —
+                 stesso pulsante reale, non un duplicato: qui non c'è più nulla. -->
             <button class="hdr-btn" id="btn-new-board-header" title="Nuova Lavagna">
                 <svg viewBox="0 0 24 24"><use href="#ic-new"/></svg>
                 <span>Nuova</span>
@@ -394,10 +392,16 @@
          id/data-tool), solo spostati qui — nessuna funzione riscritta. -->
     <div id="v2-magic-panel" class="v2-panel popup-panel" style="display:none">
         <button class="popup-close-btn" title="Chiudi">&times;</button>
-        <div class="popup-title">Magic Box</div>
+        <div class="v2-panel-head">
+            <svg viewBox="0 0 24 24"><use href="#ic-magic"/></svg>
+            <div class="popup-title" style="margin:0">Magic Box</div>
+        </div>
 
         <div class="v2-tray">
-            <div class="v2-tray-title">Strumenti geometrici</div>
+            <div class="v2-tray-txt">
+                <strong>Strumenti geometrici</strong>
+                <span>Disegna dritto e misura gli angoli.</span>
+            </div>
             <div class="v2-tray-tools">
                 <button class="shape-opt" id="btn-geo-ruler" title="Righello draggabile e ruotabile">
                     <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2">
@@ -421,7 +425,10 @@
         </div>
 
         <div class="v2-tray">
-            <div class="v2-tray-title">Contenuti web</div>
+            <div class="v2-tray-txt">
+                <strong>Contenuti web</strong>
+                <span>Porta un sito o un video dentro la lezione.</span>
+            </div>
             <div class="v2-tray-tools">
                 <button class="tool-btn" data-tool="embed-web" title="Incorpora una pagina web (video, giochi interattivi) dentro alla lavagna" id="embed-web-btn">
                     <svg viewBox="0 0 24 24"><use href="#ic-web"/></svg>
@@ -439,7 +446,10 @@
         </div>
 
         <div class="v2-tray">
-            <div class="v2-tray-title">Strumenti per la lezione</div>
+            <div class="v2-tray-txt">
+                <strong>Strumenti per la lezione</strong>
+                <span>Gestisci tempo e attenzione della classe.</span>
+            </div>
             <div class="v2-tray-tools">
                 <button class="tool-btn action-btn" id="btn-timer" title="Timer countdown / cronometro">
                     <svg viewBox="0 0 24 24"><use href="#ic-timer"/></svg>
@@ -455,6 +465,14 @@
                 </button>
             </div>
         </div>
+
+        <!-- Installa (20/09/2026): stesso pulsante che stava in header, spostato qui su
+             richiesta di Fabio — resta nascosto (display:none) finché il browser non
+             offre davvero l'installazione PWA, esattamente come faceva in header. -->
+        <button class="hdr-btn" id="btn-install-pwa" title="Installa EduBoard su questo PC" style="display:none; margin-top:9px; width:100%; justify-content:center">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><polyline points="8 21 12 17 16 21"/><line x1="12" y1="17" x2="12" y2="3"/><polyline points="9 7 12 4 15 7"/></svg>
+            <span>Installa EduBoard su questo PC</span>
+        </button>
     </div>
 
     <!-- ===== GESTIONE FILE (restyling 20/09/2026) =====
@@ -463,7 +481,10 @@
          La libreria lezioni con salvataggio automatico resta identica. -->
     <div id="v2-file-panel" class="v2-panel popup-panel" style="display:none">
         <button class="popup-close-btn" title="Chiudi">&times;</button>
-        <div class="popup-title">Gestione File</div>
+        <div class="v2-panel-head">
+            <svg viewBox="0 0 24 24"><use href="#ic-folder"/></svg>
+            <div class="popup-title" style="margin:0">Gestione File</div>
+        </div>
         <div class="v2-filenav">
             <button id="v2-file-new"><svg viewBox="0 0 24 24"><use href="#ic-new"/></svg>Crea nuova lavagna</button>
             <button id="v2-file-open"><svg viewBox="0 0 24 24"><use href="#ic-open"/></svg>Apri libreria lezioni</button>
@@ -871,6 +892,12 @@
 
     <!-- Barra basso destra: zoom e account -->
     <div id="bottom-right-bar">
+        <!-- Freccia di ritraibilità (restyling 20/09/2026): comprime il gruppo zoom,
+             lascia solo l'account — gestita da barra-nuova.js/css, nessun elemento sotto tocca -->
+        <button id="v2-zoom-fold" class="page-bar-icon-btn" title="Nascondi lo zoom">
+            <svg viewBox="0 0 24 24"><use href="#ic-chevron-r" id="v2-zoom-fold-use"/></svg>
+        </button>
+        <span id="v2-zoomgroup" class="v2-zoomgroup">
         <!-- Pulsante zoom out -->
         <button id="zoom-out-btn" class="bottom-bar-zoom-btn" title="Riduci zoom">−</button>
         <!-- Display zoom (cliccabile per inserimento manuale) -->
@@ -881,6 +908,7 @@
         <div class="bottom-bar-sep"></div>
         <!-- Badge auto-save -->
         <div class="autosave-badge" title="Salvato su Drive">✓</div>
+        </span>
         <!-- Pulsante account -->
         <div id="drive-fab" class="drive-fab bottom-account-btn" title="Connetti / disconnetti Google Drive">
             <div id="drive-fab-inner" class="drive-fab-inner">
