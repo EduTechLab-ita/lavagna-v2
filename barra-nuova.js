@@ -666,6 +666,39 @@
     }
     document.addEventListener('minicolor:update', (e) => syncColoreTratto(e.detail && e.detail.color));
 
+    // ---- Selettori colore nativi: il pannello si apre DOVE HAI PREMUTO (21/09/2026) --
+    // I quattro `input[type=color]` dell'app sono nascosti a dimensione zero e vengono
+    // aperti da JS (il "+" della tavolozza, il colore pagina, il bordo e il
+    // riempimento nel menù contestuale). Un elemento senza dimensioni non dà a Chrome
+    // nessun ancoraggio: il pannello nasce nell'angolo in alto a sinistra della
+    // finestra, mezzo fuori bordo, e i suoi pulsanti di chiusura diventano
+    // irraggiungibili (trovato da Fabio provando il "Colore personalizzato").
+    // Rimedio valido per TUTTI, anche per quelli creati a runtime: restano invisibili
+    // ma diventano un punto vero di 1px, portato sotto il pulsante appena premuto.
+    function ancoraSelettoreColore(inp) {
+        if (inp.dataset.v2Ancorato) return true;
+        const st = getComputedStyle(inp);
+        const r = inp.getBoundingClientRect();
+        // Un selettore che l'app mostrasse davvero non va toccato: qui si ancorano
+        // solo quelli nascosti, che sono gli unici aperti via codice.
+        if (st.display !== 'none' && st.opacity !== '0' && r.width > 2) return false;
+        inp.dataset.v2Ancorato = '1';
+        inp.style.cssText = 'position:fixed;width:1px;height:1px;padding:0;border:none;' +
+                            'opacity:0;pointer-events:none;z-index:1;';
+        return true;
+    }
+    document.addEventListener('pointerdown', (e) => {
+        // Solo sui pulsanti: durante il disegno non si fa nulla.
+        const btn = e.target.closest && e.target.closest('button');
+        if (!btn) return;
+        const r = btn.getBoundingClientRect();
+        document.querySelectorAll('input[type="color"]').forEach(inp => {
+            if (!ancoraSelettoreColore(inp)) return;
+            inp.style.left = Math.round(r.left + r.width / 2) + 'px';
+            inp.style.top = Math.round(r.bottom) + 'px';
+        });
+    }, true);
+
     function setupV2Panels() {
         // DUE TAP (Penna e Gomma, i due strumenti più usati — 21/09/2026).
         // Primo tap: rimette in uso l'ultimo tratto scelto e basta, così si scrive
