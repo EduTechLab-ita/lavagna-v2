@@ -8376,7 +8376,7 @@ document.addEventListener('DOMContentLoaded', () => {
     toolbarMgr = new ToolbarManager();
     textMgr    = new TextManager();
     projectMgr = new ProjectManager();
-    new PWAManager();
+    window.pwaMgr = new PWAManager();
     setupKeyboard();
     setupFullscreen();    // Feature 5
     setupProjectName();   // Feature 6

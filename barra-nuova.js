@@ -666,6 +666,49 @@
     }
     document.addEventListener('minicolor:update', (e) => syncColoreTratto(e.detail && e.detail.color));
 
+    // ---- L'avviso delle novità non deve dipendere dal tempismo (21/09/2026) ----------
+    // Il Service Worker annuncia l'aggiornamento con un postMessage durante l'activate.
+    // Quell'annuncio parte mentre la pagina sta ancora caricando: se il listener non è
+    // ancora registrato, il messaggio si perde e l'avviso non compare MAI — è successo
+    // a Fabio la sera del 21/09, con l'app già aggiornata (vedeva le novità) e nessun
+    // avviso. Qui non si aspetta l'annuncio: si CHIEDE al SW che versione sta servendo
+    // e la si confronta con l'ultima già vista su questo dispositivo. Funziona anche se
+    // il ricaricamento automatico viene saltato perché c'è lavoro non salvato.
+    const swEraGiaAttivo = !!(navigator.serviceWorker && navigator.serviceWorker.controller);
+    async function avvisaSeVersioneNuova() {
+        if (!('serviceWorker' in navigator)) return;
+        let reg;
+        try { reg = await navigator.serviceWorker.ready; } catch (_) { return; }
+        const sw = reg && reg.active;
+        if (!sw) return;
+        // Il SW vecchio non conosce GET_VERSION: senza scadenza si resterebbe appesi.
+        const risposta = await new Promise(resolve => {
+            const canale = new MessageChannel();
+            const scadenza = setTimeout(() => resolve(null), 3000);
+            canale.port1.onmessage = (e) => { clearTimeout(scadenza); resolve(e.data); };
+            try { sw.postMessage({ type: 'GET_VERSION' }, [canale.port2]); }
+            catch (_) { clearTimeout(scadenza); resolve(null); }
+        });
+        if (!risposta || !risposta.version) return;
+        const CHIAVE = 'eduboard_versione_vista';
+        let vista = null;
+        try {
+            vista = localStorage.getItem(CHIAVE);
+            localStorage.setItem(CHIAVE, risposta.version);
+        } catch (_) { return; }
+        if (vista === risposta.version) return;
+        // Prima installazione vera (nessun SW attivo all'apertura): niente avviso, non
+        // c'è nessuna "novità" rispetto a prima. Chi invece aveva già l'app installata
+        // sta vedendo un aggiornamento, anche se questa chiave non esisteva ancora.
+        if (!vista && !swEraGiaAttivo) return;
+        window.pwaMgr && window.pwaMgr._showChangelog(risposta.version, risposta.changelog);
+    }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => setTimeout(avvisaSeVersioneNuova, 1200));
+    } else {
+        setTimeout(avvisaSeVersioneNuova, 1200);
+    }
+
     // ---- Selettori colore nativi: il pannello si apre DOVE HAI PREMUTO (21/09/2026) --
     // I quattro `input[type=color]` dell'app sono nascosti a dimensione zero e vengono
     // aperti da JS (il "+" della tavolozza, il colore pagina, il bordo e il

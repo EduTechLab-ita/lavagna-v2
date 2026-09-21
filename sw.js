@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-095'; // v2-095 — Penna e Gomma a due tocchi: il primo rimette in uso lo strumento com'era, il secondo apre il pannello. Il colore non torna più al nero ad ogni cambio strumento, il pulsante della scrittura mostra il colore in uso, e il selettore del colore libero si apre accanto al pulsante invece che nell'angolo
+const CACHE_NAME = 'eduboard-v2-096'; // v2-096 — Penna e Gomma a due tocchi: il primo rimette in uso lo strumento com'era, il secondo apre il pannello. Il colore non torna più al nero ad ogni cambio strumento, il pulsante della scrittura mostra il colore in uso, e il selettore del colore libero si apre accanto al pulsante invece che nell'angolo
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-094 — Penna e Gomma sono più rapide da usare mentre spieghi. Un tocco sulla loro icona rimette in uso lo strumento esattamente com\'era (stesso tratto, stesso colore, stessa modalità): si scrive o si cancella subito. Se invece vuoi cambiare qualcosa, un secondo tocco apre il pannello. Il colore scelto non torna più al nero quando cambi strumento o passi dalla gomma, e ogni strumento ricorda il suo (l\'evidenziatore i suoi colori, la penna i suoi). Sul pulsante della scrittura c\'è ora un pallino che mostra con che colore stai scrivendo, e l\'icona della gomma mostra la modalità in uso: area, tratto o lazo. Basta anche un solo tocco sul colore o sullo spessore per cambiarlo, senza riselezionare lo strumento. Infine, scegliendo un colore libero (il "+" della tavolozza), il selettore di Chrome si apre accanto al pulsante invece che nell\'angolo dello schermo, dove restava mezzo fuori bordo.';
+const CHANGELOG  = 'EduBoard V2-096 — Penna e Gomma sono più rapide da usare mentre spieghi. Un tocco sulla loro icona rimette in uso lo strumento esattamente com\'era (stesso tratto, stesso colore, stessa modalità): si scrive o si cancella subito. Se invece vuoi cambiare qualcosa, un secondo tocco apre il pannello. Il colore scelto non torna più al nero quando cambi strumento o passi dalla gomma, e ogni strumento ricorda il suo (l\'evidenziatore i suoi colori, la penna i suoi). Sul pulsante della scrittura c\'è ora un pallino che mostra con che colore stai scrivendo, e l\'icona della gomma mostra la modalità in uso: area, tratto o lazo. Basta anche un solo tocco sul colore o sullo spessore per cambiarlo, senza riselezionare lo strumento. Infine, scegliendo un colore libero (il "+" della tavolozza), il selettore di Chrome si apre accanto al pulsante invece che nell\'angolo dello schermo, dove restava mezzo fuori bordo.';
 
 const urlsToCache = [
   '.',
@@ -166,5 +166,13 @@ self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     console.log('[SW] Received SKIP_WAITING message');
     self.skipWaiting();
+  }
+  // La pagina può CHIEDERE che versione sto servendo, invece di aspettare che sia io
+  // ad annunciarla durante l'activate: quell'annuncio parte mentre la pagina sta
+  // ancora caricando e, se nessuno è ancora in ascolto, l'avviso delle novità non
+  // compare più (21/09/2026: app aggiornata sotto gli occhi di Fabio, nessun avviso).
+  if (event.data && event.data.type === 'GET_VERSION') {
+    const porta = event.ports && event.ports[0];
+    if (porta) porta.postMessage({ version: CACHE_NAME, changelog: CHANGELOG });
   }
 });
