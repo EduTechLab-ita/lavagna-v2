@@ -2129,11 +2129,26 @@ class ToolbarManager {
             }
         });
 
-        // Rimuovi active da tutti, imposta attivo sul primo
+        // Il colore scelto si CONSERVA al cambio strumento. Prima qui si riscriveva
+        // sempre col primo della fila (nero), quindi ogni selezione di strumento
+        // buttava via il colore appena scelto: scegliere rosso e poi toccare la penna
+        // riportava al nero, e bastava passare dalla gomma per perderlo comunque.
+        // Il riallineamento serve solo quando cambia DAVVERO la tavolozza
+        // (evidenziatore ↔ resto), dove i colori di prima non esistono più — e anche
+        // lì si ripesca l'ultimo colore usato con quella tavolozza.
+        if (!this._coloreDiTavolozza) this._coloreDiTavolozza = new Map();
+        if (this._paletteAttuale === colors) return;
+        if (this._paletteAttuale) this._coloreDiTavolozza.set(this._paletteAttuale, CONFIG.currentColor);
+        this._paletteAttuale = colors;
+
+        const ricordato = String(this._coloreDiTavolozza.get(colors) || '').toLowerCase();
+        const trovato = colors.findIndex((c, i) => c.color.toLowerCase() === ricordato &&
+                                                  !(tool === 'marker' && i >= 8));
+        const i = trovato >= 0 ? trovato : 0;
         document.querySelectorAll('.color-swatch').forEach(b => b.classList.remove('active'));
-        if (swatches[0]) {
-            swatches[0].classList.add('active');
-            CONFIG.currentColor = colors[0].color;
+        if (swatches[i]) {
+            swatches[i].classList.add('active');
+            CONFIG.currentColor = colors[i].color;
             document.dispatchEvent(new CustomEvent('minicolor:update', { detail: { color: CONFIG.currentColor } }));
         }
     }

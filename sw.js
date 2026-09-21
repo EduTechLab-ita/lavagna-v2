@@ -1,6 +1,6 @@
-const CACHE_NAME = 'eduboard-v2-092'; // v2-092 — BARRA STRUMENTI NUOVA in produzione (index.html è la pagina del restyling), gomma lazo, pannello pagine con anteprime, libreria che resta com'è
+const CACHE_NAME = 'eduboard-v2-093'; // v2-093 — Penna e Gomma a due tocchi: il primo rimette in uso lo strumento com'era, il secondo apre il pannello. Il colore non torna più al nero ad ogni cambio strumento
 // Testo mostrato sulla LIM e su EduConnect dopo ogni aggiornamento automatico
-const CHANGELOG  = 'EduBoard V2-092 — La barra degli strumenti è nuova: una sola barra fissa in basso, e gli strumenti si aprono a pannello sopra di essa (penne, gomma, testo, forme, pagine). Nessuna funzione è stata tolta, sono solo raccolte per tipo. Novità: gomma a lazo per cancellare un\'area, pannello "Tutte le pagine" con le anteprime, il trascinamento per riordinarle e il menù a tre puntini per duplicarle. La libreria ora resta aperta come l\'hai lasciata e si posiziona sulla lezione in corso. Se qualcosa non lo ritrovi: icona account → Impostazioni & Guida.';
+const CHANGELOG  = 'EduBoard V2-093 — Penna e Gomma sono più rapide da usare mentre spieghi. Un tocco sulla loro icona rimette in uso lo strumento esattamente com\'era (stesso tratto, stesso colore, stessa modalità): si scrive o si cancella subito. Se invece vuoi cambiare qualcosa, un secondo tocco apre il pannello. Il colore scelto non torna più al nero quando cambi strumento o passi dalla gomma, e ogni strumento ricorda il suo (l\'evidenziatore i suoi colori, la penna i suoi). L\'icona della gomma ora mostra la modalità in uso: area, tratto o lazo. Basta anche un solo tocco sul colore o sullo spessore per cambiarlo, senza riselezionare lo strumento.';
 
 const urlsToCache = [
   '.',
