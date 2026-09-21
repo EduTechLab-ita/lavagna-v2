@@ -654,6 +654,18 @@
     // rimette in uso, senza passare dal pannello.
     let ultimoTratto = 'pen';
 
+    // Pallino del colore in uso sul pulsante della scrittura. Si aggancia all'UNICO
+    // punto da cui app.js annuncia ogni cambio di colore — l'evento `minicolor:update`,
+    // che parte dalla tavolozza, dal colore libero e dal riallineamento di strumento —
+    // invece di inseguire i singoli pulsanti: così nessuna strada resta scoperta.
+    function syncColoreTratto(colore) {
+        const btn = document.getElementById('v2-pen-btn');
+        if (!btn) return;
+        if (colore) btn.style.setProperty('--v2-colore-tratto', colore);
+        btn.classList.toggle('v2-senza-colore', ultimoTratto === 'laser');
+    }
+    document.addEventListener('minicolor:update', (e) => syncColoreTratto(e.detail && e.detail.color));
+
     function setupV2Panels() {
         // DUE TAP (Penna e Gomma, i due strumenti più usati — 21/09/2026).
         // Primo tap: rimette in uso l'ultimo tratto scelto e basta, così si scrive
@@ -769,9 +781,14 @@
             btn.addEventListener('click', () => {
                 ultimoTratto = btn.dataset.tool;
                 syncPenTriggerIcon(btn.dataset.tool);
+                syncColoreTratto();
                 closeV2Panels();
             });
         });
+
+        // Stato iniziale del pallino: all'avvio nessun evento di colore è ancora
+        // passato, quindi lo si legge una volta da CONFIG.
+        if (typeof CONFIG !== 'undefined') syncColoreTratto(CONFIG.currentColor);
 
         // × interna ai pannelli nuovi (il listener nativo su .popup-close-btn
         // chiude solo i popup nativi, non conosce questi id)

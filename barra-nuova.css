@@ -915,3 +915,31 @@ body.v2 .v2-filenote {
     line-height: 1.5;
     color: #64748b;
 }
+
+/* ---- Pallino del colore in uso sul pulsante della scrittura (21/09/2026) ----
+   L'icona dice QUALE strumento; questo dice con che COLORE scrive — l'altra metà
+   dell'informazione che serve mentre si spiega, e che prima si poteva sapere solo
+   aprendo il pannello. Scelto da Fabio fra tre prove fatte sulla barra vera.
+   Il doppio contorno (bianco + un filo scuro) è ciò che rende visibile anche il
+   BIANCO, che è fra i dieci colori: senza, sparirebbe sul pulsante chiaro. */
+body.v2 #v2-pen-btn {
+    position: relative;
+}
+body.v2 #v2-pen-btn::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    background: var(--v2-colore-tratto, #000);
+    border: 1.5px solid #fff;
+    box-shadow: 0 0 0 1.2px rgba(15, 23, 42, .45);
+    pointer-events: none;
+}
+/* Col laser il colore della tavolozza non si applica (il raggio ha il suo):
+   mostrarlo sarebbe un'informazione falsa, quindi il pallino sparisce. */
+body.v2 #v2-pen-btn.v2-senza-colore::after {
+    display: none;
+}
