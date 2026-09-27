@@ -22,6 +22,9 @@
 // RulerTool — righello orizzontale draggabile e ruotabile
 // =============================================================================
 
+// Stessa misura del quadretto da 10 mm (sfondo 'grid-10' in app.js)
+const RULER_CANVAS_PX_PER_CM = 57;
+
 class RulerTool {
     constructor() {
         this.el       = null;   // div#ruler-tool
@@ -58,7 +61,7 @@ class RulerTool {
         wrapper.innerHTML = `
             <div class="ruler-body" id="ruler-body">
                 <div class="ruler-drag-handle" id="ruler-drag" title="Trascina per spostare">⠿</div>
-                <canvas id="ruler-canvas" width="560" height="48"></canvas>
+                <canvas id="ruler-canvas" width="630" height="56"></canvas>
                 <input type="number" id="ruler-angle-input" class="ruler-angle-input" value="0" min="-360" max="360" step="1" title="Angolo (°)">
                 <div class="ruler-rotate-handle" id="ruler-rotate" title="Ruota">&#8635;</div>
                 <div class="ruler-close" id="ruler-close" title="Chiudi">&#215;</div>
@@ -92,37 +95,46 @@ class RulerTool {
 
     _renderMarks() {
         const cvs = this.canvas;
+        // Il canvas è in un flex: la bitmap deve coincidere con la larghezza a schermo,
+        // altrimenti le tacche vengono stirate e la scala non corrisponde ai quadretti.
+        if (cvs.clientWidth > 0 && cvs.width !== cvs.clientWidth) cvs.width = cvs.clientWidth;
         const ctx = cvs.getContext('2d');
         const W   = cvs.width;
         const H   = cvs.height;
 
         ctx.clearRect(0, 0, W, H);
 
-        // Ogni 5px = 1 mm, ogni 50px = 1 cm
-        for (let px = 0; px <= W; px += 5) {
-            const isCm  = px % 50 === 0;
-            const isMid = px % 25 === 0 && !isCm;  // mezzo cm
+        // 1 cm = un quadretto da 10 mm della lavagna (57 px di canvas) × zoom corrente
+        const scale  = (typeof panMgr !== 'undefined' && panMgr && panMgr.scale) ? panMgr.scale : 1;
+        const pxCm   = RULER_CANVAS_PX_PER_CM * scale;
+        const pxMm   = pxCm / 10;
+        const showMm  = pxMm >= 4;
+        const showMid = pxCm / 2 >= 6;
+        const labelEvery = pxCm >= 22 ? 1 : pxCm >= 11 ? 2 : pxCm >= 5 ? 5 : 10;
 
-            const tickH = isCm ? 20 : isMid ? 13 : 7;
-            const y0    = 0;
-            const y1    = tickH;
+        for (let mm = 0; mm * pxMm <= W; mm++) {
+            const isCm  = mm % 10 === 0;
+            const isMid = mm % 5 === 0 && !isCm;
+            if (!isCm && !(isMid && showMid) && !showMm) continue;
+
+            const x     = Math.round(mm * pxMm) + 0.5;
+            const tickH = isCm ? 23 : isMid ? 15 : 8;
 
             ctx.beginPath();
-            ctx.moveTo(px, y0);
-            ctx.lineTo(px, y1);
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, tickH);
             ctx.strokeStyle = isCm
                 ? 'rgba(80, 40, 0, 0.85)'
                 : 'rgba(80, 40, 0, 0.55)';
             ctx.lineWidth = isCm ? 1.4 : 0.8;
             ctx.stroke();
 
-            // Numero cm
-            if (isCm && px > 0) {
-                const cm = px / 50;
-                ctx.font      = '10px Inter, sans-serif';
+            const cm = mm / 10;
+            if (isCm && cm > 0 && cm % labelEvery === 0) {
+                ctx.font      = '11px Inter, sans-serif';
                 ctx.fillStyle = 'rgba(60, 30, 0, 0.85)';
                 ctx.textAlign = 'center';
-                ctx.fillText(String(cm), px, tickH + 11);
+                ctx.fillText(String(cm), x, tickH + 12);
             }
         }
 
@@ -147,6 +159,7 @@ class RulerTool {
     show() {
         this.el.style.display = 'block';
         this._applyTransform();
+        this._renderMarks();   // lo zoom può essere cambiato mentre era nascosto
         this.visible = true;
     }
 
@@ -352,8 +365,8 @@ class RulerTool {
         // ATTENZIONE: NON usare getBoundingClientRect().height su elementi ruotati —
         // restituisce l'AABB (bounding box allineato agli assi), che è molto più
         // grande dell'altezza originale quando l'angolo ≠ 0°/180°.
-        // Il canvas ruler è fisso 48px → metà = 24px sempre, a qualsiasi angolo.
-        const rulerHalfH = 24; // metà di 48px (height fissa del canvas righello)
+        // Si usa l'altezza fissa del canvas, invariata a qualsiasi angolo.
+        const rulerHalfH = this.canvas.height / 2;
         const scale = (typeof panMgr !== 'undefined' && panMgr) ? panMgr.scale : 1;
         const halfHCanvas = rulerHalfH / scale;
 
@@ -979,8 +992,8 @@ class GeometryManager {
 
 .ruler-body {
     position: relative;
-    width: 600px;
-    height: 48px;
+    width: 680px;
+    height: 56px;
     background: rgba(212, 160, 23, 0.82);
     border: 1.5px solid rgba(160, 110, 5, 0.90);
     border-radius: 4px;
@@ -999,6 +1012,7 @@ class GeometryManager {
     pointer-events: none;
     /* Il canvas delle tacche occupa la parte sinistra del corpo */
     flex: 1;
+    min-width: 0;
 }
 
 .ruler-rotate-handle {
@@ -1099,9 +1113,13 @@ class GeometryManager {
 
 #protractor-tool {
     position: fixed;
+    /* Trasparente ai tocchi: lo stilo appoggiato all'arco deve arrivare alla lavagna
+       (snapToProtractor), come col righello. Solo i comandi restano cliccabili. */
+    pointer-events: none;
 }
 
 .protractor-body {
+    pointer-events: none;
     display: inline-block;
     /* Fisso: coincide sempre col centro del cerchio disegnato (cx/cy=150,150
        in entrambe le modalità 180°/360°) — necessario per lo snap sull'arco */
@@ -1129,6 +1147,7 @@ class GeometryManager {
     color: #fff;
     line-height: 1;
     z-index: 3;
+    pointer-events: auto;
 }
 
 .geo-close:hover {
@@ -1148,6 +1167,7 @@ class GeometryManager {
     align-items: center;
     justify-content: center;
     user-select: none;
+    pointer-events: auto;
 }
 
 .protractor-drag-handle {
@@ -1167,6 +1187,7 @@ class GeometryManager {
     z-index: 4;
     border-radius: 50%;
     background: rgba(200, 220, 255, 0.5);
+    pointer-events: auto;
 }
 .protractor-drag-handle:hover { background: rgba(200,220,255,0.8); }
 .protractor-drag-handle:active { cursor: grabbing; }
@@ -1243,6 +1264,7 @@ class GeometryManager {
     align-items: center;
     justify-content: center;
     z-index: 4;
+    pointer-events: auto;
 }
 .protractor-rotate-handle:active { cursor: grabbing; }
 
@@ -1335,6 +1357,15 @@ class GeometryManager {
 
         const mgr = canvasMgr;
         const geo  = this;
+
+        // Scala del righello = quadretti reali: ridisegno delle tacche a ogni zoom
+        if (typeof panMgr !== 'undefined' && panMgr && typeof panMgr._applyTransform === 'function') {
+            const origApply = panMgr._applyTransform.bind(panMgr);
+            panMgr._applyTransform = function () {
+                origApply();
+                if (geo.ruler.isVisible()) geo.ruler._renderMarks();
+            };
+        }
 
         const origStart = mgr._onStart.bind(mgr);
         const origMove  = mgr._onMove.bind(mgr);
