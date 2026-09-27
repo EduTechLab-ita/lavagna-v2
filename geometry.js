@@ -61,7 +61,7 @@ class RulerTool {
         wrapper.innerHTML = `
             <div class="ruler-body" id="ruler-body">
                 <div class="ruler-drag-handle" id="ruler-drag" title="Trascina per spostare">⠿</div>
-                <canvas id="ruler-canvas" width="630" height="56"></canvas>
+                <canvas id="ruler-canvas" width="560" height="68"></canvas>
                 <input type="number" id="ruler-angle-input" class="ruler-angle-input" value="0" min="-360" max="360" step="1" title="Angolo (°)">
                 <div class="ruler-rotate-handle" id="ruler-rotate" title="Ruota">&#8635;</div>
                 <div class="ruler-close" id="ruler-close" title="Chiudi">&#215;</div>
@@ -118,7 +118,7 @@ class RulerTool {
             if (!isCm && !(isMid && showMid) && !showMm) continue;
 
             const x     = Math.round(mm * pxMm) + 0.5;
-            const tickH = isCm ? 23 : isMid ? 15 : 8;
+            const tickH = isCm ? 26 : isMid ? 17 : 9;
 
             ctx.beginPath();
             ctx.moveTo(x, 0);
@@ -131,10 +131,10 @@ class RulerTool {
 
             const cm = mm / 10;
             if (isCm && cm > 0 && cm % labelEvery === 0) {
-                ctx.font      = '11px Inter, sans-serif';
+                ctx.font      = '13px Inter, sans-serif';
                 ctx.fillStyle = 'rgba(60, 30, 0, 0.85)';
                 ctx.textAlign = 'center';
-                ctx.fillText(String(cm), x, tickH + 12);
+                ctx.fillText(String(cm), x, tickH + 14);
             }
         }
 
@@ -992,8 +992,8 @@ class GeometryManager {
 
 .ruler-body {
     position: relative;
-    width: 680px;
-    height: 56px;
+    width: 600px;
+    height: 68px;
     background: rgba(212, 160, 23, 0.82);
     border: 1.5px solid rgba(160, 110, 5, 0.90);
     border-radius: 4px;
@@ -1017,8 +1017,8 @@ class GeometryManager {
 
 .ruler-rotate-handle {
     position: absolute;
-    right: 22px;
-    top: 50%;
+    right: 50px;
+    top: 57px; /* sulla riga della casella dei gradi, sotto i numeri */
     transform: translateY(-50%);
     /* Area visiva 22×22, ma hit-area minima 44×44 per uso dito su LIM */
     width: 44px;
@@ -1042,8 +1042,8 @@ class GeometryManager {
 
 .ruler-close {
     position: absolute;
-    top: 2px;
-    right: 2px;
+    top: 48px;
+    right: 4px;
     width: 18px;
     height: 18px;
     background: rgba(0, 0, 0, 0.30);
@@ -1066,7 +1066,7 @@ class GeometryManager {
 .ruler-drag-handle {
     position: absolute;
     left: 4px;
-    top: 50%;
+    top: 57px;
     transform: translateY(-50%);
     /* Minimo 44×44 per hit-area dito su LIM */
     width: 44px;
@@ -1088,8 +1088,8 @@ class GeometryManager {
 
 .ruler-resize-handle {
     position: absolute;
-    right: 2px;
-    top: 50%;
+    right: 24px;
+    top: 57px;
     transform: translateY(-50%);
     width: 44px;  /* minimo 44px per hit-area dito su LIM */
     height: 44px;
