@@ -60,7 +60,7 @@ class RulerTool {
 
         wrapper.innerHTML = `
             <div class="ruler-body" id="ruler-body">
-                <div class="ruler-drag-handle" id="ruler-drag" title="Trascina per spostare">⠿</div>
+                <div class="ruler-drag-handle" id="ruler-drag" title="Trascina per spostare"><svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor" aria-hidden="true"><circle cx="2" cy="2" r="1.6"/><circle cx="7" cy="2" r="1.6"/><circle cx="12" cy="2" r="1.6"/><circle cx="2" cy="7" r="1.6"/><circle cx="7" cy="7" r="1.6"/><circle cx="12" cy="7" r="1.6"/><circle cx="2" cy="12" r="1.6"/><circle cx="7" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/></svg></div>
                 <canvas id="ruler-canvas" width="560" height="68"></canvas>
                 <input type="number" id="ruler-angle-input" class="ruler-angle-input" value="0" min="-360" max="360" step="1" title="Angolo (°)">
                 <div class="ruler-rotate-handle" id="ruler-rotate" title="Ruota">&#8635;</div>
@@ -449,7 +449,7 @@ class ProtractorTool {
                 <input type="number" id="protractor-angle-input" class="geo-angle-input" value="0" min="-360" max="360" step="1" title="Angolo (°)">
                 <div class="protractor-rotate-handle" id="protractor-rotate" title="Ruota">&#8635;</div>
                 <div class="geo-close" id="protractor-close" title="Chiudi">&#215;</div>
-                <div class="protractor-drag-handle" id="protractor-drag" title="Trascina per spostare">⠿</div>
+                <div class="protractor-drag-handle" id="protractor-drag" title="Trascina per spostare"><svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor" aria-hidden="true"><circle cx="2" cy="2" r="1.6"/><circle cx="7" cy="2" r="1.6"/><circle cx="12" cy="2" r="1.6"/><circle cx="2" cy="7" r="1.6"/><circle cx="7" cy="7" r="1.6"/><circle cx="12" cy="7" r="1.6"/><circle cx="2" cy="12" r="1.6"/><circle cx="7" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/></svg></div>
                 <div class="protractor-mode-btn" id="protractor-full360" title="Passa a goniometro 360°">360&#176;</div>
                 <div class="protractor-flip-btn" id="protractor-flip" title="Inverti la scala destra/sinistra">&#8644;</div>
             </div>`;
@@ -1017,7 +1017,7 @@ class GeometryManager {
 
 .ruler-rotate-handle {
     position: absolute;
-    right: 50px;
+    right: 70px;
     top: 57px; /* sulla riga della casella dei gradi, sotto i numeri */
     transform: translateY(-50%);
     /* Area visiva 22×22, ma hit-area minima 44×44 per uso dito su LIM */
@@ -1088,7 +1088,7 @@ class GeometryManager {
 
 .ruler-resize-handle {
     position: absolute;
-    right: 24px;
+    right: 30px;
     top: 57px;
     transform: translateY(-50%);
     width: 44px;  /* minimo 44px per hit-area dito su LIM */
