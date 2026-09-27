@@ -846,7 +846,7 @@
         });
 
         // Il Magic Box si chiude da solo appena si usa uno strumento al suo interno
-        ['btn-geo-ruler', 'btn-geo-protractor', 'embed-web-btn', 'embed-link-btn',
+        ['btn-geo-ruler', 'btn-geo-protractor', 'btn-geo-sq45', 'btn-geo-sq3060', 'embed-web-btn', 'embed-link-btn',
          'btn-capture-board', 'btn-timer', 'btn-spotlight', 'btn-tendina'].forEach(id => {
             document.getElementById(id)?.addEventListener('click', closeV2Panels);
         });

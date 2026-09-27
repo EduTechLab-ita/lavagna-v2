@@ -840,6 +840,281 @@ class ProtractorTool {
 
 
 // =============================================================================
+// SetSquareTool — squadra 45° (90-45-45) o 30°/60° (90-60-30)
+// Come righello e goniometro: trasparente ai tocchi (solo i comandi ricevono il
+// dito), scala in cm = quadretti veri che segue lo zoom, la penna scorre lungo
+// il lato più vicino.
+// =============================================================================
+
+const SETSQ_COLORI = {
+    '45':   { fill: 'rgba(220, 252, 231, 0.72)', edge: 'rgba(22, 163, 74, 0.85)',  ink: 'rgba(20, 83, 45, 0.90)' },
+    '3060': { fill: 'rgba(237, 233, 254, 0.72)', edge: 'rgba(124, 58, 237, 0.85)', ink: 'rgba(76, 29, 149, 0.90)' }
+};
+const SETSQ_PUNTINI = '<svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor" aria-hidden="true"><circle cx="2" cy="2" r="1.6"/><circle cx="7" cy="2" r="1.6"/><circle cx="12" cy="2" r="1.6"/><circle cx="2" cy="7" r="1.6"/><circle cx="7" cy="7" r="1.6"/><circle cx="12" cy="7" r="1.6"/><circle cx="2" cy="12" r="1.6"/><circle cx="7" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/></svg>';
+
+class SetSquareTool {
+    constructor(kind) {
+        this.kind  = kind;                                  // '45' | '3060'
+        this.el    = null;
+        this.body  = null;
+        this.cvs   = null;
+        this.x     = kind === '45' ? 260 : 700;
+        this.y     = kind === '45' ? 110 : 170;
+        this.angle = 0;
+        this.flip  = false;                                 // angolo retto a destra invece che a sinistra
+        this.size  = kind === '45' ? 300 : 400;             // cateto orizzontale, px schermo
+        this.minSize = kind === '45' ? 280 : 370;           // sotto, i comandi non stanno più dentro
+    }
+
+    // A = angolo retto (perno di rotazione), B = fine del cateto orizzontale, C = fine del verticale
+    _dims() {
+        const P  = 14;
+        const Lx = this.size;
+        const Ly = this.kind === '45' ? Lx : Lx / Math.sqrt(3);
+        const W  = Lx + 2 * P, H = Ly + 2 * P;
+        const A = this.flip ? { x: P + Lx, y: P + Ly } : { x: P,      y: P + Ly };
+        const B = this.flip ? { x: P,      y: P + Ly } : { x: P + Lx, y: P + Ly };
+        const C = this.flip ? { x: P + Lx, y: P }      : { x: P,      y: P };
+        const hyp = Math.hypot(Lx, Ly);
+        const per = Lx + Ly + hyp;
+        // Incentro: il punto più lontano dai tre lati, dove stanno i comandi
+        const I = { x: (hyp * A.x + Ly * B.x + Lx * C.x) / per, y: (hyp * A.y + Ly * B.y + Lx * C.y) / per };
+        return { P, Lx, Ly, W, H, A, B, C, I };
+    }
+
+    create() {
+        const w = document.createElement('div');
+        w.className = 'geo-tool setsq-tool';
+        w.style.display = 'none';
+        const nome = this.kind === '45' ? 'squadra 45°' : 'squadra 30°/60°';
+        w.innerHTML = `
+            <div class="setsq-body">
+                <canvas class="setsq-canvas"></canvas>
+                <div class="setsq-ctrl">
+                    <div class="setsq-row">
+                        <div class="setsq-btn setsq-drag" title="Trascina per spostare la ${nome}">${SETSQ_PUNTINI}</div>
+                        <div class="setsq-btn setsq-rotate" title="Ruota">&#8635;</div>
+                        <div class="setsq-btn setsq-resize" title="Ingrandisci o rimpicciolisci">&#10234;</div>
+                    </div>
+                    <div class="setsq-row">
+                        <input type="number" class="geo-angle-input setsq-angle" value="0" min="-360" max="360" step="1" title="Angolo (°)">
+                        <div class="setsq-btn setsq-flip" title="Capovolgi (angolo retto a destra o a sinistra)">&#8644;</div>
+                        <div class="setsq-btn setsq-close" title="Chiudi">&#215;</div>
+                    </div>
+                </div>
+            </div>`;
+        document.body.appendChild(w);
+        this.el   = w;
+        this.body = w.querySelector('.setsq-body');
+        this.cvs  = w.querySelector('.setsq-canvas');
+
+        this._render();
+        this._setupDrag();
+        this._setupRotate();
+        this._setupResize();
+        w.querySelector('.setsq-close').addEventListener('click', () => this.hide());
+        const flip = w.querySelector('.setsq-flip');
+        if (flip) {
+            flip.addEventListener('pointerdown', (e) => e.stopPropagation());
+            flip.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this._riancora(() => { this.flip = !this.flip; });
+                flip.classList.toggle('active', this.flip);
+            });
+        }
+        const inp = w.querySelector('.setsq-angle');
+        inp.addEventListener('pointerdown', (e) => e.stopPropagation());
+        inp.addEventListener('change', (e) => { this.angle = parseFloat(e.target.value) || 0; this._applyTransform(); });
+        inp.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') { this.angle = parseFloat(e.target.value) || 0; this._applyTransform(); e.target.blur(); }
+        });
+    }
+
+    show() { this.el.style.display = 'block'; this._render(); this._applyTransform(); }
+    hide() { this.el.style.display = 'none'; }
+    isVisible() { return this.el && this.el.style.display !== 'none'; }
+
+    _render() {
+        const d   = this._dims();
+        const cvs = this.cvs;
+        cvs.width = Math.ceil(d.W); cvs.height = Math.ceil(d.H);
+        const ctx = cvs.getContext('2d');
+        const col = SETSQ_COLORI[this.kind];
+        ctx.clearRect(0, 0, cvs.width, cvs.height);
+
+        ctx.beginPath();
+        ctx.moveTo(d.A.x, d.A.y); ctx.lineTo(d.B.x, d.B.y); ctx.lineTo(d.C.x, d.C.y); ctx.closePath();
+        ctx.fillStyle = col.fill; ctx.fill();
+        ctx.strokeStyle = col.edge; ctx.lineWidth = 1.5; ctx.stroke();
+
+        this._scala(ctx, d.A, d.B, d.C, d.Lx, d.Ly / d.Lx, col, true);
+        this._scala(ctx, d.A, d.C, d.B, d.Ly, d.Lx / d.Ly, col, false);
+
+        // Ampiezza degli angoli acuti, accanto al lato lungo (lontano dalle scale dei cateti)
+        ctx.font = 'bold 13px Inter, sans-serif';
+        ctx.fillStyle = col.ink; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        const hyp = Math.hypot(d.C.x - d.B.x, d.C.y - d.B.y);
+        const nA = Math.hypot(d.A.x - (d.B.x + d.C.x) / 2, d.A.y - (d.B.y + d.C.y) / 2);
+        const inx = (d.A.x - (d.B.x + d.C.x) / 2) / nA, iny = (d.A.y - (d.B.y + d.C.y) / 2) / nA;
+        const acuto = (V, W, gradi, sinV) => {
+            const s = 64 / sinV;                            // oltre i numeri della scala del cateto
+            const ux = (W.x - V.x) / hyp, uy = (W.y - V.y) / hyp;
+            ctx.fillText(gradi + '°', V.x + ux * s + inx * 14, V.y + uy * s + iny * 14);
+        };
+        acuto(d.B, d.C, this.kind === '45' ? 45 : 30, d.Ly / hyp);
+        acuto(d.C, d.B, this.kind === '45' ? 45 : 60, d.Lx / hyp);
+
+        // Comandi al centro, spostati un poco via dall'angolo retto per stare lontani dalle scale
+        const ctrl = this.el.querySelector('.setsq-ctrl');
+        const dA = Math.hypot(d.I.x - d.A.x, d.I.y - d.A.y);
+        ctrl.style.left = (d.I.x + (d.I.x - d.A.x) / dA * 12) + 'px';
+        ctrl.style.top  = (d.I.y + (d.I.y - d.A.y) / dA * 12) + 'px';
+    }
+
+    // Tacche da `da` verso `a`, rivolte verso l'interno (`dentro`); `pend` = restringimento del
+    // triangolo verso la punta, per non disegnare tacche e numeri fuori dalla squadra.
+    _scala(ctx, da, a, dentro, len, pend, col, orizzontale) {
+        const ux = (a.x - da.x) / len, uy = (a.y - da.y) / len;
+        const nl = Math.hypot(dentro.x - da.x, dentro.y - da.y);
+        const nx = (dentro.x - da.x) / nl, ny = (dentro.y - da.y) / nl;
+        const scale = (typeof panMgr !== 'undefined' && panMgr && panMgr.scale) ? panMgr.scale : 1;
+        const pxCm = RULER_CANVAS_PX_PER_CM * scale, pxMm = pxCm / 10;
+        const showMm = pxMm >= 4, showMid = pxCm / 2 >= 6;
+        const labelEvery = pxCm >= 22 ? 1 : pxCm >= 11 ? 2 : pxCm >= 5 ? 5 : 10;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.font = '12px Inter, sans-serif';
+        for (let mm = 0; mm * pxMm <= len; mm++) {
+            const isCm = mm % 10 === 0, isMid = mm % 5 === 0 && !isCm;
+            if (!isCm && !(isMid && showMid) && !showMm) continue;
+            const s = mm * pxMm;
+            const spazio = (len - s) * pend;               // altezza della squadra in quel punto
+            const tickH = isCm ? 18 : isMid ? 12 : 7;
+            if (spazio < tickH + 2) break;
+            if (s < 20) continue;                          // vicino all'angolo retto c'è la scala dell'altro cateto
+            const px = da.x + ux * s, py = da.y + uy * s;
+            ctx.beginPath();
+            ctx.moveTo(px, py); ctx.lineTo(px + nx * tickH, py + ny * tickH);
+            ctx.strokeStyle = col.ink; ctx.lineWidth = isCm ? 1.3 : 0.8; ctx.stroke();
+            const cm = mm / 10;
+            if (isCm && cm > 0 && cm % labelEvery === 0 && spazio >= tickH + 22 && (orizzontale || s >= 42)) {
+                ctx.fillStyle = col.ink;
+                ctx.fillText(String(cm), px + nx * (tickH + 10), py + ny * (tickH + 10));
+            }
+        }
+    }
+
+    _applyTransform() {
+        const d = this._dims();
+        this.el.style.left = this.x + 'px';
+        this.el.style.top  = this.y + 'px';
+        this.body.style.transformOrigin = `${d.A.x}px ${d.A.y}px`;
+        this.body.style.transform = `rotate(${this.angle}deg)`;
+        const inp = this.el.querySelector('.setsq-angle');
+        if (inp && document.activeElement !== inp) inp.value = Math.round(((this.angle % 360) + 360) % 360);
+    }
+
+    // Cambia forma/dimensione tenendo fermo sullo schermo l'angolo retto
+    _riancora(cambia) {
+        const d0 = this._dims();
+        const px = this.x + d0.A.x, py = this.y + d0.A.y;
+        cambia();
+        const d1 = this._dims();
+        this.x = px - d1.A.x; this.y = py - d1.A.y;
+        this._render(); this._applyTransform();
+    }
+
+    _perno() { const d = this._dims(); return { x: this.x + d.A.x, y: this.y + d.A.y }; }
+
+    _setupDrag() {
+        const h = this.el.querySelector('.setsq-drag');
+        let st = null;
+        h.addEventListener('pointerdown', (e) => {
+            e.preventDefault(); e.stopPropagation();
+            st = { sx: e.clientX, sy: e.clientY, ox: this.x, oy: this.y };
+            try { h.setPointerCapture(e.pointerId); } catch (_) {}
+        });
+        window.addEventListener('pointermove', (e) => {
+            if (!st) return;
+            this.x = st.ox + e.clientX - st.sx; this.y = st.oy + e.clientY - st.sy;
+            this._applyTransform();
+        });
+        window.addEventListener('pointerup', () => { st = null; });
+    }
+
+    _setupRotate() {
+        const h = this.el.querySelector('.setsq-rotate');
+        let st = null;
+        const ang = (e) => { const p = this._perno(); return Math.atan2(e.clientY - p.y, e.clientX - p.x) * 180 / Math.PI; };
+        h.addEventListener('pointerdown', (e) => {
+            e.preventDefault(); e.stopPropagation();
+            st = { a0: this.angle, m0: ang(e) };
+            try { h.setPointerCapture(e.pointerId); } catch (_) {}
+        });
+        window.addEventListener('pointermove', (e) => {
+            if (!st) return;
+            this.angle = st.a0 + ang(e) - st.m0;
+            this._applyTransform();
+        });
+        window.addEventListener('pointerup', () => { st = null; });
+    }
+
+    _setupResize() {
+        const h = this.el.querySelector('.setsq-resize');
+        let st = null;
+        h.addEventListener('pointerdown', (e) => {
+            e.preventDefault(); e.stopPropagation();
+            const p = this._perno();
+            st = { d0: Math.hypot(e.clientX - p.x, e.clientY - p.y), s0: this.size };
+            try { h.setPointerCapture(e.pointerId); } catch (_) {}
+        });
+        window.addEventListener('pointermove', (e) => {
+            if (!st) return;
+            const p = this._perno();
+            const dd = Math.hypot(e.clientX - p.x, e.clientY - p.y);
+            const nuova = Math.min(900, Math.max(this.minSize, st.s0 * dd / Math.max(1, st.d0)));
+            this._riancora(() => { this.size = nuova; });
+        });
+        window.addEventListener('pointerup', () => { st = null; });
+    }
+
+    // Vertici A, B, C in coordinate canvas (le stesse dei tratti)
+    _vertici() {
+        const d = this._dims();
+        const p = this._perno();
+        const r = this.angle * Math.PI / 180, cs = Math.cos(r), sn = Math.sin(r);
+        return [d.A, d.B, d.C].map(v => {
+            const dx = v.x - d.A.x, dy = v.y - d.A.y;
+            const sx = p.x + dx * cs - dy * sn, sy = p.y + dx * sn + dy * cs;
+            return (typeof panMgr !== 'undefined' && panMgr) ? panMgr.getCanvasCoords(sx, sy) : { x: sx, y: sy };
+        });
+    }
+
+    // Lato più vicino al punto (coordinate canvas): 0 = AB, 1 = BC (ipotenusa), 2 = CA
+    latoVicino(x, y) {
+        const v = this._vertici();
+        let best = { i: 0, dist: Infinity };
+        [[0, 1], [1, 2], [2, 0]].forEach(([a, b], i) => {
+            const ax = v[a].x, ay = v[a].y, bx = v[b].x, by = v[b].y;
+            const l2 = (bx - ax) ** 2 + (by - ay) ** 2;
+            const t = Math.max(0, Math.min(1, ((x - ax) * (bx - ax) + (y - ay) * (by - ay)) / l2));
+            const dist = Math.hypot(x - (ax + t * (bx - ax)), y - (ay + t * (by - ay)));
+            if (dist < best.dist) best = { i, dist };
+        });
+        return best;
+    }
+
+    // Proiezione sulla retta del lato scelto (come il righello: si può uscire dalla punta)
+    snapToLato(i, x, y) {
+        const v = this._vertici();
+        const [a, b] = [[0, 1], [1, 2], [2, 0]][i];
+        const ax = v[a].x, ay = v[a].y, dx = v[b].x - ax, dy = v[b].y - ay;
+        const t = ((x - ax) * dx + (y - ay) * dy) / (dx * dx + dy * dy);
+        return { x: ax + t * dx, y: ay + t * dy };
+    }
+}
+
+
+// =============================================================================
 // CompassTool — compasso a 2 fasi (centro + raggio)
 // =============================================================================
 
@@ -953,9 +1228,13 @@ class GeometryManager {
         this.ruler      = new RulerTool();
         this.protractor = new ProtractorTool();
         this.compass    = new CompassTool();
+        this.sq45       = new SetSquareTool('45');
+        this.sq3060     = new SetSquareTool('3060');
 
         this.ruler.create();
         this.protractor.create();
+        this.sq45.create();
+        this.sq3060.create();
 
         this._setupButtons();
         this._patchCanvasManager();
@@ -1269,6 +1548,47 @@ class GeometryManager {
 .protractor-rotate-handle:active { cursor: grabbing; }
 
 /* ============================================================
+   SQUADRE (45° e 30°/60°) — trasparenti ai tocchi, solo i comandi rispondono
+   ============================================================ */
+
+.setsq-tool { pointer-events: none; }
+.setsq-body { position: relative; display: inline-block; pointer-events: none; }
+.setsq-canvas { display: block; pointer-events: none; }
+.setsq-ctrl {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    pointer-events: none;
+}
+.setsq-row { display: flex; align-items: center; gap: 4px; pointer-events: none; }
+.setsq-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.6);
+    color: rgba(30, 41, 59, 0.85);
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    user-select: none;
+    touch-action: none;
+    pointer-events: auto;
+}
+.setsq-btn:hover { background: rgba(255, 255, 255, 0.9); }
+.setsq-drag { cursor: grab; }
+.setsq-resize { cursor: nwse-resize; }
+.setsq-close { background: rgba(0, 0, 0, 0.30); color: #fff; font-size: 14px; }
+.setsq-close:hover { background: rgba(0, 0, 0, 0.55); }
+.setsq-flip.active { background: rgba(59, 130, 246, 0.65); color: #fff; }
+.geo-angle-input.setsq-angle { position: static; transform: none; }
+
+/* ============================================================
    STATO ATTIVO BOTTONI GEO
    ============================================================ */
 
@@ -1318,6 +1638,16 @@ class GeometryManager {
             });
         }
 
+        // Squadre
+        [['btn-geo-sq45', this.sq45], ['btn-geo-sq3060', this.sq3060]].forEach(([id, sq]) => {
+            const btn = document.getElementById(id);
+            if (!btn) return;
+            btn.addEventListener('click', () => {
+                if (sq.isVisible()) { sq.hide(); btn.classList.remove('geo-active'); }
+                else { sq.show(); btn.classList.add('geo-active'); }
+            });
+        });
+
         // Bottone Compasso — rimosso dal menu geo (funzionalità cerchio spostata nelle Forme)
         // La classe CompassTool rimane nel codice ma non è più accessibile dall'UI
         // const btnComp = document.getElementById('btn-geo-compass');
@@ -1364,8 +1694,35 @@ class GeometryManager {
             panMgr._applyTransform = function () {
                 origApply();
                 if (geo.ruler.isVisible()) geo.ruler._renderMarks();
+                if (geo.sq45.isVisible()) geo.sq45._render();
+                if (geo.sq3060.isVisible()) geo.sq3060._render();
             };
         }
+
+        const PENNE = ['pen', 'pencil', 'pastel', 'marker'];
+        // Con più strumenti aperti (es. squadra appoggiata al righello) il tratto va a
+        // quello il cui bordo è più vicino alla penna; con uno solo, sempre a quello.
+        const scegliStrumento = (raw) => {
+            let best = null;
+            const prova = (s) => { if (!best || s.dist < best.dist) best = s; };
+            if (geo.ruler.isVisible()) {
+                const p = geo.ruler.snapToRuler(raw.x, raw.y);
+                prova({ nome: 'ruler', dist: Math.hypot(raw.x - p.x, raw.y - p.y) });
+            }
+            if (geo.protractor.isVisible()) {
+                const p = geo.protractor.snapToProtractor(raw.x, raw.y);
+                prova({ nome: 'protractor', dist: Math.hypot(raw.x - p.x, raw.y - p.y) });
+            }
+            [geo.sq45, geo.sq3060].forEach(sq => {
+                if (!sq.isVisible()) return;
+                const l = sq.latoVicino(raw.x, raw.y);
+                prova({ nome: 'squadra', sq, lato: l.i, dist: l.dist });
+            });
+            return best;
+        };
+        const puntoDritto = (t, raw) => t.nome === 'ruler'
+            ? geo.ruler.snapToRuler(raw.x, raw.y)
+            : t.sq.snapToLato(t.lato, raw.x, raw.y);
 
         const origStart = mgr._onStart.bind(mgr);
         const origMove  = mgr._onMove.bind(mgr);
@@ -1378,33 +1735,30 @@ class GeometryManager {
                 CONFIG.isDrawing = true;
                 return;
             }
-            if (geo.ruler.isVisible() &&
-                ['pen', 'pencil', 'pastel', 'marker'].includes(CONFIG.currentTool)) {
+            geo._geoAttivo = null;
+            if (PENNE.includes(CONFIG.currentTool)) {
                 const raw = mgr.getCoords(e);
-                const { x, y } = geo.ruler.snapToRuler(raw.x, raw.y);
-                if (typeof toolbarMgr !== 'undefined') toolbarMgr.hide();
-                CONFIG.isDrawing = true;
-                mgr._saveUndo();
-                CONFIG.lastX = x;
-                CONFIG.lastY = y;
-                mgr._currentPoints = [{ x, y }]; // primo punto per tracking vettoriale (lazo/selezione)
-                // _drawSegment(x0,y0, cpX,cpY, x1,y1) — 6 argomenti richiesti
-                mgr._drawSegment(x, y, x, y, x, y);
-                return;
-            }
-            if (geo.protractor.isVisible() &&
-                ['pen', 'pencil', 'pastel', 'marker'].includes(CONFIG.currentTool)) {
-                const raw  = mgr.getCoords(e);
-                const snap = geo.protractor.snapToProtractor(raw.x, raw.y);
-                if (typeof toolbarMgr !== 'undefined') toolbarMgr.hide();
-                CONFIG.isDrawing = true;
-                mgr._saveUndo();
-                CONFIG.lastX = snap.x;
-                CONFIG.lastY = snap.y;
-                geo._protLastAngle = snap.angle;
-                mgr._currentPoints = [{ x: snap.x, y: snap.y }]; // primo punto per tracking vettoriale (lazo/selezione)
-                mgr._drawSegment(snap.x, snap.y, snap.x, snap.y, snap.x, snap.y);
-                return;
+                const t = scegliStrumento(raw);
+                if (t) {
+                    let x, y;
+                    if (t.nome === 'protractor') {
+                        const snap = geo.protractor.snapToProtractor(raw.x, raw.y);
+                        x = snap.x; y = snap.y;
+                        geo._protLastAngle = snap.angle;
+                    } else {
+                        ({ x, y } = puntoDritto(t, raw));
+                    }
+                    geo._geoAttivo = t;
+                    if (typeof toolbarMgr !== 'undefined') toolbarMgr.hide();
+                    CONFIG.isDrawing = true;
+                    mgr._saveUndo();
+                    CONFIG.lastX = x;
+                    CONFIG.lastY = y;
+                    mgr._currentPoints = [{ x, y }]; // primo punto per tracking vettoriale (lazo/selezione)
+                    // _drawSegment(x0,y0, cpX,cpY, x1,y1) — 6 argomenti richiesti
+                    mgr._drawSegment(x, y, x, y, x, y);
+                    return;
+                }
             }
             origStart(e);
         };
@@ -1416,10 +1770,10 @@ class GeometryManager {
                 geo.compass.handleMove(x, y);
                 return;
             }
-            if (geo.ruler.isVisible() && CONFIG.isDrawing &&
-                ['pen', 'pencil', 'pastel', 'marker'].includes(CONFIG.currentTool)) {
+            const t = geo._geoAttivo;
+            if (t && t.nome !== 'protractor' && CONFIG.isDrawing && PENNE.includes(CONFIG.currentTool)) {
                 const raw = mgr.getCoords(e);
-                const { x, y } = geo.ruler.snapToRuler(raw.x, raw.y);
+                const { x, y } = puntoDritto(t, raw);
                 // Segmento dritto: control point = punto di partenza → nessuna curvatura
                 mgr._drawSegment(CONFIG.lastX, CONFIG.lastY, CONFIG.lastX, CONFIG.lastY, x, y);
                 CONFIG.lastX = x;
@@ -1427,8 +1781,7 @@ class GeometryManager {
                 mgr._currentPoints.push({ x, y }); // raccolta punti per tracking vettoriale (lazo/selezione)
                 return;
             }
-            if (geo.protractor.isVisible() && CONFIG.isDrawing &&
-                ['pen', 'pencil', 'pastel', 'marker'].includes(CONFIG.currentTool)) {
+            if (t && t.nome === 'protractor' && CONFIG.isDrawing && PENNE.includes(CONFIG.currentTool)) {
                 const raw  = mgr.getCoords(e);
                 const snap = geo.protractor.snapToProtractor(raw.x, raw.y);
                 // Disegna un arco reale (non una corda dritta) tra l'angolo precedente e quello nuovo
@@ -1448,18 +1801,13 @@ class GeometryManager {
                 CONFIG.isDrawing = false;
                 return;
             }
-            if (geo.ruler.isVisible() && CONFIG.isDrawing &&
-                ['pen', 'pencil', 'pastel', 'marker'].includes(CONFIG.currentTool)) {
+            if (geo._geoAttivo && CONFIG.isDrawing && PENNE.includes(CONFIG.currentTool)) {
                 CONFIG.isDrawing = false;
+                geo._geoAttivo = null;
                 geo._finalizeGeoStroke(mgr);
                 return;
             }
-            if (geo.protractor.isVisible() && CONFIG.isDrawing &&
-                ['pen', 'pencil', 'pastel', 'marker'].includes(CONFIG.currentTool)) {
-                CONFIG.isDrawing = false;
-                geo._finalizeGeoStroke(mgr);
-                return;
-            }
+            geo._geoAttivo = null;
             origEnd(e);
         };
     }
