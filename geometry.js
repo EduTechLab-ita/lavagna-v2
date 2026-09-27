@@ -1236,6 +1236,16 @@ class GeometryManager {
         this.sq45.create();
         this.sq3060.create();
 
+        // Il pulsante nel Magic Box è evidenziato solo quando lo strumento è davvero aperto,
+        // anche se lo si chiude con la × sulla lavagna invece che dal pulsante.
+        this._coppie = [['btn-geo-ruler', this.ruler], ['btn-geo-protractor', this.protractor],
+                        ['btn-geo-sq45', this.sq45], ['btn-geo-sq3060', this.sq3060]];
+        this._coppie.forEach(([, t]) => {
+            const show = t.show.bind(t), hide = t.hide.bind(t);
+            t.show = () => { show(); this._syncBottoni(); };
+            t.hide = () => { hide(); this._syncBottoni(); };
+        });
+
         this._setupButtons();
         this._patchCanvasManager();
     }
@@ -1603,6 +1613,13 @@ class GeometryManager {
     // ------------------------------------------------------------------
     // Collegamento pulsanti nel geo-popup
     // ------------------------------------------------------------------
+
+    _syncBottoni() {
+        this._coppie.forEach(([id, t]) => {
+            const b = document.getElementById(id);
+            if (b) b.classList.toggle('geo-active', !!t.isVisible());
+        });
+    }
 
     _setupButtons() {
         // Bottone Righello
