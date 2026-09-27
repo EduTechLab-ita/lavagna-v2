@@ -103,6 +103,8 @@ const COLOR_PALETTE = [
 // Gestisce il canvas di sfondo (#bg-canvas): colori, righe, griglie, immagini
 // =============================================================================
 
+const BG_SCURO = '#4b5563';   // grigio scuro delle «righe scure» (non nero)
+
 class BackgroundManager {
     constructor() {
         this.canvas = document.getElementById('bg-canvas');
@@ -154,8 +156,17 @@ class BackgroundManager {
             'lines-9':  { type: 'lines', spacing: 54,  color: '#94a3b8' },
             'lines-7':  { type: 'lines', spacing: 42,  color: '#94a3b8' },
         };
-        return map[this.currentBg] || null;
+        const cfg = map[this._baseBg()] || null;
+        if (!cfg || !this._isScuro()) return cfg;
+        return { ...cfg, color: BG_SCURO, colorH: BG_SCURO, colorV: BG_SCURO };
     }
+
+    // Sfondi «righe scure» (richiesti per la 1ª elementare: l'azzurro confonde i bambini):
+    // stessa chiave dell'originale + '-scuro', stessi disegni, linee grigio scuro.
+    // Gli originali restano identici. Il rosso (righino, margine) resta rosso.
+    _baseBg()  { return String(this.currentBg || '').replace(/-scuro$/, ''); }
+    _isScuro() { return /-scuro$/.test(this.currentBg || ''); }
+    _c(colore) { return this._isScuro() && colore !== '#f87171' ? BG_SCURO : colore; }
 
     // Aggiorna il CSS background del body in sincronia con pan+zoom del canvas.
     // Chiamato da PanManager._applyTransform() ad ogni pan/zoom.
@@ -205,9 +216,9 @@ class BackgroundManager {
         ctx.fillStyle = this.bgColor || '#ffffff';
         ctx.fillRect(0, 0, W, H);
         if (this.currentBg !== 'white') {
-            ctx.strokeStyle = '#94a3b8';
+            ctx.strokeStyle = this._c('#94a3b8');
             ctx.lineWidth = 1;
-            switch (this.currentBg) {
+            switch (this._baseBg()) {
                 case 'lines-8':  this._drawLines(ctx, 0, 0, W, H, 45); break;
                 case 'lines-5':  this._drawLines(ctx, 0, 0, W, H, 30); break;
                 case 'lines-3':  this._drawLines(ctx, 0, 0, W, H, 17); break;
@@ -286,9 +297,9 @@ class BackgroundManager {
         ctx.fillRect(0, 0, W, H);
 
         if (this.currentBg !== 'white') {
-            ctx.strokeStyle = '#94a3b8';
+            ctx.strokeStyle = this._c('#94a3b8');
             ctx.lineWidth = 1;
-            switch (this.currentBg) {
+            switch (this._baseBg()) {
                 case 'staff':        this._drawStaff(ctx, 0, 0, W, H);                  break;
                 case 'lines-15-aux': this._drawLinesThreeZone(ctx, 0, 0, W, H, 36, 20); break;
                 case 'lines-12-aux': this._drawLinesWithAux(ctx, 0, 0, W, H, 48, 24);   break;
@@ -320,14 +331,14 @@ class BackgroundManager {
     }
 
     _drawGrid(ctx, px, py, pw, ph, spacing) {
-        ctx.strokeStyle = '#dbeafe'; // più leggero per le colonne
+        ctx.strokeStyle = this._c('#dbeafe'); // più leggero per le colonne
         for (let x = px + spacing; x < px + pw; x += spacing) {
             ctx.beginPath();
             ctx.moveTo(x, py);
             ctx.lineTo(x, py + ph);
             ctx.stroke();
         }
-        ctx.strokeStyle = '#bfdbfe';
+        ctx.strokeStyle = this._c('#bfdbfe');
         for (let y = py + spacing; y < py + ph; y += spacing) {
             ctx.beginPath();
             ctx.moveTo(px, y);
@@ -337,7 +348,7 @@ class BackgroundManager {
     }
 
     _drawDots(ctx, px, py, pw, ph, spacing) {
-        ctx.fillStyle = '#94a3b8';
+        ctx.fillStyle = this._c('#94a3b8');
         for (let x = px + spacing; x < px + pw; x += spacing) {
             for (let y = py + spacing; y < py + ph; y += spacing) {
                 ctx.beginPath();
@@ -366,7 +377,7 @@ class BackgroundManager {
     // Feature 4a: righino ausiliario per 2a elementare (2 zone)
     _drawLinesWithAux(ctx, px, py, pw, ph, spacing, auxOffset) {
         // Riga principale blu
-        ctx.strokeStyle = '#60a5fa';
+        ctx.strokeStyle = this._c('#60a5fa');
         ctx.lineWidth = 1.2;
         for (let y = py + spacing; y < py + ph; y += spacing) {
             ctx.beginPath(); ctx.moveTo(px, y); ctx.lineTo(px + pw, y); ctx.stroke();
@@ -391,7 +402,7 @@ class BackgroundManager {
         const period = large + small + large;
         for (let y = py + large; y < py + ph; y += period) {
             // Rigo superiore (leggero, grigio-blu) — tetto lettere alte
-            ctx.strokeStyle = '#93c5fd';
+            ctx.strokeStyle = this._c('#93c5fd');
             ctx.lineWidth = 0.8;
             ctx.beginPath(); ctx.moveTo(px, y); ctx.lineTo(px + pw, y); ctx.stroke();
             // Rigo x-height (rosso) — tetto lettere piccole, dove si scrive
@@ -401,7 +412,7 @@ class BackgroundManager {
             ctx.beginPath(); ctx.moveTo(px, xhY); ctx.lineTo(px + pw, xhY); ctx.stroke();
             // Baseline (blu, più spessa) — riga di base
             const baseY = y + large + small;
-            ctx.strokeStyle = '#60a5fa';
+            ctx.strokeStyle = this._c('#60a5fa');
             ctx.lineWidth = 1.4;
             ctx.beginPath(); ctx.moveTo(px, baseY); ctx.lineTo(px + pw, baseY); ctx.stroke();
         }
@@ -428,6 +439,33 @@ class BackgroundManager {
         this._syncBodyNow();
         CONFIG.isDirty = true;
         window.autoSaveMgr?.onDirty();
+    }
+
+    /**
+     * L'immagine di sfondo ORIGINALE come dataURL (calcolata una volta e ricordata sull'immagine).
+     * Prima si salvava la fotografia dell'intero bg-canvas (bordo grigio e ombra compresi):
+     * riaprendo, quella foto veniva rimessa dentro il foglio e lo sfondo si rimpiccioliva.
+     * Gli sfondi dal cloud arrivano da un blob URL già revocato: si ridisegnano su un canvas.
+     */
+    imageDataUrl() {
+        const img = this.uploadedImage;
+        if (!img) return '';
+        if (!img._eduDataUrl) {
+            if (/^data:/.test(img.src || '')) {
+                img._eduDataUrl = img.src;
+            } else {
+                const w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+                const k = Math.min(1, 2400 / Math.max(w, h, 1));   // tetto: file lezione non enormi
+                const c = document.createElement('canvas');
+                c.width = Math.round(w * k); c.height = Math.round(h * k);
+                const cx = c.getContext('2d');
+                cx.fillStyle = '#ffffff';                           // JPEG: niente trasparenze nere
+                cx.fillRect(0, 0, c.width, c.height);
+                cx.drawImage(img, 0, 0, c.width, c.height);
+                img._eduDataUrl = c.toDataURL('image/jpeg', 0.9);
+            }
+        }
+        return img._eduDataUrl;
     }
 
     // Alias per compatibilità con PageManager e drive.js
@@ -2249,15 +2287,21 @@ class ToolbarManager {
 
     _setupBgPanel() {
         // Orientamento A4
+        // L'orientamento è un dato della pagina: senza isDirty il salvataggio automatico
+        // non partiva e riaprendo la lezione tornava quello di prima.
         document.getElementById('bg-orient-landscape')?.addEventListener('click', () => {
             bgMgr.setOrientation('landscape');
             document.getElementById('bg-orient-landscape')?.classList.add('active');
             document.getElementById('bg-orient-portrait')?.classList.remove('active');
+            CONFIG.isDirty = true;
+            window.autoSaveMgr?.onDirty();
         });
         document.getElementById('bg-orient-portrait')?.addEventListener('click', () => {
             bgMgr.setOrientation('portrait');
             document.getElementById('bg-orient-portrait')?.classList.add('active');
             document.getElementById('bg-orient-landscape')?.classList.remove('active');
+            CONFIG.isDirty = true;
+            window.autoSaveMgr?.onDirty();
         });
 
         // Colore pagina — palette predefinita + fallback color picker nativo
@@ -7083,7 +7127,12 @@ class PageManager {
             background: {
                 type: this.backgroundManager.currentBg,
                 color: this.backgroundManager.bgColor,
-                orientation: this.backgroundManager.orientation
+                orientation: this.backgroundManager.orientation,
+                // l'immagine appartiene alla PAGINA: prima si ricordava solo il tipo 'image'
+                // (se l'immagine si sta ancora caricando, si tiene quella già nota della pagina)
+                imageData: this.backgroundManager.currentBg === 'image'
+                    ? (this.backgroundManager.imageDataUrl() || this.pages[this.currentIndex]?.background?.imageData || '')
+                    : ''
             },
             // Pagine web incorporate: solo dati semplici (url/posizione), niente da
             // rasterizzare — vedi EmbedManager
@@ -7257,6 +7306,17 @@ class PageManager {
             this.backgroundManager.orientation = pageData.background.orientation || 'landscape';
             this.backgroundManager.uploadedImage = null;
             this.backgroundManager.render();
+            const imgData = pageData.background.type === 'image' && pageData.background.imageData;
+            if (imgData) {
+                const bgImg = new Image();
+                bgImg.onload = () => {
+                    if (token !== this._restoreToken) return;   // nel frattempo si è cambiata pagina
+                    bgImg._eduDataUrl = imgData;
+                    this.backgroundManager.uploadedImage = bgImg;
+                    this.backgroundManager.render();
+                };
+                bgImg.src = imgData;
+            }
             // Aggiorna UI colore/orientamento
             const colorEl = document.getElementById('bg-page-color');
             if (colorEl) colorEl.value = this.backgroundManager.bgColor;

@@ -312,6 +312,7 @@ class DriveManager {
         this.accessToken     = null;
         this.tokenExpiry     = 0;
         this.connected       = false;
+        _driveExpiryBand(null);
         this.userEmail       = '';
         this.rootFolderId    = null;
         this.lessonsFolderId = null;
@@ -409,6 +410,7 @@ class DriveManager {
                 if (typeof toast === 'function') toast('Drive connesso, ma cartelle non accessibili: ' + errMsg, 'warning');
             }
             if (window.libraryMgr) window.libraryMgr.refresh();
+            this._checkExpiry();
             setTimeout(() => _autoOpenLastLesson(), 800);
         })();
     }
@@ -425,6 +427,64 @@ class DriveManager {
         if (Date.now() > this.tokenExpiry - 5 * 60 * 1000) {
             toast('Sessione Drive in scadenza — riconnetti per continuare a salvare.', 'info');
         }
+    }
+
+    /**
+     * Rinnova il token SENZA ricollegarsi: il ricollegamento riapre l'ultima lezione da Drive,
+     * il rinnovo lascia la lavagna com'è. Va chiamato DENTRO un tocco dell'utente, senza await
+     * prima: fuori da un gesto il browser blocca la finestrella di Google. Per questo Google
+     * Identity viene precaricato da _checkExpiry() prima della scadenza.
+     * @returns {Promise<boolean|null>} true rinnovato · false rifiutato · null Google non ancora pronto
+     */
+    renew() {
+        if (typeof google === 'undefined' || !google.accounts) {
+            this._ensureGis().catch(() => {});
+            return Promise.resolve(null);
+        }
+        const hint = this.userEmail || localStorage.getItem('eduboard_user_email') || '';
+        return new Promise((resolve) => {
+            let chiuso = false;
+            const fine = (ok) => { if (!chiuso) { chiuso = true; resolve(ok); } };
+            const cfg = {
+                client_id: this.CLIENT_ID,
+                scope:     this.SCOPE,
+                callback:  (r) => {
+                    if (!r || !r.access_token) return fine(false);
+                    this.accessToken = r.access_token;
+                    this.tokenExpiry = Date.now() + (r.expires_in * 1000);
+                    this.connected   = true;
+                    this._saveSession();
+                    fine(true);
+                },
+                error_callback: () => fine(false)
+            };
+            if (hint) { cfg.hint = hint; cfg.login_hint = hint; }
+            try {
+                google.accounts.oauth2.initTokenClient(cfg).requestAccessToken({ prompt: '' });
+            } catch (_) { fine(false); }
+        });
+    }
+
+    /** Controlla ogni 20 s la scadenza del token e la rende VISIBILE (fascia gialla/rossa):
+     *  prima il salvataggio automatico si fermava in silenzio e la lavagna sembrava salvata. */
+    _watchExpiry() {
+        if (this._expiryTimer) return;
+        this._expiryTimer = setInterval(() => this._checkExpiry(), 20000);
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') this._checkExpiry();
+        });
+        this._checkExpiry();
+    }
+
+    _checkExpiry() {
+        // connected resta true anche a token scaduto: è proprio lo stato da segnalare.
+        // Dopo «Disconnetti» connected è false e la fascia non serve.
+        if (!this.connected || !this.accessToken) return _driveExpiryBand(null);
+        const resta = this.tokenExpiry - Date.now();
+        if (resta < 10 * 60 * 1000) this._ensureGis().catch(() => {});
+        if (resta <= 0)                  _driveExpiryBand('scaduto');
+        else if (resta <= 5 * 60 * 1000) _driveExpiryBand('scade', Math.ceil(resta / 60000));
+        else                             _driveExpiryBand(null);
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -937,7 +997,7 @@ class AutoSaveManager {
         if (this._loading) return;
         // Auto-save solo se connesso Drive E c'è un file aperto
         if (!window.libraryMgr?.currentFileId) return;
-        if (!window.driveMgr?.isConnected()) return;
+        if (!window.driveMgr?.isConnected()) { window.driveMgr?._checkExpiry(); return; }
 
         clearTimeout(this._timer);
         clearTimeout(this._retryTimer); // una nuova modifica programma già il proprio salvataggio
@@ -951,6 +1011,14 @@ class AutoSaveManager {
 
     async _doSave() {
         if (this._saving) return;
+        // A token scaduto overwriteCurrentLesson esce senza errore: qui sotto sarebbe
+        // comparso «✓ Salvato su Drive» senza aver salvato nulla.
+        if (!window.driveMgr?.isConnected()) {
+            this._timer = null;
+            this._clearBadges();
+            window.driveMgr?._checkExpiry();
+            return;
+        }
         this._saving = true;
         this._timer  = null;
         this._setSaving();
@@ -1754,7 +1822,18 @@ class LibraryManager {
             if (typeof objectLayer !== 'undefined' && objectLayer) objectLayer.clear();
 
             // 1. Ripristina sfondo
-            if (lesson.background) {
+            // Con le pagine, lo sfondo lo rimette ogni pagina (deserialize, punto 4). Lo sfondo
+            // «di lezione» è solo quello della pagina su cui si era al salvataggio: applicarlo qui
+            // (con un'immagine che finisce di caricarsi DOPO) lo metteva sopra la pagina aperta.
+            // Lezioni salvate prima: le pagine 'image' senza immagine propria ricevono quella della
+            // lezione, l'unica che esiste — si fonde, non si sostituisce.
+            const conPagine = Array.isArray(lesson.pages) && lesson.pages.length > 0;
+            if (conPagine && lesson.background?.imageBase64) {
+                lesson.pages.forEach(p => {
+                    if (p?.background?.type === 'image' && !p.background.imageData) p.background.imageData = lesson.background.imageBase64;
+                });
+            }
+            if (lesson.background && !conPagine) {
                 if (lesson.background.type === 'image' && lesson.background.imageBase64) {
                     const img = new Image();
                     img.onload = () => bgMgr.setImage(img);
@@ -1863,12 +1942,8 @@ class LibraryManager {
             // Raccoglie dati sfondo
             let bgImageBase64 = '';
             if (bgMgr.uploadedImage) {
-                // Converti immagine sfondo in base64 usando un canvas temporaneo
-                const tmp    = document.createElement('canvas');
-                tmp.width    = bgMgr.canvas.width;
-                tmp.height   = bgMgr.canvas.height;
-                tmp.getContext('2d').drawImage(bgMgr.canvas, 0, 0);
-                bgImageBase64 = tmp.toDataURL('image/jpeg', 0.85);
+                // l'immagine ORIGINALE, non la foto del bg-canvas (che riaprendo si rimpiccioliva)
+                bgImageBase64 = bgMgr.imageDataUrl();
             }
 
             const savedFileId = await this.drive.saveLesson({
@@ -1914,11 +1989,8 @@ class LibraryManager {
 
             let bgImageBase64 = '';
             if (bgMgr.uploadedImage) {
-                const tmp = document.createElement('canvas');
-                tmp.width  = bgMgr.canvas.width;
-                tmp.height = bgMgr.canvas.height;
-                tmp.getContext('2d').drawImage(bgMgr.canvas, 0, 0);
-                bgImageBase64 = tmp.toDataURL('image/jpeg', 0.85);
+                // l'immagine ORIGINALE, non la foto del bg-canvas (che riaprendo si rimpiccioliva)
+                bgImageBase64 = bgMgr.imageDataUrl();
             }
 
             // Usa _uploadMultipart direttamente con il fileId corrente (PATCH)
@@ -2635,13 +2707,65 @@ class LibraryManager {
 // =============================================================================
 
 /**
+ * Fascia in alto che dice quando il collegamento a Drive sta per scadere o è scaduto.
+ * stato: null (nascondi) · 'scade' (gialla, con i minuti) · 'scaduto' (rossa)
+ */
+function _driveExpiryBand(stato, minuti) {
+    let el = document.getElementById('drive-scadenza');
+    if (!stato) { if (el) el.remove(); return; }
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'drive-scadenza';
+        el.setAttribute('role', 'alert');
+        el.style.cssText = 'position:fixed;top:64px;left:50%;transform:translateX(-50%);z-index:600;' +
+            'display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:center;max-width:calc(100vw - 24px);' +
+            'padding:8px 10px 8px 16px;border-radius:14px;font:600 0.9rem system-ui,sans-serif;' +
+            'box-shadow:0 6px 24px rgba(0,0,0,0.18)';
+        el.innerHTML = '<span class="ds-testo"></span>' +
+            '<button type="button" class="ds-rinnova">Rinnova</button>' +
+            '<button type="button" class="ds-qr">Col telefono</button>';
+        el.querySelectorAll('button').forEach(b => {
+            b.style.cssText = 'border:none;border-radius:10px;padding:8px 14px;font:inherit;cursor:pointer;background:#fff;color:#0f172a';
+        });
+        el.querySelector('.ds-rinnova').addEventListener('click', _renewDriveFromBand);
+        el.querySelector('.ds-qr').addEventListener('click', () => window.eduBoardConnect?.show());
+        document.body.appendChild(el);
+    }
+    const scaduto = stato === 'scaduto';
+    el.style.background = scaduto ? '#dc2626' : '#fde68a';
+    el.style.color      = scaduto ? '#ffffff' : '#78350f';
+    el.querySelector('.ds-testo').textContent = scaduto
+        ? 'Google Drive scollegato: le modifiche NON vengono salvate. La lezione resta a schermo.'
+        : `Il collegamento a Google Drive scade tra ${minuti} min.`;
+}
+
+/** Tocco su «Rinnova»: nessun await prima di renew(), altrimenti il browser blocca Google. */
+function _renewDriveFromBand() {
+    const d = window.driveMgr;
+    if (!d) return;
+    d.renew().then(ok => {
+        if (ok === null) { toast('Preparo il collegamento a Google: tocca di nuovo «Rinnova» fra qualche secondo.', 'info'); return; }
+        if (!ok) { toast('Rinnovo non riuscito. Usa «Col telefono»: la lezione a schermo resta com\'è.', 'error'); return; }
+        window.driveConnectBtn?.update();
+        d._checkExpiry();
+        toast('✓ Collegamento a Google Drive rinnovato', 'success');
+        if (typeof CONFIG !== 'undefined' && CONFIG.isDirty && window.libraryMgr?.currentFileId) window.autoSaveMgr?.retryNow();
+    });
+}
+
+/**
  * Apre automaticamente l'ultima lezione usata, se il Drive è connesso
  * e la lavagna non ha modifiche non salvate.
  */
 async function _autoOpenLastLesson() {
     try {
         if (!driveMgr?.isConnected() || !libraryMgr) return;
-        if (typeof CONFIG !== 'undefined' && CONFIG.isDirty) return; // non sovrascrivere lavoro in corso
+        if (typeof CONFIG !== 'undefined' && CONFIG.isDirty) {
+            // non sovrascrivere lavoro in corso: se è di una lezione Drive (ricollegamento dopo
+            // una scadenza) lo si SALVA subito, invece di aspettare il prossimo tratto
+            if (libraryMgr.currentFileId) window.autoSaveMgr?.retryNow();
+            return;
+        }
         const raw = localStorage.getItem('eduboard_last_lesson');
         if (raw) {
             const last = JSON.parse(raw);
@@ -2910,6 +3034,13 @@ class DriveConnectButton {
                 panel.remove();
                 if (window.libraryMgr?.currentFileId) {
                     try { await window.libraryMgr.overwriteCurrentLesson(true); } catch(_) {}
+                    // Salvataggio non riuscito: disconnettendo, il ricollegamento riaprirebbe da
+                    // Drive la versione vecchia SOPRA il lavoro a schermo. Meglio non disconnettere.
+                    if (typeof CONFIG !== 'undefined' && CONFIG.isDirty) {
+                        toast('Le ultime modifiche non sono state salvate: NON disconnetto, per non perdere la lezione. Riprova tra poco.', 'error');
+                        window.autoSaveMgr?.retryNow();
+                        return;
+                    }
                 }
                 // Il contenuto di questa sessione non è più recuperabile per il PROSSIMO
                 // account che si collegherà (se non aveva un file Drive proprio — es. un
@@ -3178,6 +3309,7 @@ class EduBoardConnect {
             try {
                 await window.driveMgr.connect();
                 if (window.driveConnectBtn) window.driveConnectBtn.update();
+                window.driveMgr._checkExpiry();
                 const greeting = window.driveMgr.userName || window.driveMgr.userEmail;
                 toast('Google Drive connesso! Benvenuto, ' + greeting, 'success');
                 setTimeout(() => _autoOpenLastLesson(), 800);
@@ -3776,6 +3908,8 @@ function initDrive() {
             // Se non connesso: il listener originale di app.js gestisce il salvataggio locale
         }, true); // capture=true → intercetta prima del listener in app.js
     }
+
+    driveMgr._watchExpiry();
 
     // Il token è ora salvato in localStorage: _loadSession() lo ritrova già al prossimo avvio.
     // trySilentConnect() resta disponibile ma non viene chiamato automaticamente —

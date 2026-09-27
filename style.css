@@ -1364,6 +1364,19 @@ button {
     );
 }
 
+/* Righe scure — stesse anteprime, linee grigio scuro (#4b5563); il rosso resta rosso */
+.bg-p-lines-8-scuro { background: white; background-image: repeating-linear-gradient(transparent 0px, transparent 11px, #4b5563 11px, #4b5563 12px); }
+.bg-p-lines-5-scuro { background: white; background-image: repeating-linear-gradient(transparent 0px, transparent 7px, #4b5563 7px, #4b5563 8px); }
+.bg-p-lines-3-scuro { background: white; background-image: repeating-linear-gradient(transparent 0px, transparent 4px, #4b5563 4px, #4b5563 5px); }
+.bg-p-grid-10-scuro { background: white; background-image: repeating-linear-gradient(#4b5563 0 1px, transparent 1px 100%), repeating-linear-gradient(90deg, #4b5563 0 1px, transparent 1px 100%); background-size: 14px 14px; }
+.bg-p-grid-5-scuro  { background: white; background-image: repeating-linear-gradient(#4b5563 0 1px, transparent 1px 100%), repeating-linear-gradient(90deg, #4b5563 0 1px, transparent 1px 100%); background-size: 7px 7px; }
+.bg-p-dots-scuro    { background: white radial-gradient(#4b5563 1px, transparent 1px); background-size: 8px 8px; }
+.bg-p-staff-scuro   { background: white; background-image: repeating-linear-gradient(transparent 0px, transparent 6px, #4b5563 6px, #4b5563 7px, transparent 7px, transparent 12px, #4b5563 12px, #4b5563 13px, transparent 13px, transparent 18px, #4b5563 18px, #4b5563 19px, transparent 19px, transparent 24px, #4b5563 24px, #4b5563 25px, transparent 25px, transparent 38px); }
+.bg-p-lines-15-aux-scuro { background: white; background-image: repeating-linear-gradient(transparent 0px, transparent 12px, #f87171 12px, #f87171 14px, transparent 14px, transparent 20px, #4b5563 20px, #4b5563 22px); }
+.bg-p-lines-12-aux-scuro { background: white; background-image: repeating-linear-gradient(transparent 0px, transparent 8px, #f87171 8px, #f87171 10px, transparent 10px, transparent 16px, #4b5563 16px, #4b5563 18px); }
+.bg-p-lines-9-scuro { background: white; background-image: repeating-linear-gradient(transparent 0px, transparent 11px, #4b5563 11px, #4b5563 13px); }
+.bg-p-lines-7-scuro { background: white; background-image: repeating-linear-gradient(transparent 0px, transparent 8px, #4b5563 8px, #4b5563 10px); }
+
 /* Separatore sezione nel popup sfondo */
 .bg-section-header {
     grid-column: 1 / -1;
