@@ -163,10 +163,10 @@ class BackgroundManager {
 
     // Sfondi «righe scure» (richiesti per la 1ª elementare: l'azzurro confonde i bambini):
     // stessa chiave dell'originale + '-scuro', stessi disegni, linee grigio scuro.
-    // Gli originali restano identici. Il rosso (righino, margine) resta rosso.
+    // Gli originali restano azzurri; nelle copie scure TUTTE le linee diventano scure (niente rosso).
     _baseBg()  { return String(this.currentBg || '').replace(/-scuro$/, ''); }
     _isScuro() { return /-scuro$/.test(this.currentBg || ''); }
-    _c(colore) { return this._isScuro() && colore !== '#f87171' ? BG_SCURO : colore; }
+    _c(colore) { return this._isScuro() ? BG_SCURO : colore; }
 
     // Aggiorna il CSS background del body in sincronia con pan+zoom del canvas.
     // Chiamato da PanManager._applyTransform() ad ogni pan/zoom.
@@ -179,25 +179,33 @@ class BackgroundManager {
         const ss = cfg.spacing * scale; // spacing scalato in px schermo
         const modPos = (v) => ((v % ss) + ss) % ss; // sempre positivo
 
+        // Il motivo va agganciato al BORDO DEL FOGLIO (area di stampa), non all'angolo del canvas:
+        // prima la cornice tratteggiata tagliava righe e quadretti a metà.
+        const area = document.getElementById('canvas-area');
+        const ar = area ? area.getBoundingClientRect() : { left: dx, top: dy };
+        const pr = this._getPageRect(this.canvas.width, this.canvas.height);
+        const fX = ar.left + pr.px * scale;   // bordo sinistro del foglio sullo schermo
+        const fY = ar.top  + pr.py * scale;   // bordo alto del foglio sullo schermo
+
         document.body.style.backgroundColor = bg;
 
         if (cfg.type === 'lines') {
             document.body.style.backgroundImage =
                 `repeating-linear-gradient(0deg, transparent 0px, transparent ${ss - 1}px, ${cfg.color} ${ss - 1}px, ${cfg.color} ${ss}px)`;
             document.body.style.backgroundSize   = `100% ${ss}px`;
-            document.body.style.backgroundPosition = `0px ${modPos(dy)}px`;
+            document.body.style.backgroundPosition = `0px ${modPos(fY + 1)}px`;   // la riga sta in fondo alla piastrella
         } else if (cfg.type === 'grid') {
             document.body.style.backgroundImage =
                 `repeating-linear-gradient(90deg, transparent 0px, transparent ${ss-1}px, ${cfg.colorV} ${ss-1}px, ${cfg.colorV} ${ss}px),` +
                 `repeating-linear-gradient(0deg,  transparent 0px, transparent ${ss-1}px, ${cfg.colorH} ${ss-1}px, ${cfg.colorH} ${ss}px)`;
             document.body.style.backgroundSize     = `${ss}px ${ss}px`;
-            document.body.style.backgroundPosition = `${modPos(dx)}px ${modPos(dy)}px`;
+            document.body.style.backgroundPosition = `${modPos(fX + 1)}px ${modPos(fY + 1)}px`;
         } else if (cfg.type === 'dots') {
             const r = Math.max(1, ss / 13);
             const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${ss}' height='${ss}'><circle cx='${ss/2}' cy='${ss/2}' r='${r}' fill='${cfg.color}'/></svg>`;
             document.body.style.backgroundImage    = `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
             document.body.style.backgroundSize     = `${ss}px ${ss}px`;
-            document.body.style.backgroundPosition = `${modPos(dx)}px ${modPos(dy)}px`;
+            document.body.style.backgroundPosition = `${modPos(fX - ss / 2)}px ${modPos(fY - ss / 2)}px`;   // il punto sta al centro della piastrella
         }
     }
 
@@ -215,22 +223,36 @@ class BackgroundManager {
         const H = this.canvas.height;
         ctx.fillStyle = this.bgColor || '#ffffff';
         ctx.fillRect(0, 0, W, H);
-        if (this.currentBg !== 'white') {
-            ctx.strokeStyle = this._c('#94a3b8');
-            ctx.lineWidth = 1;
-            switch (this._baseBg()) {
-                case 'lines-8':  this._drawLines(ctx, 0, 0, W, H, 45); break;
-                case 'lines-5':  this._drawLines(ctx, 0, 0, W, H, 30); break;
-                case 'lines-3':  this._drawLines(ctx, 0, 0, W, H, 17); break;
-                case 'grid-10':  this._drawGrid(ctx, 0, 0, W, H, 57);  break;
-                case 'grid-5':   this._drawGrid(ctx, 0, 0, W, H, 30);  break;
-                case 'dots':     this._drawDots(ctx, 0, 0, W, H, 30);  break;
-                case 'staff':    this._drawStaff(ctx, 0, 0, W, H);     break;
-                case 'lines-15-aux': this._drawLinesThreeZone(ctx, 0, 0, W, H, 36, 20); break;
-                case 'lines-12-aux': this._drawLinesWithAux(ctx, 0, 0, W, H, 48, 24);   break;
-                case 'lines-9':  this._drawLines(ctx, 0, 0, W, H, 54); break;
-                case 'lines-7':  this._drawLines(ctx, 0, 0, W, H, 42); break;
-            }
+        if (this.currentBg !== 'white') this._disegnaSerie(ctx, W, H);
+    }
+
+    /**
+     * Disegna lo sfondo di serie sul canvas AGGANCIATO AL BORDO DEL FOGLIO: l'origine del disegno
+     * è il multiplo del passo che precede il bordo, così una riga cade esattamente sulla cornice
+     * dell'area di stampa invece di tagliarla a metà (segnalato da Fabio il 27/09/2026).
+     */
+    _disegnaSerie(ctx, W, H) {
+        const r = this._getPageRect(W, H);
+        const da = (passo) => {
+            const x0 = r.px - Math.ceil(r.px / passo) * passo;
+            const y0 = r.py - Math.ceil(r.py / passo) * passo;
+            return [x0, y0, W - x0, H - y0];
+        };
+        const margine = r.px + 60;
+        ctx.strokeStyle = this._c('#94a3b8');
+        ctx.lineWidth = 1;
+        switch (this._baseBg()) {
+            case 'lines-8':  this._drawLines(ctx, ...da(45), 45); break;
+            case 'lines-5':  this._drawLines(ctx, ...da(30), 30); break;
+            case 'lines-3':  this._drawLines(ctx, ...da(17), 17); break;
+            case 'grid-10':  this._drawGrid(ctx, ...da(57), 57);  break;
+            case 'grid-5':   this._drawGrid(ctx, ...da(30), 30);  break;
+            case 'dots':     this._drawDots(ctx, ...da(30), 30);  break;
+            case 'staff':    this._drawStaff(ctx, ...da(12 * 4 + 60)); break;
+            case 'lines-15-aux': this._drawLinesThreeZone(ctx, ...da(36 + 20 + 36), 36, 20, margine); break;
+            case 'lines-12-aux': this._drawLinesWithAux(ctx, ...da(48), 48, 24, margine);             break;
+            case 'lines-9':  this._drawLines(ctx, ...da(54), 54); break;
+            case 'lines-7':  this._drawLines(ctx, ...da(42), 42); break;
         }
     }
 
@@ -296,15 +318,7 @@ class BackgroundManager {
         ctx.fillStyle = this.bgColor || '#ffffff';
         ctx.fillRect(0, 0, W, H);
 
-        if (this.currentBg !== 'white') {
-            ctx.strokeStyle = this._c('#94a3b8');
-            ctx.lineWidth = 1;
-            switch (this._baseBg()) {
-                case 'staff':        this._drawStaff(ctx, 0, 0, W, H);                  break;
-                case 'lines-15-aux': this._drawLinesThreeZone(ctx, 0, 0, W, H, 36, 20); break;
-                case 'lines-12-aux': this._drawLinesWithAux(ctx, 0, 0, W, H, 48, 24);   break;
-            }
-        }
+        if (this.currentBg !== 'white') this._disegnaSerie(ctx, W, H);   // qui arrivano solo pentagramma e primaria
 
         // Cornice tratteggiata per il bordo di stampa A4
         const { px, py, pw, ph } = this._getPageRect(W, H);
@@ -375,15 +389,15 @@ class BackgroundManager {
     }
 
     // Feature 4a: righino ausiliario per 2a elementare (2 zone)
-    _drawLinesWithAux(ctx, px, py, pw, ph, spacing, auxOffset) {
+    _drawLinesWithAux(ctx, px, py, pw, ph, spacing, auxOffset, marginX = px + 60) {
         // Riga principale blu
         ctx.strokeStyle = this._c('#60a5fa');
         ctx.lineWidth = 1.2;
         for (let y = py + spacing; y < py + ph; y += spacing) {
             ctx.beginPath(); ctx.moveTo(px, y); ctx.lineTo(px + pw, y); ctx.stroke();
         }
-        // Righino ausiliario rosso
-        ctx.strokeStyle = '#f87171';
+        // Righino ausiliario (azzurro chiaro: niente più rosso, richiesto da Fabio 27/09)
+        ctx.strokeStyle = this._c('#93c5fd');
         ctx.lineWidth = 0.9;
         for (let y = py + spacing; y < py + ph; y += spacing) {
             const auxY = y - spacing + auxOffset;
@@ -391,23 +405,23 @@ class BackgroundManager {
                 ctx.beginPath(); ctx.moveTo(px, auxY); ctx.lineTo(px + pw, auxY); ctx.stroke();
             }
         }
-        // Margine sinistro rosso
-        ctx.strokeStyle = '#f87171';
+        // Margine sinistro, al bordo del FOGLIO (azzurro, non più rosso)
+        ctx.strokeStyle = this._c('#60a5fa');
         ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.moveTo(px + 60, py); ctx.lineTo(px + 60, py + ph); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(marginX, py); ctx.lineTo(marginX, py + ph); ctx.stroke();
     }
 
     // Feature 4b: righe a 3 zone per 1a elementare (grande-piccola-grande)
-    _drawLinesThreeZone(ctx, px, py, pw, ph, large, small) {
+    _drawLinesThreeZone(ctx, px, py, pw, ph, large, small, marginX = px + 60) {
         const period = large + small + large;
         for (let y = py + large; y < py + ph; y += period) {
             // Rigo superiore (leggero, grigio-blu) — tetto lettere alte
             ctx.strokeStyle = this._c('#93c5fd');
             ctx.lineWidth = 0.8;
             ctx.beginPath(); ctx.moveTo(px, y); ctx.lineTo(px + pw, y); ctx.stroke();
-            // Rigo x-height (rosso) — tetto lettere piccole, dove si scrive
+            // Rigo x-height — tetto lettere piccole, dove si scrive (azzurro, non più rosso)
             const xhY = y + large;
-            ctx.strokeStyle = '#f87171';
+            ctx.strokeStyle = this._c('#60a5fa');
             ctx.lineWidth = 1.0;
             ctx.beginPath(); ctx.moveTo(px, xhY); ctx.lineTo(px + pw, xhY); ctx.stroke();
             // Baseline (blu, più spessa) — riga di base
@@ -416,10 +430,10 @@ class BackgroundManager {
             ctx.lineWidth = 1.4;
             ctx.beginPath(); ctx.moveTo(px, baseY); ctx.lineTo(px + pw, baseY); ctx.stroke();
         }
-        // Margine sinistro rosso
-        ctx.strokeStyle = '#f87171';
+        // Margine sinistro, al bordo del FOGLIO (azzurro, non più rosso)
+        ctx.strokeStyle = this._c('#60a5fa');
         ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.moveTo(px + 60, py); ctx.lineTo(px + 60, py + ph); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(marginX, py); ctx.lineTo(marginX, py + ph); ctx.stroke();
     }
 
     setBackground(bgKey) {
@@ -2399,10 +2413,6 @@ class ToolbarManager {
         document.querySelectorAll('.bg-opt').forEach(btn => {
             btn.addEventListener('click', () => {
                 bgMgr.setBackground(btn.dataset.bg);
-                // Memorizza sfondo per la cartella corrente (se Drive connesso)
-                if (typeof libraryMgr !== 'undefined' && libraryMgr?.currentFolderId) {
-                    localStorage.setItem('folder-bg-' + libraryMgr.currentFolderId, btn.dataset.bg);
-                }
                 document.querySelectorAll('.bg-opt').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 this._closeAllPopups();
@@ -2869,6 +2879,7 @@ class ProjectManager {
         const defTool  = _prefs.defaultTool  || 'pen';
         const defColor = _prefs.defaultColor || '#000000';
         const defSize  = _prefs.defaultSize  || 3;
+        const defOrient = _prefs.defaultOrient === 'portrait' ? 'portrait' : 'landscape';
         // Uno sfondo personale (Drive) è "custom:<fileId>", non una delle chiavi di serie —
         // si applica in un secondo momento (richiede uno scaricamento), qui si parte da bianco.
         const isCustomBg = defBg.startsWith('custom:');
@@ -2881,10 +2892,14 @@ class ProjectManager {
         // corretto è window.pageManager (non window.pageMgr, che non esiste mai — bug
         // per cui questo reset non scattava mai prima di questa correzione).
         if (window.pageManager) {
-            window.pageManager.pages = [{ drawImageData: null, objects: [], background: { type: presetBg, color: '#ffffff', orientation: 'landscape' } }];
+            window.pageManager.pages = [{ drawImageData: null, objects: [], background: { type: presetBg, color: '#ffffff', orientation: defOrient } }];
             window.pageManager.currentIndex = 0;
             window.pageManager._renderPageBar();
         }
+        // orientamento delle Preferenze (prima era sempre orizzontale e restava quello della lezione precedente)
+        bgMgr.orientation = defOrient;
+        document.getElementById('bg-orient-landscape')?.classList.toggle('active', defOrient === 'landscape');
+        document.getElementById('bg-orient-portrait')?.classList.toggle('active', defOrient === 'portrait');
         bgMgr.setBackground(presetBg);
         CONFIG.projectName = 'Nuova Lavagna';
         CONFIG.isDirty = false;
@@ -7370,7 +7385,8 @@ class PageManager {
             background: {
                 type: currentBg.type || 'white',
                 color: currentBg.color || '#ffffff',
-                orientation: currentBg.orientation || 'landscape'
+                orientation: currentBg.orientation || 'landscape',
+                imageData: currentBg.imageData || ''
             }
         });
         this.currentIndex = this.pages.length - 1;
@@ -8768,6 +8784,8 @@ window.addEventListener('load', function() {
         const toolSel = document.getElementById('pref-default-tool');
         if (bgSel && prefs.defaultBg) bgSel.value = prefs.defaultBg;
         if (toolSel && prefs.defaultTool) toolSel.value = prefs.defaultTool;
+        const orientSel = document.getElementById('pref-default-orient');
+        if (orientSel) orientSel.value = prefs.defaultOrient || 'landscape';
         const savedColor = prefs.defaultColor || '#000000';
         modal.querySelectorAll('.pref-color-btn').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.color === savedColor);
@@ -8826,6 +8844,8 @@ window.addEventListener('load', function() {
             const activeSize = modal.querySelector('.pref-size-btn.active');
             if (bgSel) prefs.defaultBg = bgSel.value;
             if (toolSel) prefs.defaultTool = toolSel.value;
+            const orientSel = document.getElementById('pref-default-orient');
+            if (orientSel) prefs.defaultOrient = orientSel.value;
             if (activeColor) prefs.defaultColor = activeColor.dataset.color;
             if (activeSize) prefs.defaultSize = parseInt(activeSize.dataset.size);
             savePrefs(prefs);

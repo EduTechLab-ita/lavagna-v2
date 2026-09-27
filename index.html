@@ -82,7 +82,7 @@
                 <img src="./icon-192x192.png" alt="EduBoard" class="logo-icon">
                 <div class="logo-info">
                     <span class="logo-text"><span class="logo-edu">Edu</span><span class="logo-board">Board</span></span>
-                    <span class="logo-sub">v2-097 &nbsp;&nbsp; © EduTechLab di Rizzotto Fabio</span>
+                    <span class="logo-sub">v2-098 &nbsp;&nbsp; © EduTechLab di Rizzotto Fabio</span>
                 </div>
             </div>
             <div class="project-badge" id="project-name">Nuova Lavagna</div>
@@ -1056,7 +1056,35 @@
                             <option value="grid-10">Quadretti 10mm</option>
                             <option value="grid-5">Quadretti 5mm</option>
                             <option value="dots">Puntini</option>
+                            <option value="lines-3">Righe 3mm</option>
+                            <option value="staff">Pentagramma</option>
+                            <optgroup label="Righe Primaria">
+                                <option value="lines-15-aux">1ª elementare</option>
+                                <option value="lines-12-aux">2ª elementare</option>
+                                <option value="lines-9">3ª elementare</option>
+                                <option value="lines-7">4ª elementare</option>
+                            </optgroup>
+                            <optgroup label="Righe scure">
+                                <option value="lines-15-aux-scuro">1ª elementare — scure</option>
+                                <option value="lines-12-aux-scuro">2ª elementare — scure</option>
+                                <option value="lines-9-scuro">3ª elementare — scure</option>
+                                <option value="lines-7-scuro">4ª elementare — scure</option>
+                                <option value="lines-8-scuro">Righe 8mm — scure</option>
+                                <option value="lines-5-scuro">Righe 5mm — scure</option>
+                                <option value="lines-3-scuro">Righe 3mm — scure</option>
+                                <option value="grid-10-scuro">Quadretti 10mm — scuri</option>
+                                <option value="grid-5-scuro">Quadretti 5mm — scuri</option>
+                                <option value="dots-scuro">Puntini — scuri</option>
+                                <option value="staff-scuro">Pentagramma — scuro</option>
+                            </optgroup>
                             <optgroup id="pref-bg-personal-group" label="I tuoi sfondi personali" style="display:none"></optgroup>
+                        </select>
+                    </div>
+                    <div class="settings-row">
+                        <span class="settings-label">Orientamento del foglio</span>
+                        <select id="pref-default-orient" class="settings-select">
+                            <option value="landscape">Orizzontale</option>
+                            <option value="portrait">Verticale</option>
                         </select>
                     </div>
                 </div>
@@ -1108,7 +1136,7 @@
                     <img src="./icon-192x192.png" alt="EduBoard" width="64" height="64" style="border-radius:14px">
                     <div>
                         <div class="settings-info-appname"><span style="color:#3b82f6">Edu</span>Board</div>
-                        <div class="settings-info-version" id="info-version-text">v2-097</div>
+                        <div class="settings-info-version" id="info-version-text">v2-098</div>
                     </div>
                 </div>
                 <div class="settings-section">
@@ -1155,8 +1183,8 @@
             <div class="settings-panel" id="tab-novita">
                 <div class="settings-section">
                     <div class="settings-changelog-item">
-                        <div class="settings-changelog-ver">v2-097 — Settembre 2026</div>
-                        <div class="settings-changelog-desc">☁️ <strong>Il collegamento a Drive non cade più in silenzio.</strong> Qualche minuto prima della scadenza compare in alto una fascia gialla, e se scade diventa rossa: «le modifiche NON vengono salvate». Con <strong>Rinnova</strong> ti ricolleghi con un tocco e la lezione resta a schermo; con <strong>Col telefono</strong> usi il QR. Appena ricollegato, il lavoro fatto nel frattempo <strong>viene salvato subito</strong> invece di essere sostituito dalla versione vecchia · ✅ L'icona non dice più «Salvato» quando in realtà il salvataggio non è avvenuto · 🖼️ <strong>Sfondo e orientamento di ogni pagina</strong> ora si salvano davvero, anche con gli sfondi immagine e quelli dal Drive: prima tornando alla pagina lo sfondo spariva e, riaprendo la lezione, un'altra pagina prendeva il suo sfondo · 📏 Gli sfondi immagine non si <strong>rimpiccioliscono</strong> più a ogni riapertura · ↕️ Cambiare solo l'orientamento ora basta perché venga salvato · ✏️ Nuova sezione <strong>Righe scure</strong> nel pannello Sfondo: tutti gli sfondi di serie con le linee grigio scuro, pensati per la prima elementare</div>
+                        <div class="settings-changelog-ver">v2-098 — Settembre 2026</div>
+                        <div class="settings-changelog-desc">☁️ <strong>Il collegamento a Drive non cade più in silenzio.</strong> Qualche minuto prima della scadenza compare in alto una fascia gialla, e se scade diventa rossa: «le modifiche NON vengono salvate». Con <strong>Rinnova</strong> ti ricolleghi con un tocco e la lezione resta a schermo; con <strong>Col telefono</strong> usi il QR. Appena ricollegato, il lavoro fatto nel frattempo <strong>viene salvato subito</strong> invece di essere sostituito dalla versione vecchia · ✅ L'icona non dice più «Salvato» quando in realtà il salvataggio non è avvenuto · 🖼️ <strong>Sfondo e orientamento di ogni pagina</strong> ora si salvano davvero, anche con gli sfondi immagine e quelli dal Drive: prima tornando alla pagina lo sfondo spariva e, riaprendo la lezione, un'altra pagina prendeva il suo sfondo · 📏 Gli sfondi immagine non si <strong>rimpiccioliscono</strong> più a ogni riapertura · ↕️ Cambiare solo l'orientamento ora basta perché venga salvato · ✏️ Nuova sezione <strong>Righe scure</strong> nel pannello Sfondo: tutti gli sfondi di serie con le linee grigio scuro, pensati per la prima elementare · 🔵 Niente più linee rosse: gli sfondi azzurri sono tutti azzurri, quelli scuri tutti scuri · 📐 Righe e quadretti partono ora <strong>esattamente dal bordo dell'area di stampa</strong>, invece di essere tagliati a metà dalla cornice tratteggiata · ⚙️ Nelle Preferenze si sceglie anche l'<strong>orientamento</strong> (orizzontale o verticale) di ogni lavagna nuova, e fra gli sfondi predefiniti ci sono anche quelli di primaria e le righe scure · 📂 Aprire una cartella della libreria <strong>non cambia più lo sfondo</strong> della pagina che hai davanti</div>
                     </div>
                     <div class="settings-changelog-item">
                         <div class="settings-changelog-ver">v2-096 — Settembre 2026</div>
@@ -1418,8 +1446,8 @@
                 '<div class="settings-guide-item">Ogni lezione può avere <strong>più pagine</strong>: si passa da una all\'altra con le frecce <strong>‹ ›</strong> in basso a sinistra, e col <strong>+</strong> se ne aggiunge una</div>' +
                 '<div class="settings-guide-item">Il pulsante <strong>Tutte le pagine</strong> apre l\'elenco con l\'<strong>anteprima</strong> di ogni pagina: <strong>trascina una riga</strong> per riordinarle (una linea grigia mostra dove finirà) e usa il menù <strong>⋯</strong> per <strong>duplicare</strong> la pagina o <strong>spostarla in un\'altra lezione</strong></div>' +
                 '<div class="settings-guide-item">Importando il primo file su una lezione ancora "Nuova Lavagna" mai salvata, il <strong>nome della lezione</strong> diventa quello del file — non succede importando più file insieme, né su una lezione già nominata</div>' +
-                '<div class="settings-guide-item"><strong>Sfondo, colore e orientamento</strong> (orizzontale/verticale) sono <strong>di ogni pagina</strong>: cambiandoli si cambia solo la pagina in cui sei. Una pagina nuova parte con lo sfondo di quella da cui l\'hai aggiunta</div>' +
-                '<div class="settings-guide-item">Nel pannello Sfondo, la sezione <strong>Righe scure</strong> ha una copia di ogni sfondo di serie con le linee <strong>grigio scuro</strong> invece che azzurre (il righino rosso resta rosso): utile in prima, quando l\'azzurro chiaro si vede poco</div>'},
+                '<div class="settings-guide-item"><strong>Sfondo, colore e orientamento</strong> (orizzontale/verticale) sono <strong>di ogni pagina</strong>: cambiandoli si cambia solo la pagina in cui sei. Una pagina nuova parte con lo sfondo di quella da cui l\'hai aggiunta; una <strong>lezione nuova</strong> parte con sfondo e orientamento scelti nelle <strong>Preferenze</strong></div>' +
+                '<div class="settings-guide-item">Nel pannello Sfondo, la sezione <strong>Righe scure</strong> ha una copia di ogni sfondo di serie con <strong>tutte</strong> le linee <strong>grigio scuro</strong> invece che azzurre: utile in prima, quando l\'azzurro chiaro si vede poco. Righe e quadretti partono sempre <strong>dal bordo dell\'area di stampa</strong></div>'},
 
             {id:"libreria", ic:"📚", t:"Libreria e cartelle", c:
                 '<div class="settings-guide-item">Icona libreria (linguetta a sinistra o a destra dello schermo): mostra tutte le lezioni salvate, organizzabili in <strong>cartelle colorate</strong></div>' +
@@ -1447,7 +1475,7 @@
 
             {id:"preferenze", ic:"⚙️", t:"Personalizzare l\'app", c:
                 '<div class="settings-guide-item">Icona account → <strong>Impostazioni & Guida</strong> → scheda Preferenze</div>' +
-                '<div class="settings-guide-item">Si possono impostare, per ogni nuova lavagna: <strong>sfondo predefinito</strong> (anche uno dei tuoi da Drive), <strong>strumento predefinito</strong>, <strong>colore penna predefinito</strong> e <strong>dimensione tratto predefinita</strong></div>'}
+                '<div class="settings-guide-item">Si possono impostare, per ogni nuova lavagna: <strong>sfondo predefinito</strong> (anche uno dei tuoi da Drive) e <strong>orientamento del foglio</strong>, <strong>strumento predefinito</strong>, <strong>colore penna predefinito</strong> e <strong>dimensione tratto predefinita</strong></div>'}
         ];
 
         function normalizzaGuida(s){

@@ -2330,14 +2330,9 @@ class LibraryManager {
         document.querySelectorAll('.tree-item.selected').forEach(el => el.classList.remove('selected'));
         itemEl.classList.add('selected');
         this.currentFolderId = folderId;
-        // Applica lo sfondo memorizzato per questa cartella (se presente)
-        const savedBg = localStorage.getItem('folder-bg-' + folderId);
-        if (savedBg && typeof bgMgr !== 'undefined') {
-            bgMgr.setBackground(savedBg);
-            document.querySelectorAll('.bg-opt').forEach(b => b.classList.remove('active'));
-            const btn = document.querySelector(`.bg-opt[data-bg="${savedBg}"]`);
-            if (btn) btn.classList.add('active');
-        }
+        // Qui si applicava lo sfondo «ricordato» per la cartella alla pagina APERTA, e la lezione
+        // veniva salvata così: bastava aprire una cartella per cambiare lo sfondo alle pagine.
+        // Tolto il 27/09/2026: lo sfondo è della pagina, e una lezione nuova parte dalle Preferenze.
     }
 
     /** Aggiorna il banner di stato Drive nel pannello. */

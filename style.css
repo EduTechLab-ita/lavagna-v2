@@ -1328,7 +1328,7 @@ button {
     background-image:
         repeating-linear-gradient(
             transparent 0px, transparent 12px,
-            #f87171 12px, #f87171 14px,
+            #93c5fd 12px, #93c5fd 14px,
             transparent 14px, transparent 20px,
             #60a5fa 20px, #60a5fa 22px
         );
@@ -1340,7 +1340,7 @@ button {
     background-image:
         repeating-linear-gradient(
             transparent 0px, transparent 8px,
-            #f87171 8px, #f87171 10px,
+            #93c5fd 8px, #93c5fd 10px,
             transparent 10px, transparent 16px,
             #60a5fa 16px, #60a5fa 18px
         );
@@ -1372,8 +1372,8 @@ button {
 .bg-p-grid-5-scuro  { background: white; background-image: repeating-linear-gradient(#4b5563 0 1px, transparent 1px 100%), repeating-linear-gradient(90deg, #4b5563 0 1px, transparent 1px 100%); background-size: 7px 7px; }
 .bg-p-dots-scuro    { background: white radial-gradient(#4b5563 1px, transparent 1px); background-size: 8px 8px; }
 .bg-p-staff-scuro   { background: white; background-image: repeating-linear-gradient(transparent 0px, transparent 6px, #4b5563 6px, #4b5563 7px, transparent 7px, transparent 12px, #4b5563 12px, #4b5563 13px, transparent 13px, transparent 18px, #4b5563 18px, #4b5563 19px, transparent 19px, transparent 24px, #4b5563 24px, #4b5563 25px, transparent 25px, transparent 38px); }
-.bg-p-lines-15-aux-scuro { background: white; background-image: repeating-linear-gradient(transparent 0px, transparent 12px, #f87171 12px, #f87171 14px, transparent 14px, transparent 20px, #4b5563 20px, #4b5563 22px); }
-.bg-p-lines-12-aux-scuro { background: white; background-image: repeating-linear-gradient(transparent 0px, transparent 8px, #f87171 8px, #f87171 10px, transparent 10px, transparent 16px, #4b5563 16px, #4b5563 18px); }
+.bg-p-lines-15-aux-scuro { background: white; background-image: repeating-linear-gradient(transparent 0px, transparent 12px, #4b5563 12px, #4b5563 14px, transparent 14px, transparent 20px, #4b5563 20px, #4b5563 22px); }
+.bg-p-lines-12-aux-scuro { background: white; background-image: repeating-linear-gradient(transparent 0px, transparent 8px, #4b5563 8px, #4b5563 10px, transparent 10px, transparent 16px, #4b5563 16px, #4b5563 18px); }
 .bg-p-lines-9-scuro { background: white; background-image: repeating-linear-gradient(transparent 0px, transparent 11px, #4b5563 11px, #4b5563 13px); }
 .bg-p-lines-7-scuro { background: white; background-image: repeating-linear-gradient(transparent 0px, transparent 8px, #4b5563 8px, #4b5563 10px); }
 
