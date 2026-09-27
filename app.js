@@ -164,6 +164,9 @@ class BackgroundManager {
     // Sfondi «righe scure» (richiesti per la 1ª elementare: l'azzurro confonde i bambini):
     // stessa chiave dell'originale + '-scuro', stessi disegni, linee grigio scuro.
     // Gli originali restano azzurri; nelle copie scure TUTTE le linee diventano scure (niente rosso).
+    // Cornice dell'area di stampa: sulle righe scure un tratteggio scuro sparirebbe dentro la riga
+    // su cui cade (è allineata), quindi lì diventa azzurrina. Sulle pagine azzurre resta com'era.
+    _cornice() { return this._isScuro() ? '#38bdf8' : 'rgba(100, 120, 160, 0.65)'; }
     _baseBg()  { return String(this.currentBg || '').replace(/-scuro$/, ''); }
     _isScuro() { return /-scuro$/.test(this.currentBg || ''); }
     _c(colore) { return this._isScuro() ? BG_SCURO : colore; }
@@ -193,13 +196,13 @@ class BackgroundManager {
             document.body.style.backgroundImage =
                 `repeating-linear-gradient(0deg, transparent 0px, transparent ${ss - 1}px, ${cfg.color} ${ss - 1}px, ${cfg.color} ${ss}px)`;
             document.body.style.backgroundSize   = `100% ${ss}px`;
-            document.body.style.backgroundPosition = `0px ${modPos(fY + 1)}px`;   // la riga sta in fondo alla piastrella
+            document.body.style.backgroundPosition = `0px ${modPos(fY)}px`;   // 0deg va dal basso in alto: la riga è in CIMA alla piastrella
         } else if (cfg.type === 'grid') {
             document.body.style.backgroundImage =
                 `repeating-linear-gradient(90deg, transparent 0px, transparent ${ss-1}px, ${cfg.colorV} ${ss-1}px, ${cfg.colorV} ${ss}px),` +
                 `repeating-linear-gradient(0deg,  transparent 0px, transparent ${ss-1}px, ${cfg.colorH} ${ss-1}px, ${cfg.colorH} ${ss}px)`;
             document.body.style.backgroundSize     = `${ss}px ${ss}px`;
-            document.body.style.backgroundPosition = `${modPos(fX + 1)}px ${modPos(fY + 1)}px`;
+            document.body.style.backgroundPosition = `${modPos(fX + 1)}px ${modPos(fY)}px`;   // 90deg: linea in fondo (a destra) · 0deg: linea in cima
         } else if (cfg.type === 'dots') {
             const r = Math.max(1, ss / 13);
             const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${ss}' height='${ss}'><circle cx='${ss/2}' cy='${ss/2}' r='${r}' fill='${cfg.color}'/></svg>`;
@@ -301,8 +304,8 @@ class BackgroundManager {
             // Cornice tratteggiata per il bordo di stampa A4
             const { px, py, pw, ph } = this._getPageRect(W, H);
             ctx.save();
-            ctx.strokeStyle = 'rgba(100, 120, 160, 0.65)';
-            ctx.lineWidth = 1;
+            ctx.strokeStyle = this._cornice();
+            ctx.lineWidth = this._isScuro() ? 3 : 1;   // sulle righe scure deve coprire la riga su cui cade
             ctx.setLineDash([6, 5]);
             ctx.strokeRect(px, py, pw, ph);
             ctx.setLineDash([]);
@@ -323,8 +326,8 @@ class BackgroundManager {
         // Cornice tratteggiata per il bordo di stampa A4
         const { px, py, pw, ph } = this._getPageRect(W, H);
         ctx.save();
-        ctx.strokeStyle = 'rgba(100, 120, 160, 0.65)';
-        ctx.lineWidth = 1;
+        ctx.strokeStyle = this._cornice();
+        ctx.lineWidth = this._isScuro() ? 3 : 1;   // sulle righe scure deve coprire la riga su cui cade
         ctx.setLineDash([6, 5]);
         ctx.strokeRect(px, py, pw, ph);
         ctx.setLineDash([]);
