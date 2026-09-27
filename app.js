@@ -146,15 +146,16 @@ class BackgroundManager {
     // Configurazione pattern CSS per gli sfondi semplici (righe, quadretti, dots).
     // Restituisce null per pattern complessi (elementare, pentagramma) → rimangono su canvas.
     _cssPatternConfig() {
+        // Passi in mm veri: 1 mm = 5,7 px (quadretto da 10 mm = 57 px, la scala del righello)
         const map = {
-            'lines-8':  { type: 'lines', spacing: 45,  color: '#94a3b8' },
-            'lines-5':  { type: 'lines', spacing: 30,  color: '#94a3b8' },
-            'lines-3':  { type: 'lines', spacing: 17,  color: '#94a3b8' },
-            'grid-10':  { type: 'grid',  spacing: 57,  colorH: '#bfdbfe', colorV: '#dbeafe' },
-            'grid-5':   { type: 'grid',  spacing: 30,  colorH: '#bfdbfe', colorV: '#dbeafe' },
-            'dots':     { type: 'dots',  spacing: 30,  color: '#94a3b8' },
-            'lines-9':  { type: 'lines', spacing: 54,  color: '#94a3b8' },
-            'lines-7':  { type: 'lines', spacing: 42,  color: '#94a3b8' },
+            'lines-8':  { type: 'lines', spacing: 45.6, color: '#94a3b8' },
+            'lines-5':  { type: 'lines', spacing: 28.5, color: '#94a3b8' },
+            'lines-3':  { type: 'lines', spacing: 17.1, color: '#94a3b8' },
+            'grid-10':  { type: 'grid',  spacing: 57,   colorH: '#bfdbfe', colorV: '#dbeafe' },
+            'grid-5':   { type: 'grid',  spacing: 28.5, colorH: '#bfdbfe', colorV: '#dbeafe' },
+            'dots':     { type: 'dots',  spacing: 30,   color: '#94a3b8' },
+            'lines-9':  { type: 'lines', spacing: 51.3, color: '#94a3b8' },
+            'lines-7':  { type: 'lines', spacing: 39.9, color: '#94a3b8' },
         };
         const cfg = map[this._baseBg()] || null;
         if (!cfg || !this._isScuro()) return cfg;
@@ -245,17 +246,19 @@ class BackgroundManager {
         ctx.strokeStyle = this._c('#94a3b8');
         ctx.lineWidth = 1;
         switch (this._baseBg()) {
-            case 'lines-8':  this._drawLines(ctx, ...da(45), 45); break;
-            case 'lines-5':  this._drawLines(ctx, ...da(30), 30); break;
-            case 'lines-3':  this._drawLines(ctx, ...da(17), 17); break;
+            case 'lines-8':  this._drawLines(ctx, ...da(45.6), 45.6); break;
+            case 'lines-5':  this._drawLines(ctx, ...da(28.5), 28.5); break;
+            case 'lines-3':  this._drawLines(ctx, ...da(17.1), 17.1); break;
             case 'grid-10':  this._drawGrid(ctx, ...da(57), 57);  break;
-            case 'grid-5':   this._drawGrid(ctx, ...da(30), 30);  break;
+            case 'grid-5':   this._drawGrid(ctx, ...da(28.5), 28.5); break;
             case 'dots':     this._drawDots(ctx, ...da(30), 30);  break;
             case 'staff':    this._drawStaff(ctx, ...da(12 * 4 + 60)); break;
-            case 'lines-15-aux': this._drawLinesThreeZone(ctx, ...da(36 + 20 + 36), 36, 20, margine); break;
-            case 'lines-12-aux': this._drawLinesWithAux(ctx, ...da(48), 48, 24, margine);             break;
-            case 'lines-9':  this._drawLines(ctx, ...da(54), 54); break;
-            case 'lines-7':  this._drawLines(ctx, ...da(42), 42); break;
+            // 1ª: riga intera 15 mm (85,5 px), stesse proporzioni di prima fra le tre zone (36:20:36)
+            case 'lines-15-aux': this._drawLinesThreeZone(ctx, ...da(85.5), 85.5 * 36 / 92, 85.5 * 20 / 92, margine); break;
+            // 2ª: riga 12 mm (68,4 px) con il righino a metà
+            case 'lines-12-aux': this._drawLinesWithAux(ctx, ...da(68.4), 68.4, 34.2, margine);   break;
+            case 'lines-9':  this._drawLines(ctx, ...da(51.3), 51.3); break;
+            case 'lines-7':  this._drawLines(ctx, ...da(39.9), 39.9); break;
         }
     }
 
