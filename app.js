@@ -3438,7 +3438,7 @@ function setupProjectName() {
                 window.libraryMgr.aggiornaNomeOvunque(fileId, newName);
                 toast('Rinominato!', 'success');
             } catch (err) {
-                toast('Errore rinomina Drive: ' + err.message, 'error');
+                mostraErroreDrive('rinominare la lezione', err);
                 CONFIG.projectName = oldName;
                 badge.textContent = oldName;
             }
