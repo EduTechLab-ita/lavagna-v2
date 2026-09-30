@@ -1890,6 +1890,20 @@ class LibraryManager {
             // Lezioni salvate prima: le pagine 'image' senza immagine propria ricevono quella della
             // lezione, l'unica che esiste — si fonde, non si sostituisce.
             const conPagine = Array.isArray(lesson.pages) && lesson.pages.length > 0;
+            // Lezione nel formato vecchio (senza pagine): non passa da _restorePage, quindi
+            // tratti, pagine e «Annulla» della lezione precedente restavano in memoria — la
+            // gomma-lazo ridipingeva le sue scritte qui e il salvataggio ci copiava le sue pagine.
+            if (!conPagine) {
+                canvasMgr.ctx.clearRect(0, 0, canvasMgr.canvas.width, canvasMgr.canvas.height);
+                canvasMgr._pageStrokes = [];
+                canvasMgr._azzeraCronologia();
+                canvasMgr._haFondo = false;
+                if (window.pageManager) {
+                    window.pageManager.pages = [{ drawImageData: null, objects: [], background: { type: lesson.background?.key || 'white', color: '#ffffff', orientation: bgMgr.orientation } }];
+                    window.pageManager.currentIndex = 0;
+                    window.pageManager._renderPageBar();
+                }
+            }
             if (conPagine && lesson.background?.imageBase64) {
                 lesson.pages.forEach(p => {
                     if (p?.background?.type === 'image' && !p.background.imageData) p.background.imageData = lesson.background.imageBase64;
@@ -1926,9 +1940,10 @@ class LibraryManager {
                     offsetY = curr.py - lesson.pagePy;
                 }
                 img.onload = () => {
-                    canvasMgr._saveUndo();
                     canvasMgr.ctx.clearRect(0, 0, canvasMgr.canvas.width, canvasMgr.canvas.height);
                     canvasMgr.ctx.drawImage(img, offsetX, offsetY);
+                    canvasMgr._azzeraCronologia();
+                    canvasMgr._segnaFondo();
                 };
                 img.src = lesson.drawing;
             }

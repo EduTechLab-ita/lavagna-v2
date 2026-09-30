@@ -1442,6 +1442,7 @@ class CanvasManager {
 
     _saveUndo(notifyDirty = false) {
         this.undoStack.push({ canvas: this.canvas.toDataURL(), objects: this._snapshotObjects(), pageStrokes: this._snapshotPageStrokes() });
+        if (this._haFondo) this._fotografaCoerente(this.undoStack[this.undoStack.length - 1].pageStrokes);
         this._vectorStrokes.push(null); // placeholder, aggiornato in _onEnd
         if (this.undoStack.length > CONFIG.maxUndo) {
             this.undoStack.shift();
@@ -1573,10 +1574,103 @@ class CanvasManager {
     // nell'ordine originale — i tratti sovrapposti restano intatti perché vengono
     // ridisegnati esattamente come la prima volta, solo senza quello cancellato.
     _redrawAllStrokes() {
+        const fondo = this._fondoAttuale();
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        if (fondo) this.ctx.drawImage(fondo, 0, 0);
         for (const stroke of this._pageStrokes) {
             if (stroke) this._replayStroke(stroke);
         }
+    }
+
+    // ── Fondo della pagina e cronologia (30/09/2026) ───────────────────────────
+    // Il «fondo» è ciò che sta sul foglio ma NON fra i tratti vettoriali: lezioni vecchie
+    // salvate come sola immagine, pagine salvate prima dei tratti vettoriali. Ridisegnando
+    // dai soli tratti (gomma-lazo, gomma-tratto, spostare/ricolorare una selezione) spariva.
+    // Non si tiene aggiornato a parte — troppe operazioni toccano i pixel direttamente —
+    // ma si ricava dall'ultima foto coerente (quella di _saveUndo) meno i tratti di allora.
+    _azzeraCronologia() {
+        this.undoStack = [];
+        this.redoStack = [];
+        this._vectorStrokes = [];
+    }
+
+    // Da chiamare quando una pagina ha finito di caricarsi (tela e tratti coerenti).
+    _segnaFondo() {
+        this._haFondo = false;
+        const tratti = this._snapshotPageStrokes();
+        this._haFondo = !!this._calcolaFondo(this.canvas, tratti, true);
+        if (this._haFondo) this._fotografaCoerente(tratti);
+    }
+
+    _fotografaCoerente(tratti) {
+        if (!this._fotoCoerente) this._fotoCoerente = document.createElement('canvas');
+        this._fotoCoerente.width  = this.canvas.width;
+        this._fotoCoerente.height = this.canvas.height;
+        this._fotoCoerente.getContext('2d').drawImage(this.canvas, 0, 0);
+        this._trattiCoerenti = tratti;
+    }
+
+    _fondoAttuale() {
+        if (!this._haFondo || !this._fotoCoerente) return null;
+        return this._calcolaFondo(this._fotoCoerente, this._trattiCoerenti || [], false);
+    }
+
+    _calcolaFondo(sorgente, tratti, soloSeNonVuoto) {
+        const W = this.canvas.width, H = this.canvas.height;
+        const fondo = document.createElement('canvas');
+        fondo.width = W; fondo.height = H;
+        const fc = fondo.getContext('2d');
+        fc.drawImage(sorgente, 0, 0);
+        const vivi = tratti.filter(Boolean);
+        if (vivi.length) {
+            const maschera = document.createElement('canvas');
+            maschera.width = W; maschera.height = H;
+            const mc = maschera.getContext('2d');
+            for (const s of vivi) this._disegnaSagoma(s, mc);
+            fc.globalCompositeOperation = 'destination-out';
+            fc.drawImage(maschera, 0, 0);
+            fc.globalCompositeOperation = 'source-over';
+        }
+        if (!soloSeNonVuoto) return fondo;
+        try {
+            // Controllo su una copia ridotta a 1/4: anche una riga di 1 px resta visibile (~64 di alfa).
+            const w = Math.max(1, Math.ceil(W / 4)), h = Math.max(1, Math.ceil(H / 4));
+            const piccolo = document.createElement('canvas');
+            piccolo.width = w; piccolo.height = h;
+            const pc = piccolo.getContext('2d');
+            pc.drawImage(fondo, 0, 0, w, h);
+            const dati = pc.getImageData(0, 0, w, h).data;
+            for (let i = 3; i < dati.length; i += 4) if (dati[i] > 16) return fondo;
+            return null;
+        } catch (_) {
+            return fondo;
+        }
+    }
+
+    // Sagoma piena e un po' più larga di un tratto: toglie dal fondo anche i bordi sfumati.
+    _disegnaSagoma(s, ctx) {
+        if (s.tool === 'text') {
+            ctx.save();
+            ctx.font = s.font;
+            ctx.fillStyle = ctx.strokeStyle = '#000';
+            ctx.lineWidth = 4;
+            ctx.lineJoin = 'round';
+            ctx.textBaseline = 'alphabetic';
+            String(s.text || '').split('\n').forEach((riga, i) => {
+                const y = s.y + i * s.lineH;
+                ctx.fillText(riga, s.x, y);
+                ctx.strokeText(riga, s.x, y);
+                if (s.underline) ctx.fillRect(s.x - 2, y - 1, ctx.measureText(riga).width + 4, (s.underlineWidth || 1) + 6);
+            });
+            ctx.restore();
+            return;
+        }
+        if (s.tool === 'shape') {
+            this.brush.shape(ctx, s.shapeType, s.x0, s.y0, s.x1, s.y1, (s.size || 2) + 4, '#000', s.fill, '#000', 1);
+            return;
+        }
+        const k = s.tool === 'pastel' ? 3.5 : s.tool === 'marker' ? 2.5 : 1;
+        this._replayStroke({ ...s, tool: 'pen', color: '#000', size: (s.size || 2) * k + 4, fillColor: '#000', fillAlpha: 1 }, ctx);
     }
 
     // Ridisegna un singolo tratto/forma da dati vettoriali (usato da _redrawAllStrokes e dal
@@ -1661,6 +1755,8 @@ class CanvasManager {
         }
         this._dragStaticCanvas.width  = this.canvas.width;
         this._dragStaticCanvas.height = this.canvas.height;
+        const fondo = this._fondoAttuale();
+        if (fondo) this._dragStaticCtx.drawImage(fondo, 0, 0);
         for (const stroke of this._pageStrokes) {
             if (stroke && !excludeRefs.has(stroke)) this._replayStroke(stroke, this._dragStaticCtx);
         }
@@ -2892,6 +2988,8 @@ class ProjectManager {
         const presetBg = isCustomBg ? 'white' : defBg;
 
         canvasMgr.clear();
+        canvasMgr._azzeraCronologia();
+        canvasMgr._haFondo = false;
         if (typeof objectLayer !== 'undefined' && objectLayer) objectLayer.clear();
         if (typeof embedMgr !== 'undefined' && embedMgr) embedMgr.clear();
         // Reset PageManager → pagine vecchie non restano in memoria. Il nome globale
@@ -7173,6 +7271,12 @@ class PageManager {
         // che arrivano in ritardo, con un numero ormai superato, non disegnano più nulla.
         const token = (this._restoreToken = (this._restoreToken || 0) + 1);
 
+        // «Annulla» non deve riportare su questa pagina il contenuto di un'altra pagina o lezione.
+        if (this.canvasManager) {
+            this.canvasManager._azzeraCronologia();
+            this.canvasManager._haFondo = false;
+        }
+
         // ── 0. Ripristina orientamento/sfondo PRIMA di qualsiasi _getPageRect ──
         // CRITICO: _getPageRect usa bgMgr.orientation. Se fosse ancora impostato
         // sull'orientamento della pagina precedente, disegno e oggetti sarebbero
@@ -7314,6 +7418,7 @@ class PageManager {
             // qui non si disegna e non si riabilita la cattura (ci penserà lui).
             if (token !== this._restoreToken) return;
             this.objectLayerRef.render();
+            this.canvasManager?._segnaFondo();
             this._restoring = false;
         });
 
