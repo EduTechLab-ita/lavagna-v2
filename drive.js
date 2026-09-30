@@ -888,9 +888,14 @@ class DriveManager {
     // HELPER INTERNI
     // ──────────────────────────────────────────────────────────────────────────
 
+    // Un apostrofo nel nome («ATTIVITA' 6-7») chiude la stringa della query Drive → errore 400.
+    _qNome(name) {
+        return String(name).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    }
+
     /** Trova o crea una cartella Drive per nome. */
     async _findOrCreateFolder(name, parentId) {
-        let q = `name='${name}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+        let q = `name='${this._qNome(name)}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
         if (parentId) q += ` and '${parentId}' in parents`;
         const resp = await this._apiFetch(
             `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name)`
@@ -911,7 +916,7 @@ class DriveManager {
     /** Cerca un file per nome in una cartella specifica. Restituisce fileId o null. */
     async _findFileInFolder(name, folderId) {
         const q = encodeURIComponent(
-            `name='${name}' and '${folderId}' in parents and trashed=false`
+            `name='${this._qNome(name)}' and '${folderId}' in parents and trashed=false`
         );
         const resp = await this._apiFetch(
             `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id)`
