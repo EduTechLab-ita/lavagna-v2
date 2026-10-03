@@ -5397,6 +5397,15 @@ class SelectManager {
         this.selectedItems.forEach(it => {
             if (it.type === 'stroke') {
                 const s = it.ref;
+                if (s.tool === 'text') {
+                    // una scritta non si gira né si specchia (resterebbe illeggibile): si sposta
+                    // solo il suo centro, come per il resto del gruppo
+                    const top = s.y - (s.ascent || 0);
+                    const nc = this._rotFlipPoint(s.x + (s.w || 0) / 2, top + (s.h || 0) / 2, cx, cy, mode);
+                    s.x = nc.x - (s.w || 0) / 2;
+                    s.y = nc.y - (s.h || 0) / 2 + (s.ascent || 0);
+                    return;
+                }
                 if (s.tool === 'shape') {
                     const p0 = this._rotFlipPoint(s.x0, s.y0, cx, cy, mode);
                     const p1 = this._rotFlipPoint(s.x1, s.y1, cx, cy, mode);
@@ -5540,11 +5549,14 @@ class SelectManager {
     // pointermove era il motivo principale della lentezza segnalata su pagine "cariche".
     _previewDragItems(dx, dy) {
         if (!this._itemDragStart) return;
+        this._itemDragMosso = Math.max(this._itemDragMosso || 0, Math.abs(dx), Math.abs(dy));
         this.selectedItems.forEach((it, i) => {
             const orig = this._itemDragStart.originals[i];
             if (it.type === 'stroke') {
                 const s = it.ref;
-                if (s.tool === 'shape') {
+                if (s.tool === 'text') {
+                    s.x = orig.x + dx; s.y = orig.y + dy;
+                } else if (s.tool === 'shape') {
                     s.x0 = orig.x0 + dx; s.y0 = orig.y0 + dy;
                     s.x1 = orig.x1 + dx; s.y1 = orig.y1 + dy;
                 } else {
@@ -5763,6 +5775,7 @@ class SelectManager {
                             originals: this.selectedItems.map(it => {
                                 if (it.type === 'stroke') {
                                     const s = it.ref;
+                                    if (s.tool === 'text') return { x: s.x, y: s.y, font: s.font, lineH: s.lineH, w: s.w, h: s.h, ascent: s.ascent, uw: s.underlineWidth };
                                     return s.tool === 'shape'
                                         ? { x0: s.x0, y0: s.y0, x1: s.x1, y1: s.y1, size: s.size }
                                         : { points: s.points.map(p => ({ ...p })), size: s.size };
@@ -5792,6 +5805,8 @@ class SelectManager {
                 originals: this.selectedItems.map(it => {
                     if (it.type === 'stroke') {
                         const s = it.ref;
+                        // le scritte del Testo non hanno punti: si spostano per posizione
+                        if (s.tool === 'text') return { x: s.x, y: s.y };
                         return s.tool === 'shape'
                             ? { x0: s.x0, y0: s.y0, x1: s.x1, y1: s.y1 }
                             : { points: s.points.map(p => ({ ...p })) };
@@ -5799,6 +5814,11 @@ class SelectManager {
                     return { x: it.ref.x, y: it.ref.y };
                 })
             };
+            // Un tocco breve (senza spostarsi) su una scritta del Testo già selezionata la apre
+            // in modifica; premere e trascinare la sposta (Fabio, 03/10/2026)
+            this._itemDragMosso = 0;
+            this._tocco = (this.selectedItems.length === 1 && this.selectedItems[0].ref?.tool === 'text')
+                ? this.selectedItems[0].ref : null;
             return true;
         }
 
@@ -5944,6 +5964,16 @@ class SelectManager {
                 const orig = rh.originals[i];
                 if (it.type === 'stroke') {
                     const s = it.ref;
+                    if (s.tool === 'text') {
+                        // la scritta si ingrandisce davvero: carattere, interlinea e ingombro in scala
+                        s.x = anchorX + (orig.x - anchorX) * scale;
+                        s.y = anchorY + (orig.y - anchorY) * scale;
+                        s.font = String(orig.font).replace(/([\d.]+)px/, (_, n) => (parseFloat(n) * scale) + 'px');
+                        s.lineH = orig.lineH * scale; s.w = orig.w * scale; s.h = orig.h * scale;
+                        s.ascent = (orig.ascent || 0) * scale;
+                        if (orig.uw) s.underlineWidth = Math.max(1, orig.uw * scale);
+                        return;
+                    }
                     if (s.tool === 'shape') {
                         s.x0 = anchorX + (orig.x0 - anchorX) * scale;
                         s.y0 = anchorY + (orig.y0 - anchorY) * scale;
@@ -6236,6 +6266,24 @@ class SelectManager {
 
         // Fine drag selezione precisa (singola o multipla)
         if (this.phase === 'items-dragging') {
+            // tocco breve su una scritta del Testo selezionata → si riapre in modifica
+            const testo = this._tocco;
+            this._tocco = null;
+            const sc = (typeof panMgr !== 'undefined' && panMgr) ? panMgr.scale : 1;
+            if (testo && (this._itemDragMosso || 0) * sc < 8 && typeof textMgr !== 'undefined') {
+                this.phase = 'items-selected';
+                this._itemDragStart = null;
+                if (typeof objectLayer !== 'undefined' && objectLayer) objectLayer.fineDrag();
+                const i = canvasMgr._pageStrokes.indexOf(testo);
+                if (i >= 0) {
+                    this.selectedItems = [];
+                    this._clearSelection();
+                    this._hideContextPanel();
+                    document.querySelector('[data-tool="text"]')?.click();
+                    textMgr._modificaTesto({ s: testo, i });
+                }
+                return true;
+            }
             this.phase = 'items-selected';
             this._itemDragStart = null;
             if (typeof objectLayer !== 'undefined' && objectLayer) objectLayer.fineDrag();

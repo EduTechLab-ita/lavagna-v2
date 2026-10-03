@@ -1637,6 +1637,20 @@
 
     let _changelog = '';
 
+    // Numero di versione nel menu: era scritto a mano e fermo a v2-070. Ora lo si chiede al SW
+    // (GET_VERSION, lo stesso usato dalla lavagna), così dice davvero cosa gira sul telefono.
+    navigator.serviceWorker.ready.then(reg => {
+      const sw = navigator.serviceWorker.controller || reg.active;
+      if (!sw) return;
+      const canale = new MessageChannel();
+      canale.port1.onmessage = (e) => {
+        const v = e.data?.version;
+        const el = document.getElementById('ec-version-text');
+        if (v && el) el.textContent = String(v).replace('eduboard-', '');
+      };
+      try { sw.postMessage({ type: 'GET_VERSION' }, [canale.port2]); } catch (_) {}
+    }).catch(() => {});
+
     // Quando il SW manda UPDATE_AVAILABLE: salva il changelog
     navigator.serviceWorker.addEventListener('message', (event) => {
       if (event.data?.type === 'UPDATE_AVAILABLE') {
