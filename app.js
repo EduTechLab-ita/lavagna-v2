@@ -2788,8 +2788,63 @@ class TextManager {
             }
             e.preventDefault();
             e.stopPropagation();
+            // Un tocco su una scritta già fatta la riapre in modifica (Fabio, 03/10/2026)
+            const esistente = this._testoSotto(e.clientX, e.clientY);
+            if (esistente) { this._modificaTesto(esistente); return; }
             this._startEditing(e.clientX, e.clientY);
         });
+    }
+
+    /** La scritta (in _pageStrokes) sotto il punto toccato, o null. */
+    _testoSotto(clientX, clientY) {
+        if (typeof canvasMgr === 'undefined' || !canvasMgr || typeof panMgr === 'undefined' || !panMgr) return null;
+        const p = panMgr.getCanvasCoords(clientX, clientY);
+        const lista = canvasMgr._pageStrokes;
+        const M = 8;
+        for (let i = lista.length - 1; i >= 0; i--) {
+            const s = lista[i];
+            if (!s || s.tool !== 'text' || typeof s.text !== 'string') continue;
+            const top = s.y - (s.ascent || s.lineH || 0);
+            if (p.x >= s.x - M && p.x <= s.x + (s.w || 0) + M && p.y >= top - M && p.y <= top + (s.h || 0) + M) {
+                return { s, i };
+            }
+        }
+        return null;
+    }
+
+    /** Toglie la scritta dalla lavagna e la riapre nella casella, con il suo carattere e colore. */
+    _modificaTesto({ s, i }) {
+        const drawCanvas = document.getElementById('draw-canvas');
+        const scaleY = drawCanvas.height / (drawCanvas.getBoundingClientRect().height || drawCanvas.height) || 1;
+        const m = String(s.font || '').match(/^(.*?)\s*([\d.]+)px\s+(.+)$/);
+        if (m) {
+            this.fontStyle  = m[1].trim();
+            this.fontSize   = Math.round(parseFloat(m[2]) / scaleY);
+            this.fontFamily = m[3].trim();
+        }
+        this.underline = !!s.underline;
+        document.getElementById('txt-font').value = this.fontFamily;
+        document.getElementById('txt-size').value = String(this.fontSize);
+        document.getElementById('txt-bold').classList.toggle('txt-btn--active', this.fontStyle.includes('bold'));
+        document.getElementById('txt-italic').classList.toggle('txt-btn--active', this.fontStyle.includes('italic'));
+        document.getElementById('txt-underline').classList.toggle('txt-btn--active', this.underline);
+
+        this._inModifica = { s, i };
+        canvasMgr.eraseStrokeDirect(i);
+
+        // la casella si apre esattamente dove stava la scritta (stesso calcolo di _renderTextToCanvas, al contrario)
+        const area = document.getElementById('canvas-area').getBoundingClientRect();
+        const sc = panMgr.scale || 1;
+        this._startEditing(area.left + s.x * sc, area.top + (s.y - (s.ascent || this.fontSize)) * sc);
+        this.color = s.color || this.color;
+        this.inputEl.textContent = s.text;
+        this._syncInputStyle();
+        const range = document.createRange();
+        range.selectNodeContents(this.inputEl);
+        range.collapse(false);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
     }
 
     _startEditing(clientX, clientY) {
@@ -2830,10 +2885,18 @@ class TextManager {
         if (text) {
             this._renderTextToCanvas(text);
         }
+        this._inModifica = null;   // svuotata del tutto = la scritta resta cancellata
         this._endEditing();
     }
 
     _cancel() {
+        // annullando una modifica, la scritta originale torna com'era
+        const mod = this._inModifica;
+        this._inModifica = null;
+        if (mod && typeof canvasMgr !== 'undefined' && canvasMgr) {
+            canvasMgr._pageStrokes.splice(Math.min(mod.i, canvasMgr._pageStrokes.length), 0, mod.s);
+            canvasMgr._redrawAllStrokes();
+        }
         this._endEditing();
     }
 

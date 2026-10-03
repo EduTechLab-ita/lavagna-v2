@@ -692,7 +692,11 @@
     <div class="feature-grid">
       <button class="feature-btn" id="btn-photo">
         <span class="feature-icon">📷</span>
-        <span class="feature-label">Invia foto</span>
+        <span class="feature-label">Scatta foto</span>
+      </button>
+      <button class="feature-btn" id="btn-gallery">
+        <span class="feature-icon">🖼️</span>
+        <span class="feature-label">Dalla galleria</span>
       </button>
       <button class="feature-btn" id="btn-timer">
         <span class="feature-icon">⏱️</span>
@@ -717,6 +721,8 @@
     </div>
 
     <input type="file" id="camera-input" accept="image/*" capture="environment" style="display:none">
+    <!-- senza «capture»: il telefono apre la galleria (Fabio, 03/10/2026); più foto insieme -->
+    <input type="file" id="gallery-input" accept="image/*" multiple style="display:none">
     <div id="photo-status" class="status-line"></div>
   </div>
 
@@ -1352,32 +1358,45 @@
     const status = document.getElementById('photo-status');
     if (!btn || !input) return;
 
-    btn.onclick = () => input.click();
+    const btnGal   = document.getElementById('btn-gallery');
+    const inputGal = document.getElementById('gallery-input');
 
-    input.onchange = async () => {
-      const file = input.files[0];
-      if (!file) return;
-      status.textContent = 'Compressione e invio...';
-      status.className = 'status-line';
+    btn.onclick = () => input.click();
+    if (btnGal && inputGal) btnGal.onclick = () => inputGal.click();
+
+    // Stesso invio per la foto scattata e per quelle prese dalla galleria (anche più d'una)
+    const invia = async (sorgente) => {
+      const files = Array.from(sorgente.files || []);
+      if (!files.length) return;
       btn.disabled = true;
-      try {
-        const dataUrl = await compressImage(file, 1200, 0.82);
-        const fbToken = await getFirebaseAuthToken();
-        const res = await fetch(`${FIREBASE_DB}/photos/${limId}.json?auth=${fbToken}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ dataUrl, name: file.name || 'foto.jpg', ts: Date.now() })
-        });
-        status.textContent = res.ok ? 'Foto inviata alla lavagna!' : 'Errore invio. Riprova.';
-        status.className = 'status-line ' + (res.ok ? 'ok' : 'err');
-      } catch (_) {
-        status.textContent = 'Errore di rete. Riprova.';
-        status.className = 'status-line err';
+      if (btnGal) btnGal.disabled = true;
+      let ok = 0;
+      for (let i = 0; i < files.length; i++) {
+        status.textContent = files.length > 1 ? `Invio foto ${i + 1} di ${files.length}...` : 'Compressione e invio...';
+        status.className = 'status-line';
+        try {
+          const dataUrl = await compressImage(files[i], 1200, 0.82);
+          const fbToken = await getFirebaseAuthToken();
+          const res = await fetch(`${FIREBASE_DB}/photos/${limId}.json?auth=${fbToken}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ dataUrl, name: files[i].name || 'foto.jpg', ts: Date.now() })
+          });
+          if (res.ok) ok++;
+        } catch (_) {}
       }
+      const tutte = ok === files.length;
+      status.textContent = tutte
+        ? (files.length > 1 ? `${ok} foto inviate alla lavagna!` : 'Foto inviata alla lavagna!')
+        : (ok ? `Inviate ${ok} foto su ${files.length}. Riprova con le altre.` : 'Errore di invio. Riprova.');
+      status.className = 'status-line ' + (tutte ? 'ok' : 'err');
       btn.disabled = false;
-      input.value = '';
+      if (btnGal) btnGal.disabled = false;
+      sorgente.value = '';
       setTimeout(() => { status.textContent = ''; status.className = 'status-line'; }, 4000);
     };
+    input.onchange = () => invia(input);
+    if (inputGal) inputGal.onchange = () => invia(inputGal);
   }
 
   function compressImage(file, maxPx, quality) {
@@ -1627,7 +1646,15 @@
 
     // Quando il nuovo SW prende il controllo: mostra overlay e ricarica
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-      _showEcUpdateOverlay(_changelog);
+      // Mai ricaricare a metà di un'operazione: interrompeva la scansione del QR o l'accesso
+      // Google e il telefono restava sulla schermata del QR (Fabio, 03/10/2026). In quei casi
+      // la versione nuova entra alla prossima apertura: questa continua a funzionare.
+      const attiva = [...document.querySelectorAll('.screen')]
+        .find(el => !el.classList.contains('hidden') && getComputedStyle(el).display !== 'none')?.id || '';
+      const occupato = ['screen-scanner', 'screen-login', 'screen-connecting', 'screen-timer'].includes(attiva)
+        || document.getElementById('btn-photo')?.disabled;
+      if (occupato) return;
+      _showEcUpdateOverlay(String(_changelog).split('\n')[0]);
       setTimeout(() => location.reload(), 2200);
     });
 

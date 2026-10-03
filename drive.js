@@ -2013,20 +2013,31 @@ class LibraryManager {
             const punto = this._puntoSelezionato || null;
             let targetFolder = folderId || this.currentFolderId || this.drive.lessonsFolderId;
             let riferimentoId = null;
+            let motivo = 'cartella selezionata o principale';
             if (punto?.fileId) {
                 targetFolder = punto.folderId || targetFolder;
                 riferimentoId = punto.fileId;
-            } else if (!punto && this._ultimaLezioneAperta) {
-                try {
-                    const meta = await this.drive._apiFetch(
-                        `https://www.googleapis.com/drive/v3/files/${this._ultimaLezioneAperta}?fields=parents,trashed`
-                    );
-                    if (meta?.parents?.[0] && !meta.trashed) {
-                        targetFolder = meta.parents[0];
-                        riferimentoId = this._ultimaLezioneAperta;
-                    }
-                } catch (_) {}
+                motivo = 'lezione toccata in libreria';
+            } else if (!punto) {
+                // ultima lezione aperta: in memoria, o (dopo un ricaricamento della pagina) quella
+                // che l'app ricorda in localStorage per riaprirla all'avvio
+                let ultima = this._ultimaLezioneAperta;
+                if (!ultima) { try { ultima = JSON.parse(localStorage.getItem('eduboard_last_lesson') || 'null')?.fileId || null; } catch (_) {} }
+                if (ultima) {
+                    try {
+                        const meta = await this.drive._apiFetch(
+                            `https://www.googleapis.com/drive/v3/files/${ultima}?fields=parents,trashed`
+                        );
+                        if (meta?.parents?.[0] && !meta.trashed) {
+                            targetFolder = meta.parents[0];
+                            riferimentoId = ultima;
+                            motivo = 'ultima lezione aperta';
+                        } else motivo = 'ultima lezione senza cartella leggibile';
+                    } catch (err) { motivo = 'cartella dell\'ultima lezione non letta: ' + (err?.message || err); }
+                } else motivo = 'nessuna lezione aperta prima';
             }
+            console.info('[EduBoard] lezione nuova →', targetFolder, '|', motivo);
+            window.__ultimaLezioneNuova = { targetFolder, riferimentoId, motivo, punto, ora: new Date().toISOString() };
             let elencoPrima = null;
             try { elencoPrima = await this.drive.listLessons(targetFolder); } catch (_) {}
 
@@ -2078,7 +2089,13 @@ class LibraryManager {
             document.getElementById('project-name').textContent = name.trim();
             CONFIG.isDirty = false;
             window.autoSaveMgr?.reset();
-            toast('Lezione salvata su Drive!', 'success');
+            // dire DOVE è finita: una lezione nuova che «non si trova» è il dubbio più comune
+            let nomeCartella = '';
+            try {
+                if (targetFolder === this.drive.lessonsFolderId) nomeCartella = 'Lezioni';
+                else nomeCartella = (await this.drive._apiFetch(`https://www.googleapis.com/drive/v3/files/${targetFolder}?fields=name`))?.name || '';
+            } catch (_) {}
+            toast(nomeCartella ? `Lezione salvata nella cartella «${nomeCartella}»` : 'Lezione salvata su Drive!', 'success');
             this._forceRefresh();
         } catch (err) {
             mostraErroreDrive('salvare la lezione', err);
