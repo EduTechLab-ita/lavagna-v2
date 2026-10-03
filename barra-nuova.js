@@ -159,7 +159,10 @@
                         const y = (pagina.objectFormat === 'page-fraction') ? o.y * r.pw : (o.y - r.py);
                         const w = (pagina.objectFormat === 'page-fraction') ? o.w * r.pw : o.w;
                         const h = (pagina.objectFormat === 'page-fraction') ? o.h * r.pw : o.h;
-                        try { cctx.drawImage(oi, x, y, w, h); } catch (_) {}
+                        try {
+                            if (typeof _drawImgRitaglio === 'function') _drawImgRitaglio(cctx, oi, o, x, y, w, h);
+                            else cctx.drawImage(oi, x, y, w, h);
+                        } catch (_) {}
                         res();
                     };
                     oi.onerror = res;

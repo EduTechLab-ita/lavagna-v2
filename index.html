@@ -82,7 +82,7 @@
                 <img src="./icon-192x192.png" alt="EduBoard" class="logo-icon">
                 <div class="logo-info">
                     <span class="logo-text"><span class="logo-edu">Edu</span><span class="logo-board">Board</span></span>
-                    <span class="logo-sub">v2-108 &nbsp;&nbsp; © EduTechLab di Rizzotto Fabio</span>
+                    <span class="logo-sub">v2-109 &nbsp;&nbsp; © EduTechLab di Rizzotto Fabio</span>
                 </div>
             </div>
             <div class="project-badge" id="project-name">Nuova Lavagna</div>
@@ -742,6 +742,7 @@
         <div id="color-palette-grid" class="color-palette-grid"></div>
         <div class="palette-custom-row">
             <button id="palette-custom-btn">&#127912; Colore personalizzato</button>
+            <button id="palette-eyedropper-btn" style="display:none" title="Tocca un punto qualsiasi dello schermo per prenderne il colore">&#128167; Contagocce</button>
         </div>
     </div>
 
@@ -840,6 +841,9 @@
             <!-- Dimensioni -->
             <button class="ctx-icon-btn ctx-obj-only" data-action="width" title="Larghezza">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="4" x2="4" y2="20"/><line x1="20" y1="4" x2="20" y2="20"/><path d="M4 12h16M8 8l-4 4 4 4M16 8l4 4-4 4"/></svg>
+            </button>
+            <button class="ctx-icon-btn ctx-obj-only" data-action="crop" title="Ritaglia">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2v14a2 2 0 002 2h14"/><path d="M18 22V8a2 2 0 00-2-2H2"/></svg>
             </button>
             <button class="ctx-icon-btn ctx-obj-only" data-action="restore" title="Dimensioni originali">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="12" height="12" rx="1.5"/><path d="M20 10a4 4 0 10-1.5 4.5"/><path d="M20 6v4.5h-4.5"/></svg>
@@ -1150,7 +1154,7 @@
                     <img src="./icon-192x192.png" alt="EduBoard" width="64" height="64" style="border-radius:14px">
                     <div>
                         <div class="settings-info-appname"><span style="color:#3b82f6">Edu</span>Board</div>
-                        <div class="settings-info-version" id="info-version-text">v2-108</div>
+                        <div class="settings-info-version" id="info-version-text">v2-109</div>
                     </div>
                 </div>
                 <div class="settings-section">
@@ -1196,6 +1200,10 @@
             </div>
             <div class="settings-panel" id="tab-novita">
                 <div class="settings-section">
+                    <div class="settings-changelog-item">
+                        <div class="settings-changelog-ver">v2-109 — Ottobre 2026</div>
+                        <div class="settings-changelog-desc">✂️ <strong>Ritaglia le immagini</strong> con le maniglie: selezionala, tocca <strong>Ritaglia</strong>, trascina angoli e lati, poi <strong>✓ Ritaglia</strong>. L'originale non si perde: <strong>Tutta l'immagine</strong> la riporta com'era · 🔍 <strong>Immagini nitide ingrandendo</strong>: prima, zoomando sulla LIM, le foto si sgranavano anche se l'originale era nitido; ora restano definite. Le pagine dei <strong>PDF</strong> entrano a risoluzione più alta · 🪢 Il <strong>lazo</strong> di Seleziona può partire <strong>sopra un'immagine</strong>: cerchiando le scritte fatte su una foto prendi solo le scritte, non più tutta la foto · 💧 <strong>Contagocce</strong> nella tavolozza completa: prende il colore da qualunque punto dello schermo, anche da una foto · 📄 Una <strong>lezione nuova</strong> si salva <strong>subito sotto quella su cui stavi lavorando</strong>, non più in fondo alla cartella</div>
+                    </div>
                     <div class="settings-changelog-item">
                         <div class="settings-changelog-ver">v2-108 — Settembre 2026</div>
                         <div class="settings-changelog-desc">🧹 <strong>Corretto un difetto importante</strong>: aprendo una lezione, la <strong>gomma-lazo</strong> o il tasto <strong>Annulla</strong> potevano far comparire le scritte di un'altra pagina o di un'altra lezione, e cancellare quelle vere. Ora ogni pagina e ogni lezione restano separate: <strong>Annulla</strong> torna indietro solo nella pagina che hai davanti, e la gomma toglie <strong>solo quello che cerchi</strong>, anche nelle lezioni salvate tempo fa · 💾 Le lezioni con un <strong>apostrofo nel nome</strong> (per esempio «ATTIVITA' 6-7») <strong>si salvano di nuovo</strong> in libreria: prima il salvataggio si fermava con un errore di Drive. Vale anche per le cartelle nuove · 🛟 Se un salvataggio o una rinomina non riesce, al posto del messaggio tecnico compare una <strong>finestra che spiega cosa è successo e cosa fare</strong> (collegamento scaduto, rete assente, nome non accettato), con i <strong>caratteri da non usare</strong> nei nomi</div>
@@ -1425,6 +1433,7 @@
 
             {id:"colori", ic:"🎨", t:"Colori e riempimento", c:
                 '<div class="settings-guide-item">Tavolozza di 10 colori pronti, più un pulsante per scegliere un <strong>colore libero</strong> qualsiasi</div>' +
+                '<div class="settings-guide-item"><strong>💧 Contagocce</strong> — nella tavolozza completa (il "+"), accanto a Colore personalizzato: tocca un punto qualsiasi dello schermo, anche dentro una foto, e la penna prende quel colore. C\'è su Chrome, Edge e Chromebook; su iPad non compare perché il browser non lo permette</div>' +
                 '<div class="settings-guide-item">Su forme e tratti selezionati puoi impostare <strong>colore del bordo</strong> e <strong>colore di riempimento</strong> in modo indipendente, con uno slider per l\'intensità del riempimento — da un velo leggero a colore pieno</div>' +
                 '<div class="settings-guide-item">Colore e dimensione del tratto <strong>predefiniti</strong> per ogni nuova lavagna si scelgono in Impostazioni — vedi capitolo <em>Personalizzare l\'app</em></div>'},
 
@@ -1437,14 +1446,16 @@
 
             {id:"selezione", ic:"✂️", t:"Selezionare, tagliare, copiare", c:
                 '<div class="settings-guide-item"><strong>Seleziona</strong> — tocca un elemento oppure traccia un lazo per prenderne più di uno insieme</div>' +
-                '<div class="settings-guide-item">Con qualcosa di selezionato compare un pannello con: porta in primo piano / manda indietro, specchia orizzontale/verticale, ruota, colore del bordo, opacità — e per le immagini anche luminosità, contrasto, saturazione e "dimensioni originali"</div>' +
+                '<div class="settings-guide-item">Il lazo può <strong>partire anche sopra un\'immagine</strong>: cerchiando solo le scritte fatte sulla foto prendi <strong>solo le scritte</strong>; per prendere anche l\'immagine, cerchiala quasi tutta. Un tocco secco su una scritta seleziona la scritta, un tocco sulla foto seleziona la foto</div>' +
+                '<div class="settings-guide-item">Con qualcosa di selezionato compare un pannello con: porta in primo piano / manda indietro, specchia orizzontale/verticale, ruota, colore del bordo, opacità — e per le immagini anche luminosità, contrasto, saturazione, <strong>ritaglia</strong> e "dimensioni originali"</div>' +
+                '<div class="settings-guide-item"><strong>Ritaglia</strong> (immagini e pagine PDF) — compare l\'immagine intera con la parte che verrà tolta scurita: trascina gli <strong>angoli o i lati</strong> per scegliere cosa tenere, o trascina dentro il riquadro per spostarlo, poi <strong>✓ Ritaglia</strong>. L\'originale non si perde: riaprendo Ritaglia, <strong>Tutta l\'immagine</strong> la riporta com\'era. Su un\'immagine ruotata, prima raddrizzala</div>' +
                 '<div class="settings-guide-item"><strong>Taglia / Copia / Incolla</strong> — da tastiera (<kbd>Ctrl+X</kbd>/<kbd>Ctrl+C</kbd>/<kbd>Ctrl+V</kbd>) o dai pulsanti nel menu della selezione: funziona anche incollando su una pagina diversa da quella di copia</div>'},
 
             {id:"importa", ic:"🖼️", t:"Importare immagini e PDF", c:
                 '<div class="settings-guide-item">Pulsante <strong>Importa</strong>, oppure trascina il file direttamente sulla lavagna</div>' +
                 '<div class="settings-guide-item">Puoi scegliere <strong>più file insieme</strong> (immagini e/o PDF): entrano leggermente sfalsati, mai uno esattamente sopra l\'altro</div>' +
                 '<div class="settings-guide-item">Importando un <strong>PDF</strong> si apre un popup con le miniature di ogni pagina e una spunta: scegli solo quelle che ti servono invece di ritrovartele tutte sul canvas</div>' +
-                '<div class="settings-guide-item">Le immagini entrano già adattate al foglio, mai più grandi di quanto serva</div>'},
+                '<div class="settings-guide-item">Le immagini entrano già adattate al foglio, mai più grandi di quanto serva, ma <strong>tengono tutta la loro risoluzione</strong>: ingrandendo con le dita restano nitide fin dove lo è la foto originale. Le pagine dei PDF entrano a risoluzione più alta di prima</div>'},
 
             {id:"incorpora", ic:"🌐", t:"Incorporare pagine web", c:
                 '<div class="settings-guide-item">Dal pannello <strong>✨ Magic Box</strong>, voce <strong>Incorpora</strong> — inserisce un sito, un video o un gioco interattivo come riquadro trascinabile e ridimensionabile sulla lavagna. Accanto c\'è <strong>YouTube</strong>, per incollare direttamente il link di un video</div>' +
@@ -1479,6 +1490,7 @@
             {id:"libreria", ic:"📚", t:"Libreria e cartelle", c:
                 '<div class="settings-guide-item">Icona libreria (linguetta a sinistra o a destra dello schermo): mostra tutte le lezioni salvate, organizzabili in <strong>cartelle colorate</strong></div>' +
                 '<div class="settings-guide-item">Pulsante <strong>Duplica</strong> — copia un\'intera lezione con un tocco: la copia compare <strong>subito sotto l\'originale</strong></div>' +
+                '<div class="settings-guide-item">Una <strong>lezione nuova</strong>, al primo salvataggio, va <strong>subito sotto la lezione su cui stavi lavorando</strong>, nella stessa cartella; se prima hai toccato una cartella, va in quella. Più lezioni nuove di fila restano in ordine, una sotto l\'altra</div>' +
                 '<div class="settings-guide-item">La libreria <strong>resta come l\'hai lasciata</strong>: si carica alla prima apertura e da lì in poi riappare con le stesse cartelle aperte e nella stessa posizione, con la <strong>lezione in corso evidenziata al centro</strong>. Si aggiorna da sola quando sei tu a cambiare qualcosa (salvi, rinomini, duplichi, sposti, elimini)</div>' +
                 '<div class="settings-guide-item">Per <strong>rinominare</strong> una lezione: la matita ✏️ accanto al nome in libreria, oppure un clic sul nome della lezione in alto sulla lavagna (si conferma con Invio). In entrambi i casi il nome cambia subito dappertutto</div>' +
                 '<div class="settings-guide-item">L\'ultima lezione aperta si <strong>ritrova da sola</strong> al riavvio dell\'app, anche su un\'altra LIM se hai collegato lo stesso account</div>'},

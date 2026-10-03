@@ -1742,6 +1742,7 @@ class LibraryManager {
             // Click su file: apre la lezione
             item.addEventListener('click', (e) => {
                 e.stopPropagation();
+                this._puntoSelezionato = { folderId: parentId, fileId: file.id };
                 this.openLesson(file.id, file.name);
             });
 
@@ -1967,6 +1968,7 @@ class LibraryManager {
             toast('Lezione "' + name + '" caricata!', 'success');
             // Memorizza fileId corrente per ripristino posizione
             this.currentFileId = fileId;
+            this._ultimaLezioneAperta = fileId;
             // Evidenzia subito la lezione nel pannello (se aperto) o alla prossima apertura
             setTimeout(() => this._highlightCurrentLesson(), 100);
             window.autoSaveMgr?.endLoading();
@@ -1999,13 +2001,34 @@ class LibraryManager {
             toast('Connetti Drive prima di salvare.', 'error'); return;
         }
 
-        const targetFolder = folderId || this.currentFolderId || this.drive.lessonsFolderId;
-
         const name = prompt('Nome lezione:', CONFIG.projectName);
         if (!name || !name.trim()) return;
 
         try {
             toast('Salvataggio in corso...', 'info');
+
+            // Dove va la lezione nuova: subito sotto l'ultima lezione toccata in libreria
+            // (o aperta all'avvio), nella sua cartella; se l'ultima cosa toccata è una
+            // cartella, in quella. Prima finiva sempre in fondo (Fabio, 30/09/2026).
+            const punto = this._puntoSelezionato || null;
+            let targetFolder = folderId || this.currentFolderId || this.drive.lessonsFolderId;
+            let riferimentoId = null;
+            if (punto?.fileId) {
+                targetFolder = punto.folderId || targetFolder;
+                riferimentoId = punto.fileId;
+            } else if (!punto && this._ultimaLezioneAperta) {
+                try {
+                    const meta = await this.drive._apiFetch(
+                        `https://www.googleapis.com/drive/v3/files/${this._ultimaLezioneAperta}?fields=parents,trashed`
+                    );
+                    if (meta?.parents?.[0] && !meta.trashed) {
+                        targetFolder = meta.parents[0];
+                        riferimentoId = this._ultimaLezioneAperta;
+                    }
+                } catch (_) {}
+            }
+            let elencoPrima = null;
+            try { elencoPrima = await this.drive.listLessons(targetFolder); } catch (_) {}
 
             // Salva posizione (pan+zoom) associata a questa lezione (se abbiamo un fileId corrente)
             if (typeof panMgr !== 'undefined' && panMgr && this.currentFileId) {
@@ -2035,9 +2058,19 @@ class LibraryManager {
                 pagePy: (typeof bgMgr !== 'undefined' && canvasMgr?.canvas) ? bgMgr._getPageRect(canvasMgr.canvas.width, canvasMgr.canvas.height).py : null
             });
 
+            // Solo se è nato un file nuovo (non sovrascritto uno con lo stesso nome)
+            const eraGiaLi = elencoPrima?.some(f => f.id === savedFileId);
+            if (savedFileId && elencoPrima && !eraGiaLi && riferimentoId
+                && elencoPrima.some(f => f.id === riferimentoId)) {
+                await this._inserisciDopo(targetFolder, riferimentoId, savedFileId, elencoPrima);
+            }
+
             // Traccia fileId corrente
             if (savedFileId) {
                 this.currentFileId = savedFileId;
+                this._ultimaLezioneAperta = savedFileId;
+                // la prossima lezione nuova andrà sotto questa: lezioni nuove in fila, in ordine
+                this._puntoSelezionato = { folderId: targetFolder, fileId: savedFileId };
                 localStorage.setItem('eduboard_last_lesson', JSON.stringify({ fileId: savedFileId, fileName: name.trim() + '.json', userEmail: this.drive?.userEmail || null }));
             }
 
@@ -2407,6 +2440,7 @@ class LibraryManager {
         document.querySelectorAll('.tree-item.selected').forEach(el => el.classList.remove('selected'));
         itemEl.classList.add('selected');
         this.currentFolderId = folderId;
+        this._puntoSelezionato = { folderId, fileId: null };
         // Qui si applicava lo sfondo «ricordato» per la cartella alla pagina APERTA, e la lezione
         // veniva salvata così: bastava aprire una cartella per cambiare lo sfondo alle pagine.
         // Tolto il 27/09/2026: lo sfondo è della pagina, e una lezione nuova parte dalle Preferenze.
@@ -2660,6 +2694,11 @@ class LibraryManager {
             if (!ordine.length) {
                 const base = elencoPrima || await this.drive.listLessons(folderId);
                 ordine = base.filter(f => f.name !== '_order.json').map(f => f.id);
+            } else if (elencoPrima) {
+                // Le lezioni nate dopo l'ultimo riordino non sono in _order.json e a schermo
+                // stanno in coda: vanno aggiunte, o il nuovo file finirebbe PRIMA di loro.
+                ordine = this._applyOrder(elencoPrima.filter(f => f.name !== '_order.json'), ordine)
+                    .map(f => f.id);
             }
             ordine = ordine.filter(id => id !== nuovoId);
             const pos = ordine.indexOf(riferimentoId);

@@ -1445,7 +1445,14 @@ button {
     padding-top: 8px;
 }
 
-#palette-custom-btn {
+.palette-custom-row {
+    display: flex;
+    gap: 6px;
+}
+
+#palette-custom-btn,
+#palette-eyedropper-btn {
+    flex: 1;
     width: 100%;
     background: var(--bg-elevated);
     color: var(--text);
@@ -1458,7 +1465,8 @@ button {
     transition: background 0.15s ease;
 }
 
-#palette-custom-btn:hover {
+#palette-custom-btn:hover,
+#palette-eyedropper-btn:hover {
     background: var(--accent);
 }
 
@@ -4457,3 +4465,29 @@ body.has-page-bar #zoom-indicator {
     flex-shrink: 0;
 }
 
+
+/* ===== Barretta del ritaglio immagini ===== */
+#ritaglio-barra {
+    position: fixed;
+    z-index: 900;
+    display: none;
+    gap: 8px;
+    padding: 8px;
+    background: rgba(15, 23, 42, 0.92);
+    border-radius: 14px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+}
+#ritaglio-barra button {
+    min-height: 44px;
+    padding: 0 16px;
+    border: none;
+    border-radius: 10px;
+    background: #334155;
+    color: #fff;
+    font: inherit;
+    font-size: 0.95rem;
+    cursor: pointer;
+    white-space: nowrap;
+}
+#ritaglio-barra button.ritaglio-ok { background: #2563eb; font-weight: 600; }
+#ritaglio-barra button:hover { filter: brightness(1.15); }

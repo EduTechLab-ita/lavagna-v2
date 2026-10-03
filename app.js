@@ -2360,6 +2360,26 @@ class ToolbarManager {
             document.getElementById('color-picker-input').click();
             this._closeAllPopups();
         });
+
+        // Contagocce: prende il colore da qualunque punto dello schermo (anche da una foto).
+        // Esiste su Chrome/Edge/Chromebook; su iPad/Safari no → lì il pulsante non compare.
+        const goccia = document.getElementById('palette-eyedropper-btn');
+        if (goccia && 'EyeDropper' in window) {
+            goccia.style.display = '';
+            goccia.addEventListener('click', async () => {
+                this._closeAllPopups();
+                try {
+                    const { sRGBHex } = await new window.EyeDropper().open();
+                    if (!sRGBHex) return;
+                    CONFIG.currentColor = sRGBHex;
+                    const customBtn = document.getElementById('color-custom');
+                    customBtn.style.background = sRGBHex;
+                    document.querySelectorAll('.color-swatch').forEach(b => b.classList.remove('active'));
+                    customBtn.classList.add('active');
+                    document.dispatchEvent(new CustomEvent('minicolor:update', { detail: { color: sRGBHex } }));
+                } catch (_) { /* annullato con Esc o tocco fuori: nessun cambio */ }
+            });
+        }
     }
 
     _setupEraserMode() {
@@ -3749,6 +3769,8 @@ class PanManager {
         if (typeof bgMgr !== 'undefined' && bgMgr) {
             bgMgr.refreshBodyPattern(this.dx, this.dy, this.scale);
         }
+        if (typeof objectLayer !== 'undefined' && objectLayer) objectLayer.richiediHD();
+        if (typeof selectMgr !== 'undefined' && selectMgr?._ritaglio) selectMgr._disegnaRitaglio();
     }
 
     _showZoomIndicator() {
@@ -3972,9 +3994,216 @@ class SelectManager {
         if (oc) oc.style.cursor = 'crosshair';
     }
     deactivate() {
+        if (this._ritaglio) this._esciRitaglio();
         this.active = false;
         this._clearSelection();
         this._hideContextPanel();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // RITAGLIO DELLE IMMAGINI con le maniglie (Fabio, 30/09/2026)
+    // Non distruttivo: si sceglie quale parte mostrare (`obj.crop`, pixel originali),
+    // l'immagine intera resta nella lezione e «Tutta l'immagine» la riporta com'era.
+    // ─────────────────────────────────────────────────────────────────────
+
+    _avviaRitaglio(obj) {
+        if (((obj.rotation || 0) % 360 + 360) % 360 !== 0) {
+            toast('Per ritagliarla, riporta prima l\'immagine diritta con i pulsanti Ruota.', 'info');
+            return;
+        }
+        const fullW = obj.originalW || obj.img.naturalWidth || obj.img.width;
+        const fullH = obj.originalH || obj.img.naturalHeight || obj.img.height;
+        const c = obj.crop || { x: 0, y: 0, w: fullW, h: fullH };
+        const s = obj.w / c.w;                       // pixel di lavagna per pixel originale
+        const offX = (obj.flipH ? fullW - c.x - c.w : c.x) * s;
+        const offY = (obj.flipV ? fullH - c.y - c.h : c.y) * s;
+        const D = { x: obj.x - offX, y: obj.y - offY, w: fullW * s, h: fullH * s };
+        this._ritaglio = { obj, s, fullW, fullH, D, R: { x: obj.x, y: obj.y, w: obj.w, h: obj.h }, drag: null };
+        this._hideContextPanel();
+        this._creaBarraRitaglio();
+        this._tastiRitaglio = (e) => {
+            if (e.key === 'Escape') { e.preventDefault(); this._esciRitaglio(); }
+            else if (e.key === 'Enter') { e.preventDefault(); this._applicaRitaglio(); }
+        };
+        document.addEventListener('keydown', this._tastiRitaglio);
+        this._disegnaRitaglio();
+    }
+
+    _creaBarraRitaglio() {
+        let bar = document.getElementById('ritaglio-barra');
+        if (!bar) {
+            bar = document.createElement('div');
+            bar.id = 'ritaglio-barra';
+            bar.innerHTML =
+                '<button type="button" data-r="applica" class="ritaglio-ok">✓ Ritaglia</button>' +
+                '<button type="button" data-r="tutta">⤢ Tutta l\'immagine</button>' +
+                '<button type="button" data-r="annulla">✕ Annulla</button>';
+            document.body.appendChild(bar);
+            bar.addEventListener('pointerdown', e => e.stopPropagation());
+            bar.addEventListener('click', e => {
+                const b = e.target.closest('button');
+                if (!b || !this._ritaglio) return;
+                if (b.dataset.r === 'applica') this._applicaRitaglio();
+                else if (b.dataset.r === 'annulla') this._esciRitaglio();
+                else { this._ritaglio.R = { ...this._ritaglio.D }; this._disegnaRitaglio(); }
+            });
+        }
+        bar.style.display = 'flex';
+    }
+
+    _posizionaBarraRitaglio() {
+        const bar = document.getElementById('ritaglio-barra');
+        if (!bar || !this._ritaglio) return;
+        const R = this._ritaglio.R;
+        const r = document.getElementById('canvas-area').getBoundingClientRect();
+        const sc = (typeof panMgr !== 'undefined' && panMgr) ? panMgr.scale : 1;
+        const bw = bar.offsetWidth || 360, bh = bar.offsetHeight || 52;
+        let left = r.left + (R.x + R.w / 2) * sc - bw / 2;
+        let top = r.top + (R.y + R.h) * sc + 14;
+        if (top + bh > window.innerHeight - 70) top = r.top + R.y * sc - bh - 14;   // sopra, se sotto non c'è posto
+        left = Math.max(8, Math.min(left, window.innerWidth - bw - 8));
+        top = Math.max(60, Math.min(top, window.innerHeight - bh - 8));
+        bar.style.left = left + 'px';
+        bar.style.top = top + 'px';
+    }
+
+    _disegnaRitaglio() {
+        const t = this._ritaglio;
+        if (!t) return;
+        const oc = document.getElementById('overlay-canvas');
+        const ctx = oc.getContext('2d');
+        const sc = (typeof panMgr !== 'undefined' && panMgr) ? panMgr.scale : 1;
+        const { D, R, obj } = t;
+        ctx.clearRect(0, 0, oc.width, oc.height);
+        ctx.save();
+        // l'immagine intera, così si vede anche ciò che si può riprendere
+        ctx.save();
+        ctx.translate(D.x + D.w / 2, D.y + D.h / 2);
+        if (obj.flipH || obj.flipV) ctx.scale(obj.flipH ? -1 : 1, obj.flipV ? -1 : 1);
+        ctx.globalAlpha = obj.opacity !== undefined ? obj.opacity : 1;
+        ctx.drawImage(objectLayer._sorgente(obj), -D.w / 2, -D.h / 2, D.w, D.h);
+        ctx.restore();
+        // velo scuro su ciò che verrà tolto
+        ctx.beginPath();
+        ctx.rect(D.x, D.y, D.w, D.h);
+        ctx.rect(R.x, R.y, R.w, R.h);
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.6)';
+        ctx.fill('evenodd');
+        // bordo e maniglie (misure in pixel di schermo, divise per lo zoom)
+        const lw = 2 / sc;
+        ctx.lineWidth = lw * 1.5;
+        ctx.strokeStyle = '#ffffff';
+        ctx.strokeRect(R.x, R.y, R.w, R.h);
+        ctx.setLineDash([8 / sc, 6 / sc]);
+        ctx.strokeStyle = '#2563eb';
+        ctx.strokeRect(R.x, R.y, R.w, R.h);
+        ctx.setLineDash([]);
+        const L = 26 / sc, sp = 6 / sc;   // angoli a "L" e barrette sui lati, grandi per le dita
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = '#2563eb';
+        ctx.lineWidth = lw;
+        const pezzo = (x, y, w, h) => { ctx.fillRect(x, y, w, h); ctx.strokeRect(x, y, w, h); };
+        const x1 = R.x, y1 = R.y, x2 = R.x + R.w, y2 = R.y + R.h;
+        pezzo(x1 - sp, y1 - sp, L, sp); pezzo(x1 - sp, y1 - sp, sp, L);
+        pezzo(x2 - L + sp, y1 - sp, L, sp); pezzo(x2, y1 - sp, sp, L);
+        pezzo(x1 - sp, y2, L, sp); pezzo(x1 - sp, y2 - L + sp, sp, L);
+        pezzo(x2 - L + sp, y2, L, sp); pezzo(x2, y2 - L + sp, sp, L);
+        const mx = R.x + R.w / 2, my = R.y + R.h / 2;
+        pezzo(mx - L / 2, y1 - sp, L, sp); pezzo(mx - L / 2, y2, L, sp);
+        pezzo(x1 - sp, my - L / 2, sp, L); pezzo(x2, my - L / 2, sp, L);
+        ctx.restore();
+        this._posizionaBarraRitaglio();
+    }
+
+    _ritaglioDown(x, y) {
+        const t = this._ritaglio;
+        const sc = (typeof panMgr !== 'undefined' && panMgr) ? panMgr.scale : 1;
+        const H = 30 / sc;                     // raggio di presa: generoso, per il dito sulla LIM
+        const R = t.R;
+        const vicino = (a, b) => Math.abs(a - b) <= H;
+        const dentroX = x >= R.x - H && x <= R.x + R.w + H;
+        const dentroY = y >= R.y - H && y <= R.y + R.h + H;
+        let lati = '';
+        if (dentroX && dentroY) {
+            if (vicino(y, R.y)) lati += 'n';
+            else if (vicino(y, R.y + R.h)) lati += 's';
+            if (vicino(x, R.x)) lati += 'w';
+            else if (vicino(x, R.x + R.w)) lati += 'e';
+        }
+        let modo = lati || null;
+        if (!modo && x > R.x && x < R.x + R.w && y > R.y && y < R.y + R.h) modo = 'sposta';
+        t.drag = modo ? { modo, x0: x, y0: y, R0: { ...R } } : null;
+        return true;
+    }
+
+    _ritaglioMove(x, y) {
+        const t = this._ritaglio;
+        if (!t.drag) return true;
+        const { modo, x0, y0, R0 } = t.drag;
+        const D = t.D, MIN = 20;
+        const dx = x - x0, dy = y - y0;
+        let { x: rx, y: ry, w: rw, h: rh } = R0;
+        if (modo === 'sposta') {
+            rx = Math.max(D.x, Math.min(R0.x + dx, D.x + D.w - R0.w));
+            ry = Math.max(D.y, Math.min(R0.y + dy, D.y + D.h - R0.h));
+        } else {
+            let x1 = R0.x, y1 = R0.y, x2 = R0.x + R0.w, y2 = R0.y + R0.h;
+            if (modo.includes('w')) x1 = Math.max(D.x, Math.min(R0.x + dx, x2 - MIN));
+            if (modo.includes('e')) x2 = Math.min(D.x + D.w, Math.max(R0.x + R0.w + dx, x1 + MIN));
+            if (modo.includes('n')) y1 = Math.max(D.y, Math.min(R0.y + dy, y2 - MIN));
+            if (modo.includes('s')) y2 = Math.min(D.y + D.h, Math.max(R0.y + R0.h + dy, y1 + MIN));
+            rx = x1; ry = y1; rw = x2 - x1; rh = y2 - y1;
+        }
+        t.R = { x: rx, y: ry, w: rw, h: rh };
+        this._disegnaRitaglio();
+        return true;
+    }
+
+    _ritaglioUp() {
+        if (this._ritaglio) this._ritaglio.drag = null;
+        return true;
+    }
+
+    _applicaRitaglio() {
+        const t = this._ritaglio;
+        if (!t) return;
+        const { obj, s, fullW, fullH, D, R } = t;
+        const tutta = Math.abs(R.x - D.x) < 1 && Math.abs(R.y - D.y) < 1
+            && Math.abs(R.w - D.w) < 1 && Math.abs(R.h - D.h) < 1;
+        if (tutta) {
+            obj.crop = null;
+            obj.x = D.x; obj.y = D.y; obj.w = D.w; obj.h = D.h;
+        } else {
+            const dx = (R.x - D.x) / s, dy = (R.y - D.y) / s, w = R.w / s, h = R.h / s;
+            obj.crop = {
+                x: obj.flipH ? fullW - dx - w : dx,
+                y: obj.flipV ? fullH - dy - h : dy,
+                w, h
+            };
+            obj.x = R.x; obj.y = R.y; obj.w = R.w; obj.h = R.h;
+        }
+        objectLayer.render();
+        CONFIG.isDirty = true;
+        window.autoSaveMgr?.onDirty();
+        this._esciRitaglio();
+    }
+
+    _esciRitaglio() {
+        const t = this._ritaglio;
+        this._ritaglio = null;
+        if (this._tastiRitaglio) document.removeEventListener('keydown', this._tastiRitaglio);
+        this._tastiRitaglio = null;
+        const bar = document.getElementById('ritaglio-barra');
+        if (bar) bar.style.display = 'none';
+        const oc = document.getElementById('overlay-canvas');
+        if (oc) oc.getContext('2d').clearRect(0, 0, oc.width, oc.height);
+        // si torna all'immagine selezionata, col suo pannello
+        if (t && this.active && objectLayer.objects.includes(t.obj)) {
+            this.selectedObject = t.obj;
+            this.phase = 'object-selected';
+            this._drawSelectionRect(t.obj.x, t.obj.y, t.obj.w, t.obj.h, true);
+            this._showContextPanel(t.obj);
+        }
     }
 
     _setupContextPanel() {
@@ -4188,9 +4417,12 @@ class SelectManager {
                     this._transformSelectedItems('rot-180');
                 }
                 return;
+            case 'crop':
+                if (obj) this._avviaRitaglio(obj);
+                return;
             case 'restore':
                 if (obj) {
-                    objectLayer.resizeObject(obj.id, obj.originalW); this._drawSelectionRect(obj.x, obj.y, obj.w, obj.h, true);
+                    objectLayer.resizeObject(obj.id, obj.crop ? obj.crop.w : obj.originalW); this._drawSelectionRect(obj.x, obj.y, obj.w, obj.h, true);
                     CONFIG.isDirty = true; window.autoSaveMgr?.onDirty();
                 }
                 return;
@@ -4281,6 +4513,7 @@ class SelectManager {
                             opacity: o.opacity, rotation: o.rotation || 0,
                             filter: { ...(o.filter || {}) },
                             flipH: o.flipH || false, flipV: o.flipV || false,
+                            crop: o.crop ? { ...o.crop } : null,
                         } };
                     });
                     this._objectClipboard = null;
@@ -4296,6 +4529,7 @@ class SelectManager {
                         opacity: obj.opacity, rotation: obj.rotation || 0,
                         filter: { ...(obj.filter || {}) },
                         flipH: obj.flipH || false, flipV: obj.flipV || false,
+                        crop: obj.crop ? { ...obj.crop } : null,
                     };
                     this._pixelClipboard = null;
                     this._itemsClipboard = null;
@@ -4363,6 +4597,7 @@ class SelectManager {
                                 newObj.opacity = d.opacity; newObj.rotation = d.rotation;
                                 newObj.filter = { ...d.filter };
                                 newObj.flipH = d.flipH; newObj.flipV = d.flipV;
+                                newObj.crop = d.crop ? { ...d.crop } : null;
                                 newItems.push({ type: 'object', ref: newObj });
                             }
                         }
@@ -4395,6 +4630,7 @@ class SelectManager {
                         newObj.filter = { ...src.filter };
                         newObj.flipH = src.flipH;
                         newObj.flipV = src.flipV;
+                        newObj.crop = src.crop ? { ...src.crop } : null;
                         objectLayer.render();
                         // Seleziona il nuovo oggetto
                         this.selectedObject = newObj;
@@ -4766,7 +5002,7 @@ class SelectManager {
         if (isPixelSelection) {
             // Per selezione pixel: mostra tutte le azioni tratte da ctx-pixel-only
             // + flip/ruota/filtri/opacità/elimina/download — nascondi solo bordo, larghezza, ripristina, bring-front/send-back
-            const pixelHidden = new Set(['bring-front', 'send-back', 'border-color', 'width', 'restore']);
+            const pixelHidden = new Set(['bring-front', 'send-back', 'border-color', 'width', 'restore', 'crop']);
             panel.querySelectorAll('.ctx-icon-btn[data-action]').forEach(el => {
                 const act = el.dataset.action;
                 if (el.classList.contains('ctx-obj-only') || el.classList.contains('ctx-pixel-only')) {
@@ -5091,9 +5327,15 @@ class SelectManager {
             });
         }
         if (typeof objectLayer !== 'undefined' && objectLayer) {
+            // Un'immagine entra se il lazo ne racchiude buona parte, non il solo centro:
+            // cerchiando una scritta nel mezzo di una foto si prendeva anche la foto
+            // (Fabio, 30/09/2026). 60% su una griglia 5×5: tollera un lazo storto.
             objectLayer.objects.forEach(o => {
-                const cx = o.x + o.w / 2, cy = o.y + o.h / 2;
-                if (this._pointInPolygon(cx, cy, path)) found.push({ type: 'object', ref: o });
+                let dentro = 0;
+                for (let i = 0; i < 5; i++) for (let j = 0; j < 5; j++) {
+                    if (this._pointInPolygon(o.x + o.w * (i + 0.5) / 5, o.y + o.h * (j + 0.5) / 5, path)) dentro++;
+                }
+                if (dentro >= 15) found.push({ type: 'object', ref: o });
             });
         }
         return found;
@@ -5258,6 +5500,7 @@ class SelectManager {
     onPointerDown(x, y) {
         if (!this.active) return false;
         this._pressing = true;
+        if (this._ritaglio) return this._ritaglioDown(x, y);
 
         // 0. Se c'è un oggetto selezionato, controlla handle resize
         if (this.phase === 'object-selected' && this.selectedObject) {
@@ -5435,15 +5678,30 @@ class SelectManager {
                     objectLayer.preparaDrag(new Set([hit]));   // vedi ObjectLayer.preparaDrag
                     return true;
                 }
-                // Seleziona nuovo oggetto
-                this.selectedObject = hit;
-                this.phase = 'object-selected';
+                // Oggetto nuovo: non lo si seleziona subito, come per i tratti si aspetta il
+                // movimento. Prima il tocco lo selezionava all'istante e il lazo non poteva
+                // partire sopra un'immagine con scritte (Fabio, 30/09/2026): si doveva
+                // cominciare fuori dal foglio. Tap secco → onPointerUp seleziona l'oggetto.
+                if (this.phase === 'object-selected' || this.phase === 'object-dragging') {
+                    this.selectedObject = null;
+                    this._clearSelection();
+                    this._hideContextPanel();
+                }
+                if (this.phase === 'items-selected' || this.phase === 'items-dragging') {
+                    this.selectedItems = [];
+                    this._clearSelection();
+                    this._hideContextPanel();
+                }
                 this._clearPixelSelection();
-                this._drawSelectionRect(hit.x, hit.y, hit.w, hit.h, true);
-                this._showContextPanel(hit);
+                this.phase      = 'items-selecting';
+                this.startX     = x;
+                this.startY     = y;
+                this._lassoPath = [{ x, y }];
+                this._oggettoSotto = hit;
                 return true;
             }
         }
+        this._oggettoSotto = null;
 
         // 3. Click fuori da qualsiasi oggetto: deseleziona oggetto se c'era
         if (this.phase === 'object-selected' || this.phase === 'object-dragging') {
@@ -5470,6 +5728,7 @@ class SelectManager {
 
     onPointerMove(x, y) {
         if (!this.active) return false;
+        if (this._ritaglio) return this._ritaglioMove(x, y);
 
         // Resize selezione pixel (drag angolo)
         if (this.phase === 'pixel-resizing' && this._pixelResizeData) {
@@ -5719,6 +5978,7 @@ class SelectManager {
     onPointerUp(x, y) {
         if (!this.active) return false;
         this._pressing = false;
+        if (this._ritaglio) return this._ritaglioUp();
 
         // Fine resize selezione pixel
         if (this.phase === 'pixel-resizing') {
@@ -5768,6 +6028,25 @@ class SelectManager {
         if (this.phase === 'items-selecting') {
             this.phase = 'idle';
             this._lassoPath = null;
+            const oggetto = this._oggettoSotto;
+            this._oggettoSotto = null;
+            if (oggetto) {
+                // Le scritte stanno SOPRA le immagini: se il tocco cade su una scritta
+                // si seleziona quella, altrimenti l'immagine come sempre.
+                const idx = (typeof canvasMgr !== 'undefined') ? canvasMgr.findNearestStroke(this.startX, this.startY, 12) : -1;
+                if (idx >= 0) {
+                    this.selectedItems = this._expandGroups([{ type: 'stroke', ref: canvasMgr._pageStrokes[idx] }]);
+                    this.phase = 'items-selected';
+                    this._highlightSelectedItems();
+                    this._showItemsContextPanel();
+                    return true;
+                }
+                this.selectedObject = oggetto;
+                this.phase = 'object-selected';
+                this._drawSelectionRect(oggetto.x, oggetto.y, oggetto.w, oggetto.h, true);
+                this._showContextPanel(oggetto);
+                return true;
+            }
             const item = this._hitTestItem(this.startX, this.startY);
             if (item) {
                 // Se l'elemento toccato fa parte di un gruppo (Unisci), seleziona tutto il gruppo
@@ -5790,6 +6069,7 @@ class SelectManager {
         // Lazo tracciato: seleziona tutto ciò che è racchiuso (tratti/forme/oggetti)
         if (this.phase === 'items-lasso') {
             this.phase = 'idle';
+            this._oggettoSotto = null;
             const enclosed = this._findItemsInLasso(this._lassoPath);
             this._lassoPath = null;
             if (enclosed.length) {
@@ -6002,6 +6282,17 @@ class SelectManager {
 // Gestisce gli oggetti importati (immagini/PDF) su un canvas separato.
 // =============================================================================
 
+/**
+ * Disegna un'immagine rispettando il suo ritaglio. Il ritaglio NON taglia il file: l'originale
+ * resta intero nella lezione e `o.crop` dice solo quale parte mostrare (in pixel originali),
+ * così un ritaglio sbagliato si annulla sempre con «Tutta l'immagine».
+ */
+function _drawImgRitaglio(ctx, img, o, x, y, w, h) {
+    const c = o && o.crop;
+    if (c && c.w > 0 && c.h > 0) ctx.drawImage(img, c.x, c.y, c.w, c.h, x, y, w, h);
+    else ctx.drawImage(img, x, y, w, h);
+}
+
 class ObjectLayer {
     constructor() {
         this.canvas = document.getElementById('objects-canvas');
@@ -6109,7 +6400,7 @@ class ObjectLayer {
         ctx.translate(cx, cy);
         if (obj.rotation) ctx.rotate(obj.rotation * Math.PI / 180);
         if (obj.flipH || obj.flipV) ctx.scale(obj.flipH ? -1 : 1, obj.flipV ? -1 : 1);
-        ctx.drawImage(this._sorgente(obj), -obj.w / 2, -obj.h / 2, obj.w, obj.h);
+        _drawImgRitaglio(ctx, this._sorgente(obj), obj, -obj.w / 2, -obj.h / 2, obj.w, obj.h);
         if (obj.borderWidth > 0) {
             ctx.strokeStyle = obj.borderColor || '#3b82f6';
             ctx.lineWidth = obj.borderWidth;
@@ -6127,6 +6418,118 @@ class ObjectLayer {
         const ctx = this.ctx;
         ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         for (const obj of this.objects) this._disegnaOggetto(ctx, obj);
+        this.richiediHD(true);
+    }
+
+    // ─── Immagini nitide quando si ingrandisce ───────────────────────────────────
+    // La tela degli oggetti ha 1 pixel per pixel di lavagna, e lo zoom la ingrandisce
+    // con una trasformazione CSS: oltre il 100% reale ogni suo pixel diventa un
+    // quadratino e le foto si sgranano sulla LIM (Fabio, 30/09/2026), anche se
+    // l'originale è nitido. Sopra la sola parte visibile si ridisegnano allora gli
+    // oggetti alla risoluzione dello schermo; la tela normale resta per salvataggi
+    // ed esportazioni. Costo fisso ≈ la grandezza dello schermo, a qualunque zoom.
+
+    /** @param {boolean} contenuto true = sono cambiati gli oggetti (ridisegna comunque) */
+    richiediHD(contenuto = false) {
+        if (contenuto) this._hdSporco = true;
+        if (this._hdRaf) return;
+        this._hdRaf = requestAnimationFrame(() => {
+            this._hdRaf = null;
+            this._aggiornaHD();
+        });
+    }
+
+    _spegniHD() {
+        if (this._hd) this._hd.style.display = 'none';
+        this.canvas.style.visibility = '';
+        this._hdReg = null;
+    }
+
+    _aggiornaHD() {
+        const pm = (typeof panMgr !== 'undefined') ? panMgr : null;
+        if (!pm || typeof pm.getCanvasCoords !== 'function') return;
+        const k = (pm.scale || 1) * (window.devicePixelRatio || 1);
+        if (k <= 1.05 || !this.objects.length) { this._spegniHD(); return; }
+
+        if (!this._hd) {
+            this._hd = document.createElement('canvas');
+            this._hd.id = 'objects-hd';
+            this._hd.style.cssText = 'position:absolute;z-index:2;pointer-events:none;display:none;';
+            this.canvas.after(this._hd);
+            this._hdCtx = this._hd.getContext('2d');
+        }
+
+        const W = this.canvas.width, H = this.canvas.height;
+        const a = pm.getCanvasCoords(0, 0);
+        const b = pm.getCanvasCoords(window.innerWidth, window.innerHeight);
+        const vis = { x: Math.max(0, a.x), y: Math.max(0, a.y), x2: Math.min(W, b.x), y2: Math.min(H, b.y) };
+        if (vis.x2 <= vis.x || vis.y2 <= vis.y) { this._spegniHD(); return; }
+
+        const reg = this._hdReg;
+        const copre = reg && Math.abs(reg.k - k) / k < 0.02
+            && vis.x >= reg.x && vis.y >= reg.y && vis.x2 <= reg.x + reg.w && vis.y2 <= reg.y + reg.h;
+
+        if (!copre) {
+            // Durante pan/zoom la tela normale fa da riserva finché lo zoom non si ferma:
+            // ricostruire una tela grande a ogni fotogramma del pinch costerebbe troppo.
+            this.canvas.style.visibility = '';
+            clearTimeout(this._hdTimer);
+            this._hdTimer = setTimeout(() => this._ricostruisciHD(vis, k), 120);
+            return;
+        }
+        if (this._hdSporco) this._disegnaHD();
+    }
+
+    _ricostruisciHD(vis, k) {
+        const pm = (typeof panMgr !== 'undefined') ? panMgr : null;
+        if (!pm) return;
+        // si riprende la regione aggiornata: durante l'attesa la vista può essersi mossa
+        const W = this.canvas.width, H = this.canvas.height;
+        const a = pm.getCanvasCoords(0, 0);
+        const b = pm.getCanvasCoords(window.innerWidth, window.innerHeight);
+        k = (pm.scale || 1) * (window.devicePixelRatio || 1);
+        if (k <= 1.05 || !this.objects.length) { this._spegniHD(); return; }
+        const vw = b.x - a.x, vh = b.y - a.y;
+        // margine di un terzo per lato: piccoli spostamenti non richiedono di ridisegnare
+        let x = Math.max(0, a.x - vw / 3), y = Math.max(0, a.y - vh / 3);
+        let x2 = Math.min(W, b.x + vw / 3), y2 = Math.min(H, b.y + vh / 3);
+        if (x2 <= x || y2 <= y) { this._spegniHD(); return; }
+        // tetto di memoria (~16 Mpx): oltre si riduce il fattore, mai la regione
+        let kk = k;
+        const area = (x2 - x) * (y2 - y);
+        if (area * kk * kk > 16e6) kk = Math.sqrt(16e6 / area);
+        x = Math.floor(x); y = Math.floor(y); x2 = Math.ceil(x2); y2 = Math.ceil(y2);
+        this._hdReg = { x, y, w: x2 - x, h: y2 - y, k, kk };
+        const hd = this._hd;
+        const bw = Math.round((x2 - x) * kk), bh = Math.round((y2 - y) * kk);
+        if (hd.width !== bw) hd.width = bw;
+        if (hd.height !== bh) hd.height = bh;
+        hd.style.left = x + 'px';
+        hd.style.top = y + 'px';
+        hd.style.width = (x2 - x) + 'px';
+        hd.style.height = (y2 - y) + 'px';
+        this._disegnaHD();
+    }
+
+    _disegnaHD() {
+        const r = this._hdReg;
+        if (!r || !this._hd) return;
+        this._hdSporco = false;
+        const ctx = this._hdCtx;
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.clearRect(0, 0, this._hd.width, this._hd.height);
+        ctx.setTransform(r.kk, 0, 0, r.kk, -r.x * r.kk, -r.y * r.kk);
+        ctx.imageSmoothingQuality = 'high';
+        for (const obj of this.objects) {
+            // solo ciò che tocca la regione (la rotazione si copre col raggio)
+            const raggio = Math.hypot(obj.w, obj.h) / 2;
+            const cx = obj.x + obj.w / 2, cy = obj.y + obj.h / 2;
+            if (cx + raggio < r.x || cx - raggio > r.x + r.w || cy + raggio < r.y || cy - raggio > r.y + r.h) continue;
+            this._disegnaOggetto(ctx, obj);
+        }
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        this._hd.style.display = 'block';
+        this.canvas.style.visibility = 'hidden';
     }
 
     // ─── Trascinamento: si ridisegna solo ciò che si muove ───────────────────────
@@ -6157,6 +6560,7 @@ class ObjectLayer {
         for (const obj of this.objects) {
             if (this._dragInMovimento.has(obj)) this._disegnaOggetto(ctx, obj);
         }
+        this.richiediHD(true);
     }
 
     /** Ridisegno accodato al fotogramma successivo: più eventi del dito nello stesso
@@ -6198,7 +6602,8 @@ class ObjectLayer {
     resizeObject(id, newW) {
         const obj = this.objects.find(o => o.id === id);
         if (!obj) return;
-        const ratio = obj.originalH / obj.originalW;
+        // proporzioni di ciò che si vede: con un ritaglio non sono più quelle dell'originale
+        const ratio = obj.crop ? obj.crop.h / obj.crop.w : obj.originalH / obj.originalW;
         obj.w = newW;
         obj.h = newW * ratio;
         this.render();
@@ -6227,7 +6632,8 @@ class ObjectLayer {
                 x: o.x, y: o.y, w: o.w, h: o.h,
                 rotation: o.rotation,
                 originalW: o.originalW, originalH: o.originalH,
-                filter: o.filter
+                filter: o.filter,
+                crop: o.crop || null
             };
         });
     }
@@ -6968,7 +7374,10 @@ async function importFilesBatch(files, clientX, clientY) {
  *   dentro un import multiplo) — si somma allo scarto interno fra le pagine di QUESTO PDF.
  */
 async function _importPdfPages(pdf, file, pageNumbers, baseX, baseY, baseMargin = 0) {
-    const scale = 1.5; // buona risoluzione (150% DPI), stessa usata prima del selettore
+    // Era 1.5: una pagina A4 usciva larga ~890 px e veniva stirata su un foglio largo il
+    // doppio, già sgranata al 100% (Fabio, 30/09/2026). 2.5 ≈ 1490 px: nitida fino a ~200%,
+    // senza appesantire troppo le lezioni salvate (che conservano ogni pagina come immagine).
+    const scale = 2.5;
     const STACK_OFFSET = 16; // scarto fisso fra una pagina e l'altra dello stesso import
     for (let i = 0; i < pageNumbers.length; i++) {
         const pageNum = pageNumbers[i];
@@ -8768,7 +9177,7 @@ function _buildPageDataURL(pageIndex) {
                     const oy = pageData.objectFormat === 'page-fraction' ? o.y * cropW : o.y;
                     const ow = pageData.objectFormat === 'page-fraction' ? o.w * cropW : o.w;
                     const oh = pageData.objectFormat === 'page-fraction' ? o.h * cropW : o.h;
-                    ctx.drawImage(img, ox, oy, ow, oh);
+                    _drawImgRitaglio(ctx, img, o, ox, oy, ow, oh);
                     resolve();
                 };
                 img.onerror = resolve;
