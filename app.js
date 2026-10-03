@@ -3325,6 +3325,12 @@ class PWAManager {
     }
 
     _showChangelog(version, changelog) {
+        // Due strade la chiamano (messaggio del SW all'aggiornamento e controllo della versione
+        // in barra-nuova.js): prima la finestra spariva da sola e il doppione non si notava,
+        // ora resta aperta e se ne vedevano due una sopra l'altra (Fabio, 03/10/2026).
+        if (document.querySelector('.sw-changelog-overlay')) return;
+        if (version && this._changelogMostrato === version) return;
+        this._changelogMostrato = version || this._changelogMostrato;
         const overlay = document.createElement('div');
         overlay.className = 'sw-changelog-overlay';
         const vLabel = version ? version.replace('eduboard-', '') : '';
