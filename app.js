@@ -3262,23 +3262,51 @@ class PWAManager {
         const overlay = document.createElement('div');
         overlay.className = 'sw-changelog-overlay';
         const vLabel = version ? version.replace('eduboard-', '') : '';
+        // Scheda larga, senza chiusura a tempo: prima spariva dopo 6 s e ogni tocco (anche per
+        // scorrere) la chiudeva, così un testo lungo non si riusciva a leggere (Fabio, 03/10/2026).
+        // Si chiude con la X, toccando fuori o con Esc. Le voci sono le righe del CHANGELOG del SW.
         overlay.innerHTML = `
-            <div class="sw-changelog-card">
-                <div class="sw-changelog-icon">✨</div>
-                <div class="sw-changelog-version">${vLabel ? 'Aggiornato a ' + vLabel : 'EduBoard aggiornato'}</div>
-                <div class="sw-changelog-text">${changelog || 'Nuove funzionalità disponibili.'}</div>
-                <div class="sw-changelog-bar"><div class="sw-changelog-progress"></div></div>
+            <div class="sw-changelog-card" role="dialog" aria-modal="true">
+                <div class="sw-changelog-head">
+                    <div class="sw-changelog-icon">✨</div>
+                    <div class="sw-changelog-titoli">
+                        <div class="sw-changelog-version"></div>
+                        <div class="sw-changelog-sub">Ecco cosa c'è di nuovo</div>
+                    </div>
+                    <button type="button" class="sw-changelog-x" title="Chiudi" aria-label="Chiudi">×</button>
+                </div>
+                <ul class="sw-changelog-list"></ul>
+                <div class="sw-changelog-foot">
+                    <button type="button" class="sw-changelog-tutte">Tutte le novità</button>
+                    <button type="button" class="sw-changelog-ok">Ho capito</button>
+                </div>
             </div>`;
+        overlay.querySelector('.sw-changelog-version').textContent = vLabel ? 'Aggiornato a ' + vLabel : 'EduBoard aggiornato';
+        const lista = overlay.querySelector('.sw-changelog-list');
+        const voci = String(changelog || 'Nuove funzionalità disponibili.').split('\n').map(s => s.trim()).filter(Boolean);
+        for (const v of voci) {
+            const li = document.createElement('li');
+            li.textContent = v;
+            lista.appendChild(li);
+        }
         document.body.appendChild(overlay);
-        // Auto-rimozione dopo 6 secondi
-        const DURATION = 6000;
-        overlay.querySelector('.sw-changelog-progress').style.animationDuration = DURATION + 'ms';
         const dismiss = () => {
+            document.removeEventListener('keydown', onKey);
             overlay.classList.add('sw-changelog-out');
             setTimeout(() => overlay.remove(), 400);
         };
-        overlay.addEventListener('click', dismiss);
-        setTimeout(dismiss, DURATION);
+        const onKey = (e) => { if (e.key === 'Escape') dismiss(); };
+        document.addEventListener('keydown', onKey);
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) dismiss(); });
+        overlay.querySelector('.sw-changelog-x').addEventListener('click', dismiss);
+        overlay.querySelector('.sw-changelog-ok').addEventListener('click', dismiss);
+        overlay.querySelector('.sw-changelog-tutte').addEventListener('click', () => {
+            dismiss();
+            if (typeof window.openSettingsModal === 'function') {
+                window.openSettingsModal();
+                document.querySelector('#settings-modal .settings-tab[data-tab="novita"]')?.click();
+            }
+        });
     }
 }
 

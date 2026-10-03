@@ -1609,10 +1609,12 @@ button {
 .sw-changelog-card {
     background: #ffffff;
     border-radius: 24px;
-    padding: 32px 36px 24px;
-    max-width: 420px;
-    width: 90%;
-    text-align: center;
+    padding: 22px 26px 18px;
+    width: min(94vw, 1000px);
+    max-height: min(84vh, 760px);
+    display: flex;
+    flex-direction: column;
+    text-align: left;
     box-shadow: 0 24px 64px rgba(15,23,42,0.22);
     border: 1px solid rgba(15,23,42,0.08);
     animation: swcl-popin 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
@@ -1621,41 +1623,94 @@ button {
     from { transform: scale(0.88) translateY(20px); opacity: 0; }
     to   { transform: scale(1) translateY(0); opacity: 1; }
 }
-.sw-changelog-icon {
-    font-size: 2.4rem;
-    margin-bottom: 10px;
+.sw-changelog-head {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid #e2e8f0;
+    flex-shrink: 0;
 }
+.sw-changelog-icon {
+    font-size: 2.2rem;
+    line-height: 1;
+}
+.sw-changelog-titoli { flex: 1; min-width: 0; }
 .sw-changelog-version {
-    font-size: 0.75rem;
+    font-size: 0.78rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.1em;
     color: #3b82f6;
-    margin-bottom: 10px;
 }
-.sw-changelog-text {
-    font-size: 0.95rem;
+.sw-changelog-sub {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin-top: 2px;
+}
+.sw-changelog-x {
+    flex-shrink: 0;
+    width: 48px;
+    height: 48px;
+    border: none;
+    border-radius: 50%;
+    background: #f1f5f9;
     color: #334155;
-    line-height: 1.6;
-    margin-bottom: 20px;
+    font-size: 1.8rem;
+    line-height: 1;
+    cursor: pointer;
 }
-.sw-changelog-bar {
-    height: 3px;
-    background: #e2e8f0;
-    border-radius: 2px;
-    overflow: hidden;
+.sw-changelog-x:hover { background: #e2e8f0; }
+.sw-changelog-list {
+    list-style: none;
+    margin: 0;
+    padding: 14px 4px 14px 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+    gap: 10px 18px;
+    flex: 1;
+    min-height: 0;
 }
-.sw-changelog-progress {
-    height: 100%;
+.sw-changelog-list li {
+    font-size: 1rem;
+    color: #334155;
+    line-height: 1.5;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 12px 14px;
+}
+.sw-changelog-foot {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding-top: 14px;
+    border-top: 1px solid #e2e8f0;
+    flex-shrink: 0;
+}
+.sw-changelog-foot button {
+    min-height: 44px;
+    padding: 0 20px;
+    border-radius: 12px;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #334155;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
+.sw-changelog-foot .sw-changelog-ok {
     background: #3b82f6;
-    border-radius: 2px;
-    width: 100%;
-    transform-origin: left;
-    animation: swcl-progress linear forwards;
+    border-color: #3b82f6;
+    color: #ffffff;
 }
-@keyframes swcl-progress {
-    from { transform: scaleX(1); }
-    to   { transform: scaleX(0); }
+@media (max-width: 600px) {
+    .sw-changelog-list { grid-template-columns: 1fr; }
+    .sw-changelog-card { padding: 18px 16px 14px; }
 }
 .update-banner {
     position: fixed;
