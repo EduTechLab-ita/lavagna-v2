@@ -3016,6 +3016,9 @@ class ProjectManager {
         // corretto è window.pageManager (non window.pageMgr, che non esiste mai — bug
         // per cui questo reset non scattava mai prima di questa correzione).
         if (window.pageManager) {
+            // le immagini della lezione appena chiusa arrivano un attimo dopo: senza questo
+            // finivano sulla lavagna nuova (visto il 03/10/2026)
+            window.pageManager._restoreToken = (window.pageManager._restoreToken || 0) + 1;
             window.pageManager.pages = [{ drawImageData: null, objects: [], background: { type: presetBg, color: '#ffffff', orientation: defOrient } }];
             window.pageManager.currentIndex = 0;
             window.pageManager._renderPageBar();
@@ -4248,6 +4251,20 @@ class SelectManager {
                 e.stopPropagation();
                 const isOpen = panel.classList.toggle('ctx-panel--open');
                 gearBtn.classList.toggle('is-open', isOpen);
+                // Con le scritte sotto le icone il pannello è più alto: se esce dallo schermo
+                // (immagine in basso o a destra) lo si riporta dentro.
+                if (isOpen) {
+                    // vicino al bordo destro il browser lo stringerebbe (tante righe, altissimo):
+                    // prima si misura la larghezza naturale, poi lo si sposta quanto serve
+                    const leftPrima = parseFloat(panel.style.left) || 0;
+                    panel.style.left = '8px';
+                    const larga = panel.getBoundingClientRect().width;
+                    panel.style.left = Math.max(8, Math.min(leftPrima, window.innerWidth - larga - 8)) + 'px';
+                    // il fondo resta sopra le barre in basso (strumenti, zoom), che stanno davanti
+                    const r = panel.getBoundingClientRect();
+                    const fondo = window.innerHeight - 88;
+                    if (r.bottom > fondo) panel.style.top = Math.max(60, fondo - r.height) + 'px';
+                }
                 // Chiudi popup interno se chiudiamo il pannello
                 if (!isOpen) {
                     const popup = document.getElementById('ctx-popup');
@@ -4265,6 +4282,31 @@ class SelectManager {
                 if (popup) { popup.style.display = 'none'; popup.dataset.action = ''; }
             }
         }, true);
+
+        // Icone colorate con la scritta sotto (scelta di Fabio, 03/10/2026: «le colleghe devono
+        // capirle al volo»). Il colore raggruppa le famiglie: ordine, rotazione, aspetto,
+        // dimensioni, tratti, appunti, elimina.
+        const ETICHETTE_CTX = {
+            'bring-front': ['Primo piano', '#4f46e5'], 'send-back': ['Dietro', '#4f46e5'],
+            'flip-h': ['Specchia ↔', '#0d9488'], 'flip-v': ['Specchia ↕', '#0d9488'],
+            'rot-ccw': ['Ruota ⟲', '#0d9488'], 'rot-cw': ['Ruota ⟳', '#0d9488'], 'rot-180': ['Capovolgi', '#0d9488'],
+            'border-color': ['Bordo', '#ea580c'], 'opacity': ['Trasparenza', '#ea580c'],
+            'brightness': ['Luminosità', '#d97706'], 'contrast': ['Contrasto', '#d97706'], 'saturation': ['Colori', '#d97706'],
+            'width': ['Larghezza', '#16a34a'], 'crop': ['Ritaglia', '#16a34a'], 'restore': ['Originale', '#16a34a'],
+            'stroke-color': ['Colore', '#9333ea'], 'stroke-fill': ['Riempimento', '#9333ea'],
+            'group': ['Unisci', '#9333ea'], 'ungroup': ['Dividi', '#9333ea'],
+            'cut': ['Taglia', '#2563eb'], 'copy': ['Copia', '#2563eb'], 'paste': ['Incolla', '#2563eb'],
+            'download': ['Scarica', '#475569'], 'delete': ['Elimina', '#dc2626'],
+        };
+        panel.querySelectorAll('.ctx-icon-btn[data-action]').forEach(btn => {
+            const v = ETICHETTE_CTX[btn.dataset.action];
+            if (!v || btn.querySelector('.ctx-lbl')) return;
+            btn.style.setProperty('--ic', v[1]);
+            const s = document.createElement('span');
+            s.className = 'ctx-lbl';
+            s.textContent = v[0];
+            btn.appendChild(s);
+        });
 
         // Event delegation sulla toolbar icone
         const toolbar = panel.querySelector('.ctx-toolbar');
@@ -5060,6 +5102,9 @@ class SelectManager {
                 el.style.display = '';
             });
         }
+        // Colore/riempimento/unisci valgono solo per scritte e forme: dopo aver selezionato una
+        // scritta restavano accesi anche selezionando poi un'immagine o un'area.
+        panel.querySelectorAll('.ctx-stroke-only').forEach(el => { el.style.display = 'none'; });
 
         // Posizionamento
         const area = document.getElementById('canvas-area');
@@ -6403,7 +6448,9 @@ class ObjectLayer {
 
         const f = obj.filter;
         const chiave = `${f.brightness ?? 100}|${f.contrast ?? 100}|${f.saturation ?? 100}`;
-        if (obj._cacheFiltro && obj._cacheFiltroChiave === chiave) return obj._cacheFiltro;
+        // Solo una tela vera: le lezioni salvate prima del 03/10/2026 contengono la copia filtrata
+        // diventata un oggetto vuoto `{}` (JSON di un canvas), e disegnarla fermava tutto il render.
+        if (obj._cacheFiltro instanceof HTMLCanvasElement && obj._cacheFiltroChiave === chiave) return obj._cacheFiltro;
 
         const w = obj.originalW || obj.img.naturalWidth  || obj.img.width;
         const h = obj.originalH || obj.img.naturalHeight || obj.img.height;
@@ -7671,7 +7718,7 @@ class PageManager {
                     tmp.getContext('2d').drawImage(o.img, 0, 0);
                     // Tutte le coordinate normalizzate per pw (unico fattore).
                     // Garantisce proporzioni corrette indipendentemente da schermo e orientamento.
-                    return { ...o, img: null, dataUrl: tmp.toDataURL(),
+                    return { ...o, img: null, _cacheFiltro: null, _cacheFiltroChiave: null, dataUrl: tmp.toDataURL(),
                         x: (o.x - objR.px) / objR.pw,
                         y: (o.y - objR.py) / objR.pw,
                         w: o.w / objR.pw,
