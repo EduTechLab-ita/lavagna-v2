@@ -82,7 +82,7 @@
                 <img src="./icon-192x192.png" alt="EduBoard" class="logo-icon">
                 <div class="logo-info">
                     <span class="logo-text"><span class="logo-edu">Edu</span><span class="logo-board">Board</span></span>
-                    <span class="logo-sub">v2-117 &nbsp;&nbsp; © EduTechLab di Rizzotto Fabio</span>
+                    <span class="logo-sub">v2-118 &nbsp;&nbsp; © EduTechLab di Rizzotto Fabio</span>
                 </div>
             </div>
             <div class="project-badge" id="project-name">Nuova Lavagna</div>
@@ -491,6 +491,17 @@
                         <line x1="20" y1="32" x2="20" y2="16"/>
                     </svg>
                     <span>Goniometro</span>
+                </button>
+                <button class="shape-opt" id="btn-geo-compass" title="Compasso: perno fisso, trascina la matita per aprire e disegnare">
+                    <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="20" cy="9" r="2.4" fill="currentColor" stroke="none"/>
+                        <path d="M20 9 L9 33"/>
+                        <path d="M20 9 L31 33"/>
+                        <circle cx="9" cy="33" r="1.8" fill="currentColor" stroke="none"/>
+                        <circle cx="31" cy="33" r="2.6"/>
+                        <path d="M9 33 A11 11 0 0 1 31 33" stroke-dasharray="2 2.4"/>
+                    </svg>
+                    <span>Compasso</span>
                 </button>
                 <button class="shape-opt" id="btn-geo-sq45" title="Squadra 45° (90°, 45°, 45°)">
                     <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2">
@@ -1229,7 +1240,7 @@
                     <img src="./icon-192x192.png" alt="EduBoard" width="64" height="64" style="border-radius:14px">
                     <div>
                         <div class="settings-info-appname"><span style="color:#3b82f6">Edu</span>Board</div>
-                        <div class="settings-info-version" id="info-version-text">v2-117</div>
+                        <div class="settings-info-version" id="info-version-text">v2-118</div>
                     </div>
                 </div>
                 <div class="settings-section">
@@ -1275,6 +1286,10 @@
             </div>
             <div class="settings-panel" id="tab-novita">
                 <div class="settings-section">
+                    <div class="settings-changelog-item">
+                        <div class="settings-changelog-ver">v2-118 — Ottobre 2026</div>
+                        <div class="settings-changelog-desc">🧭 <strong>Compasso vero</strong> nel Magic Box: due bracci rigidi incernierati, l'<strong>ago fisso</strong> dove lo metti, si apre sempre dritto. <strong>×</strong> chiude · <strong>⚙</strong> angolo numerico, dimensione e unità mm/cm/in (sempre in scala vera, come il righello) · <strong>👁</strong> mostra/nasconde la misura fra le due punte · <strong>⇆</strong> trascina per aprire/chiudere senza disegnare · <strong>⇄</strong> inverte · <strong>✏️</strong> tieni premuto e gira il dito intorno all'ago: disegna l'arco col colore, lo spessore e il tipo di tratto scelti nello strumento di disegno a mano libera</div>
+                    </div>
                     <div class="settings-changelog-item">
                         <div class="settings-changelog-ver">v2-117 — Ottobre 2026</div>
                         <div class="settings-changelog-desc">🔵 Nelle Forme → <strong>Solide</strong> è arrivata anche la <strong>sfera</strong>, accanto a cubo, parallelepipedo, piramide, cono e cilindro</div>
@@ -1500,8 +1515,9 @@
                 '<div class="settings-guide-item">⚡ <strong>Penna e Gomma funzionano a due tocchi</strong>, perché sono quelle che si usano di più mentre si spiega. <strong>Primo tocco</strong>: lo strumento torna in uso esattamente com\'era — stesso tratto, stesso colore, stessa modalità — e si scrive o si cancella subito. <strong>Secondo tocco</strong>: si apre il pannello, se vuoi cambiare qualcosa. Dentro al pannello basta <strong>un solo tocco</strong> sul colore o sullo spessore: non serve riselezionare lo strumento</div>' +
                 '<div class="settings-guide-item"><strong>✏️ Scrittura</strong> — penna, matita, pastello, evidenziatore, spessore della punta e ultimi colori usati. L\'icona in barra mostra <strong>l\'ultimo tratto scelto</strong>, e il <strong>pallino nel suo angolo dice con che colore stai scrivendo</strong>; il colore resta quello che hai impostato anche se passi ad un altro strumento e poi torni</div>' +
                 '<div class="settings-guide-item"><strong>🩹 Gomma</strong> — modo di cancellazione e dimensione. Anche qui l\'icona in barra mostra <strong>la modalità in uso</strong> (area, tratto o lazo) e ci resta finché non la cambi</div>' +
-                '<div class="settings-guide-item"><strong>T Testo</strong> · <strong>🔺 Forme</strong> · <strong>📐 Strumenti geometrici</strong> (righello, goniometro e squadre, dentro Magic Box)</div>' +
-                '<div class="settings-guide-item"><strong>✨ Magic Box</strong> — tutto quello che si aggiunge alla lezione: <em>Incorpora</em>, <em>Link</em>, <em>YouTube</em>, <em>Timer</em>, <em>Focus</em>, <em>Tendina</em>, <em>Righello</em>, <em>Goniometro</em>, <em>Squadre</em></div>' +
+                '<div class="settings-guide-item"><strong>T Testo</strong> · <strong>🔺 Forme</strong> · <strong>📐 Strumenti geometrici</strong> (righello, goniometro, compasso e squadre, dentro Magic Box)</div>' +
+                '<div class="settings-guide-item"><strong>✨ Magic Box</strong> — tutto quello che si aggiunge alla lezione: <em>Incorpora</em>, <em>Link</em>, <em>YouTube</em>, <em>Timer</em>, <em>Focus</em>, <em>Tendina</em>, <em>Righello</em>, <em>Goniometro</em>, <em>Compasso</em>, <em>Squadre</em></div>' +
+                '<div class="settings-guide-item"><strong>Compasso</strong> — l\'ago (punto 0) resta fermo dove lo trascini; si apre sempre dritto. Nella colonna di comandi: <strong>×</strong> chiude · <strong>⚙</strong> apre angolo numerico, dimensione e unità (mm/cm/in, sempre in scala vera) · <strong>👁</strong> mostra/nasconde la misura fra le due punte · <strong>⇆</strong> trascina per aprire/chiudere senza disegnare · <strong>⇄</strong> inverte il compasso · <strong>✏️</strong> tieni premuto e gira il dito intorno all\'ago: disegna l\'arco col colore, lo spessore e il tipo di tratto che hai scelto nello strumento di disegno a mano libera (penna, matita, biro o pastello)</div>' +
                 '<div class="settings-guide-item"><strong>📁 Gestione File</strong> — <em>Crea nuova lavagna</em>, <em>Salva</em>, <em>Apri libreria lezioni</em>, <em>Cattura</em>, <em>Stampa / Esporta PDF</em></div>' +
                 '<div class="settings-guide-item">In basso a destra restano <strong>schermo intero</strong>, <strong>adatta alla vista</strong>, la <strong>campanella</strong> degli avvisi e l\'<strong>icona account</strong>. A sinistra, la barra delle <strong>pagine</strong> con lo zoom</div>'},
 

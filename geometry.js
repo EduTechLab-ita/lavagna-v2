@@ -25,6 +25,10 @@
 // Stessa misura del quadretto da 10 mm (sfondo 'grid-10' in app.js)
 const RULER_CANVAS_PX_PER_CM = 57;
 
+// Strumenti di disegno che righello/goniometro/squadre/compasso possono "guidare"
+// (condiviso fra _patchCanvasManager e il compasso)
+const PENNE = ['pen', 'pencil', 'pastel', 'marker'];
+
 class RulerTool {
     constructor() {
         this.el       = null;   // div#ruler-tool
@@ -1115,105 +1119,320 @@ class SetSquareTool {
 
 
 // =============================================================================
-// CompassTool — compasso a 2 fasi (centro + raggio)
+// CompassTool — compasso vero, su modello fornito da Fabio (screenshot 04/10/2026):
+// due bracci di lunghezza FISSA incernierati in alto, l'ago resta fisso nel punto
+// 0 e la matita si sposta — la cerniera è calcolata con la cinematica vera (due
+// cerchi di raggio L che si intersecano), non più approssimata. Colonna di 6
+// comandi: chiudi, impostazioni (angolo/dimensione/unità), occhio (misura
+// persistente), apri-chiudi, inverti, disegna (usa colore/spessore/tipo dello
+// strumento di disegno a mano libera corrente — pen/pencil/pastel/marker).
 // =============================================================================
+
+const COMPASS_DIM = 1100; // lato fisso del canvas locale (l'ago sta sempre al centro)
 
 class CompassTool {
     constructor() {
-        this.active = false;
-        this.phase  = 0;   // 0=inattivo, 1=aspetta centro, 2=aspetta raggio
-        this.cx     = 0;
-        this.cy     = 0;
-        this.radius = 0;
+        this.el      = null;
+        this.visible = false;
+
+        this.x = 280;                      // ago (perno, punto 0) — posizione schermo
+        this.y = 240;
+        this.legLen     = 150;             // L — lunghezza fissa dei bracci, px schermo ("dimensione")
+        this.pencilDist = 70;               // r — distanza corrente ago↔matita, px schermo
+        this.pencilAngle = 0;               // direzione (da N) della matita — 0 = dritto, simmetrico
+        this.flip  = false;                 // lato su cui si piega la cerniera
+        this.unit  = 'cm';                  // mm | cm | in
+        this.misuraVisibile = false;        // occhio: lettura persistente fra le due punte
+
+        this.pivotScreenX = 0;              // ricalcolati da _updateCenter()
+        this.pivotScreenY = 0;
     }
 
-    activate() {
-        this.active = true;
-        this.phase  = 1;
-        document.getElementById('draw-canvas').style.cursor = 'crosshair';
-        toast('Compasso: clicca per impostare il centro', 'info');
+    create() {
+        const w = document.createElement('div');
+        w.id = 'compass-tool';
+        w.className = 'geo-tool compass-tool';
+        w.style.display = 'none';
+        w.innerHTML = `
+            <canvas class="compass-canvas" width="${COMPASS_DIM}" height="${COMPASS_DIM}"></canvas>
+            <div class="compass-needle" title="Tieni premuto per spostare il compasso"></div>
+            <div class="compass-readout"></div>
+            <div class="compass-ctrl">
+                <div class="compass-btn compass-close" title="Chiudi">&#215;</div>
+                <div class="compass-btn compass-gear" title="Dimensione, angolo e unità di misura">&#9881;</div>
+                <div class="compass-btn compass-eye" title="Mostra/nascondi la misura fra le due punte">&#128065;&#65039;</div>
+                <div class="compass-btn compass-resize" title="Trascina per aprire o chiudere">&#8646;</div>
+                <div class="compass-btn compass-flip" title="Inverti il compasso">&#8644;</div>
+                <div class="compass-btn compass-draw" title="Tieni premuto e trascina per disegnare">&#9999;&#65039;</div>
+            </div>
+            <div class="compass-panel" style="display:none">
+                <div class="compass-panel-row">
+                    <span class="compass-panel-ic" title="Angolo di apertura">&#8735;</span>
+                    <input type="number" class="compass-angle-input" min="2" max="175" step="1" value="0">
+                    <span class="compass-panel-deg">&#176;</span>
+                </div>
+                <div class="compass-panel-row">
+                    <span class="compass-panel-ic" title="Dimensione del compasso">&#10530;</span>
+                    <input type="range" class="compass-size-slider" min="70" max="260" step="2" value="150">
+                </div>
+                <div class="compass-panel-row compass-unit-row">
+                    <span class="compass-panel-ic" title="Unità di misura">&#128207;</span>
+                    <button class="compass-unit-btn" data-unit="mm">mm</button>
+                    <button class="compass-unit-btn" data-unit="cm">cm</button>
+                    <button class="compass-unit-btn" data-unit="in">in</button>
+                </div>
+            </div>`;
+        document.body.appendChild(w);
+        this.el       = w;
+        this.cvs      = w.querySelector('.compass-canvas');
+        this.needleEl = w.querySelector('.compass-needle');
+        this.resizeEl = w.querySelector('.compass-resize');
+        this.drawEl   = w.querySelector('.compass-draw');
+        this.readoutEl = w.querySelector('.compass-readout');
+        this.panelEl  = w.querySelector('.compass-panel');
+
+        this._applyPos();
+        this._render();
+        this._setupNeedleDrag();
+        this._setupResizeDrag();
+        this._setupPanel();
+
+        w.querySelector('.compass-close').addEventListener('click', () => this.hide());
+
+        const flipBtn = w.querySelector('.compass-flip');
+        flipBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
+        flipBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.flip = !this.flip;
+            this._render();
+        });
+
+        const eyeBtn = w.querySelector('.compass-eye');
+        eyeBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
+        eyeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.misuraVisibile = !this.misuraVisibile;
+            eyeBtn.classList.toggle('active', this.misuraVisibile);
+            this._render();
+        });
+
+        const gearBtn = w.querySelector('.compass-gear');
+        gearBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
+        gearBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const apri = this.panelEl.style.display === 'none';
+            this.panelEl.style.display = apri ? 'block' : 'none';
+            gearBtn.classList.toggle('active', apri);
+            if (apri) this._syncPanel();
+        });
     }
 
-    deactivate() {
-        this.active = false;
-        this.phase  = 0;
-        document.getElementById('draw-canvas').style.cursor = 'crosshair';
-        const overlay = document.getElementById('overlay-canvas');
-        overlay.getContext('2d').clearRect(0, 0, overlay.width, overlay.height);
+    show() {
+        this.el.style.display = 'block';
+        // «Si apre sempre dritto»: angolo di apertura simmetrico, niente eredità dall'ultima volta
+        this.pencilAngle = 0;
+        this._applyPos();
+        this._render();
+        this.visible = true;
+    }
+    hide() { this.el.style.display = 'none'; this.panelEl.style.display = 'none'; this.visible = false; }
+    isVisible() { return this.el && this.el.style.display !== 'none'; }
+
+    // Posiziona il wrapper così che il centro del canvas locale (COMPASS_DIM/2) coincida
+    // con (this.x, this.y) sullo schermo — l'ago resta sempre al centro.
+    _applyPos() {
+        const half = COMPASS_DIM / 2;
+        this.el.style.left = (this.x - half) + 'px';
+        this.el.style.top  = (this.y - half) + 'px';
+        this._updateCenter();
     }
 
-    handleStart(x, y) {
-        if (this.phase === 1) {
-            this.cx    = x;
-            this.cy    = y;
-            this.phase = 2;
-            toast('Trascina per impostare il raggio', 'info');
-        }
+    _updateCenter() {
+        const r = this.needleEl.getBoundingClientRect();
+        this.pivotScreenX = r.left + r.width / 2;
+        this.pivotScreenY = r.top + r.height / 2;
     }
 
-    handleMove(x, y) {
-        if (this.phase !== 2) return;
-        this.radius = Math.hypot(x - this.cx, y - this.cy);
+    distClamped() {
+        return Math.max(10, Math.min(this.legLen * 1.9, this.pencilDist));
+    }
 
-        const overlay = document.getElementById('overlay-canvas');
-        const ctx     = overlay.getContext('2d');
-        ctx.clearRect(0, 0, overlay.width, overlay.height);
+    // Apertura reale (gradi) alla cerniera, dati raggio corrente r e bracci L —
+    // r = 2L·sin(θ/2)  →  θ = 2·asin((r/2)/L)
+    aperturaGradi() {
+        const r = this.distClamped();
+        const x = Math.max(-1, Math.min(1, (r / 2) / this.legLen));
+        return 2 * Math.asin(x) * 180 / Math.PI;
+    }
+
+    // Punto della matita e della cerniera, in coordinate LOCALI del canvas (COMPASS_DIM)
+    _punti() {
+        const half = COMPASS_DIM / 2;
+        const r = this.distClamped();
+        const P = { x: half + r * Math.cos(this.pencilAngle), y: half + r * Math.sin(this.pencilAngle) };
+        const dx = P.x - half, dy = P.y - half;
+        const halfR = r / 2;
+        const off = Math.sqrt(Math.max(0, this.legLen * this.legLen - halfR * halfR));
+        const ux = dx / r, uy = dy / r;
+        const nx = -uy, ny = ux;
+        const sign = this.flip ? 1 : -1; // flip=false → cerniera sopra (apice in alto, "dritto")
+        const H = { x: half + dx / 2 + nx * off * sign, y: half + dy / 2 + ny * off * sign };
+        return { N: { x: half, y: half }, H, P };
+    }
+
+    cmPerPx() {
+        const scale = (typeof panMgr !== 'undefined' && panMgr && panMgr.scale) ? panMgr.scale : 1;
+        return RULER_CANVAS_PX_PER_CM * scale; // px-schermo per 1 cm REALE
+    }
+
+    misuraTesto() {
+        const cm = this.distClamped() / this.cmPerPx();
+        const val = this.unit === 'mm' ? cm * 10 : this.unit === 'in' ? cm / 2.54 : cm;
+        return val.toFixed(1).replace('.', ',') + ' ' + this.unit;
+    }
+
+    _taperedLeg(ctx, x0, y0, x1, y1, w0, w1) {
+        const dx = x1 - x0, dy = y1 - y0, len = Math.hypot(dx, dy) || 1;
+        const nx = -dy / len, ny = dx / len;
+        ctx.beginPath();
+        ctx.moveTo(x0 + nx * w0 / 2, y0 + ny * w0 / 2);
+        ctx.lineTo(x1 + nx * w1 / 2, y1 + ny * w1 / 2);
+        ctx.lineTo(x1 - nx * w1 / 2, y1 - ny * w1 / 2);
+        ctx.lineTo(x0 - nx * w0 / 2, y0 - ny * w0 / 2);
+        ctx.closePath();
+        ctx.fillStyle = '#f2f2f4'; ctx.fill();
+        ctx.strokeStyle = '#d6d6da'; ctx.lineWidth = 1.2; ctx.stroke();
+    }
+
+    _render() {
+        const { N, H, P } = this._punti();
+        const ctx = this.cvs.getContext('2d');
+        ctx.clearRect(0, 0, COMPASS_DIM, COMPASS_DIM);
 
         ctx.save();
-        ctx.strokeStyle = CONFIG.currentColor;
-        ctx.globalAlpha = 0.7;
-
-        // Punto centrale
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.arc(this.cx, this.cy, 4, 0, Math.PI * 2);
-        ctx.stroke();
-
-        // Linea raggio tratteggiata
-        ctx.setLineDash([4, 4]);
-        ctx.beginPath();
-        ctx.moveTo(this.cx, this.cy);
-        ctx.lineTo(x, y);
-        ctx.stroke();
-
-        // Cerchio preview
-        ctx.setLineDash([]);
-        ctx.lineWidth = CONFIG.currentSize;
-        ctx.beginPath();
-        ctx.arc(this.cx, this.cy, this.radius, 0, Math.PI * 2);
-        ctx.stroke();
-
+        ctx.shadowColor = 'rgba(0,0,0,0.22)';
+        ctx.shadowBlur = 6;
+        ctx.shadowOffsetY = 2;
+        this._taperedLeg(ctx, H.x, H.y, N.x, N.y, 15, 3);
+        this._taperedLeg(ctx, H.x, H.y, P.x, P.y, 15, 3);
         ctx.restore();
-    }
 
-    handleEnd() {
-        if (this.phase !== 2 || this.radius < 5) {
-            // Raggio troppo piccolo: resta in fase 1 per nuovo centro
-            this.phase = 1;
-            const overlay = document.getElementById('overlay-canvas');
-            overlay.getContext('2d').clearRect(0, 0, overlay.width, overlay.height);
-            return;
+        // Punte scure, semplici (ago e matita uguali, come nel modello)
+        [N, P].forEach(pt => {
+            ctx.beginPath(); ctx.arc(pt.x, pt.y, 2.2, 0, Math.PI * 2);
+            ctx.fillStyle = '#3a3a3c'; ctx.fill();
+        });
+
+        // Cerniera: cappuccio scuro sopra, alloggiamento chiaro, vite al centro
+        ctx.beginPath();
+        ctx.roundRect ? ctx.roundRect(H.x - 7, H.y - 22, 14, 18, 7) : ctx.rect(H.x - 7, H.y - 22, 14, 18);
+        ctx.fillStyle = '#3a3a3c'; ctx.fill();
+        ctx.beginPath(); ctx.arc(H.x, H.y, 15, 0, Math.PI * 2);
+        ctx.fillStyle = '#f3f3f5'; ctx.fill();
+        ctx.strokeStyle = '#d6d6da'; ctx.lineWidth = 1.2; ctx.stroke();
+        ctx.beginPath(); ctx.arc(H.x, H.y, 6, 0, Math.PI * 2);
+        ctx.fillStyle = '#3a3a3c'; ctx.fill();
+
+        // Maniglia reale (DOM) dell'ago — riceve il dito per spostare il compasso
+        this.needleEl.style.left = N.x + 'px'; this.needleEl.style.top = N.y + 'px';
+
+        // Lettura persistente (occhio): linea + etichetta fra le due punte
+        if (this.misuraVisibile) {
+            ctx.beginPath();
+            ctx.moveTo(N.x, N.y); ctx.lineTo(P.x, P.y);
+            ctx.strokeStyle = 'rgba(59, 130, 246, 0.85)'; ctx.lineWidth = 2;
+            ctx.setLineDash([]); ctx.stroke();
+            this.readoutEl.textContent = this.misuraTesto();
+            this.readoutEl.style.display = 'block';
+            const midX = (N.x + P.x) / 2, midY = (N.y + P.y) / 2;
+            this.readoutEl.style.left = midX + 'px';
+            this.readoutEl.style.top  = (midY + 14) + 'px';
+        } else {
+            this.readoutEl.style.display = 'none';
         }
 
-        // Disegna definitivamente sul draw canvas
-        canvasMgr._saveUndo();
-        const ctx = canvasMgr.ctx;
-        ctx.save();
-        ctx.strokeStyle = CONFIG.currentColor;
-        ctx.lineWidth   = CONFIG.currentSize;
-        ctx.lineCap     = 'round';
-        ctx.beginPath();
-        ctx.arc(this.cx, this.cy, this.radius, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.restore();
+        // Comandi: colonna fissa accanto alla cerniera, sempre raggiungibile
+        const ctrl = this.el.querySelector('.compass-ctrl');
+        ctrl.style.left = (H.x + 26) + 'px';
+        ctrl.style.top  = (H.y - 4) + 'px';
+        this.panelEl.style.left = (H.x + 26) + 'px';
+        this.panelEl.style.top  = (H.y + 170) + 'px';
+    }
 
-        // Pulisce overlay
-        const overlay = document.getElementById('overlay-canvas');
-        overlay.getContext('2d').clearRect(0, 0, overlay.width, overlay.height);
+    _setupNeedleDrag() {
+        const h = this.needleEl;
+        let st = null;
+        h.addEventListener('pointerdown', (e) => {
+            e.preventDefault(); e.stopPropagation();
+            st = { sx: e.clientX, sy: e.clientY, ox: this.x, oy: this.y };
+            try { h.setPointerCapture(e.pointerId); } catch (_) {}
+        });
+        window.addEventListener('pointermove', (e) => {
+            if (!st) return;
+            this.x = st.ox + e.clientX - st.sx;
+            this.y = st.oy + e.clientY - st.sy;
+            this._applyPos();
+            this._render();
+        });
+        window.addEventListener('pointerup', () => { st = null; });
+    }
 
-        // Torna in fase 1 per un altro cerchio
-        this.phase = 1;
-        toast('Cerchio disegnato! Clicca per un nuovo centro', 'info');
+    // Pulsante ⇆ nella colonna comandi: trascina per aprire/chiudere (niente inchiostro)
+    _setupResizeDrag() {
+        const h = this.el.querySelector('.compass-resize');
+        let st = null;
+        h.addEventListener('pointerdown', (e) => {
+            e.preventDefault(); e.stopPropagation();
+            st = { sx: e.clientX, sy: e.clientY, od: this.pencilDist };
+            try { h.setPointerCapture(e.pointerId); } catch (_) {}
+        });
+        window.addEventListener('pointermove', (e) => {
+            if (!st) return;
+            const delta = (e.clientX - st.sx) + (e.clientY - st.sy);
+            this.pencilDist = Math.max(10, Math.min(this.legLen * 1.9, st.od + delta));
+            this._render();
+        });
+        window.addEventListener('pointerup', () => { st = null; });
+    }
+
+    _setupPanel() {
+        const angleInp = this.el.querySelector('.compass-angle-input');
+        angleInp.addEventListener('pointerdown', (e) => e.stopPropagation());
+        const applyAngle = () => {
+            const deg = Math.max(2, Math.min(175, parseFloat(angleInp.value) || 1));
+            const rad = deg * Math.PI / 180;
+            this.pencilDist = Math.max(10, 2 * this.legLen * Math.sin(rad / 2));
+            this._render();
+        };
+        angleInp.addEventListener('change', applyAngle);
+        angleInp.addEventListener('keydown', (e) => { if (e.key === 'Enter') { applyAngle(); angleInp.blur(); } });
+
+        const sizeSlider = this.el.querySelector('.compass-size-slider');
+        sizeSlider.addEventListener('pointerdown', (e) => e.stopPropagation());
+        sizeSlider.addEventListener('input', () => {
+            const apertura = this.aperturaGradi() * Math.PI / 180; // conservata mentre cambia la dimensione
+            this.legLen = parseFloat(sizeSlider.value);
+            this.pencilDist = Math.max(10, 2 * this.legLen * Math.sin(apertura / 2));
+            this._render();
+        });
+
+        this.el.querySelectorAll('.compass-unit-btn').forEach(btn => {
+            btn.addEventListener('pointerdown', (e) => e.stopPropagation());
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.unit = btn.dataset.unit;
+                this._syncPanel();
+                this._render();
+            });
+        });
+    }
+
+    _syncPanel() {
+        const angleInp = this.el.querySelector('.compass-angle-input');
+        if (document.activeElement !== angleInp) angleInp.value = Math.round(this.aperturaGradi());
+        const sizeSlider = this.el.querySelector('.compass-size-slider');
+        sizeSlider.value = this.legLen;
+        this.el.querySelectorAll('.compass-unit-btn').forEach(b => b.classList.toggle('active', b.dataset.unit === this.unit));
     }
 }
 
@@ -1233,12 +1452,14 @@ class GeometryManager {
 
         this.ruler.create();
         this.protractor.create();
+        this.compass.create();
         this.sq45.create();
         this.sq3060.create();
 
         // Il pulsante nel Magic Box è evidenziato solo quando lo strumento è davvero aperto,
         // anche se lo si chiude con la × sulla lavagna invece che dal pulsante.
         this._coppie = [['btn-geo-ruler', this.ruler], ['btn-geo-protractor', this.protractor],
+                        ['btn-geo-compass', this.compass],
                         ['btn-geo-sq45', this.sq45], ['btn-geo-sq3060', this.sq3060]];
         this._coppie.forEach(([, t]) => {
             const show = t.show.bind(t), hide = t.hide.bind(t);
@@ -1599,6 +1820,107 @@ class GeometryManager {
 .geo-angle-input.setsq-angle { position: static; transform: none; }
 
 /* ============================================================
+   COMPASSO — due bracci rigidi incernierati, ago fisso nel punto 0
+   (modello fornito da Fabio il 04/10/2026)
+   ============================================================ */
+
+.compass-tool { pointer-events: none; }
+.compass-canvas { display: block; pointer-events: none; }
+
+.compass-needle {
+    position: absolute;
+    width: 40px; height: 40px;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    cursor: grab;
+    touch-action: none;
+    pointer-events: auto;
+    opacity: 0;
+    transition: opacity 0.15s ease, background 0.15s ease;
+}
+.compass-needle:hover, .compass-needle:active { opacity: 1; background: rgba(59, 130, 246, 0.12); }
+.compass-needle:active { cursor: grabbing; }
+
+.compass-readout {
+    position: absolute;
+    transform: translate(-50%, 0);
+    background: rgba(37, 99, 235, 0.92);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 7px;
+    white-space: nowrap;
+    pointer-events: none;
+    display: none;
+}
+
+.compass-ctrl {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    pointer-events: none;
+}
+.compass-btn {
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+    color: rgba(50, 50, 55, 0.9);
+    font-size: 15px;
+    line-height: 1;
+    cursor: pointer;
+    user-select: none;
+    touch-action: none;
+    pointer-events: auto;
+}
+.compass-btn:hover { background: #fff; }
+.compass-eye.active, .compass-gear.active { background: rgba(59, 130, 246, 0.9); color: #fff; }
+.compass-resize, .compass-draw { width: 40px; height: 40px; font-size: 17px; cursor: grab; } /* mire più comode: si trascinano */
+.compass-resize:active, .compass-draw:active { cursor: grabbing; }
+.compass-close { background: rgba(60, 60, 64, 0.85); color: #fff; font-size: 15px; }
+.compass-close:hover { background: rgba(60, 60, 64, 1); }
+
+.compass-panel {
+    position: absolute;
+    width: 190px;
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);
+    padding: 14px;
+    pointer-events: auto;
+}
+.compass-panel-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+.compass-panel-row:last-child { margin-bottom: 0; }
+.compass-panel-ic { font-size: 16px; color: #555; width: 18px; text-align: center; flex-shrink: 0; }
+.compass-angle-input {
+    flex: 1; min-width: 0;
+    border: none; border-bottom: 2px solid #ef4444;
+    font-size: 15px; text-align: right; padding: 2px 4px;
+    outline: none;
+}
+.compass-panel-deg { color: #777; font-size: 13px; }
+.compass-size-slider { flex: 1; accent-color: #3b82f6; }
+.compass-unit-row .compass-unit-btn {
+    flex: 1;
+    border: 1px solid #ddd;
+    background: #fff;
+    border-radius: 7px;
+    padding: 5px 0;
+    font-size: 13px;
+    cursor: pointer;
+}
+.compass-unit-btn.active { background: #2563eb; color: #fff; border-color: #2563eb; }
+
+/* ============================================================
    STATO ATTIVO BOTTONI GEO
    ============================================================ */
 
@@ -1665,30 +1987,21 @@ class GeometryManager {
             });
         });
 
-        // Bottone Compasso — rimosso dal menu geo (funzionalità cerchio spostata nelle Forme)
-        // La classe CompassTool rimane nel codice ma non è più accessibile dall'UI
-        // const btnComp = document.getElementById('btn-geo-compass');
-        // if (btnComp) { ... }
-    }
-
-    _activateCompass(btn) {
-        // Deseleziona altri tool-btn
-        document.querySelectorAll('.tool-btn[data-tool]').forEach(b => b.classList.remove('active'));
-        if (btn) btn.classList.add('active');
-        CONFIG.currentTool = 'compass';
-        this.compass.activate();
-    }
-
-    _deactivateCompass(btn) {
-        if (btn) btn.classList.remove('active');
-        CONFIG.currentTool = 'pen';
-        this.compass.deactivate();
-        // Ripristina il cursore
-        const penBtn = document.querySelector('.tool-btn[data-tool="pen"]');
-        if (penBtn) {
-            penBtn.classList.add('active');
+        // Bottone Compasso
+        const btnComp = document.getElementById('btn-geo-compass');
+        if (btnComp) {
+            btnComp.addEventListener('click', () => {
+                if (this.compass.isVisible()) {
+                    this.compass.hide();
+                    btnComp.classList.remove('geo-active');
+                } else {
+                    this.compass.show();
+                    btnComp.classList.add('geo-active');
+                    const popup = document.getElementById('geo-popup');
+                    if (popup) popup.style.display = 'none';
+                }
+            });
         }
-        document.getElementById('draw-canvas').style.cursor = 'crosshair';
     }
 
     // ------------------------------------------------------------------
@@ -1716,7 +2029,6 @@ class GeometryManager {
             };
         }
 
-        const PENNE = ['pen', 'pencil', 'pastel', 'marker'];
         // Con più strumenti aperti (es. squadra appoggiata al righello) il tratto va a
         // quello il cui bordo è più vicino alla penna; con uno solo, sempre a quello.
         const scegliStrumento = (raw) => {
@@ -1746,12 +2058,6 @@ class GeometryManager {
         const origEnd   = mgr._onEnd.bind(mgr);
 
         mgr._onStart = function(e) {
-            if (CONFIG.currentTool === 'compass' && geo.compass.active) {
-                const { x, y } = mgr.getCoords(e);
-                geo.compass.handleStart(x, y);
-                CONFIG.isDrawing = true;
-                return;
-            }
             geo._geoAttivo = null;
             if (PENNE.includes(CONFIG.currentTool)) {
                 const raw = mgr.getCoords(e);
@@ -1781,12 +2087,6 @@ class GeometryManager {
         };
 
         mgr._onMove = function(e) {
-            if (CONFIG.currentTool === 'compass' && geo.compass.active) {
-                if (!CONFIG.isDrawing) return;
-                const { x, y } = mgr.getCoords(e);
-                geo.compass.handleMove(x, y);
-                return;
-            }
             const t = geo._geoAttivo;
             if (t && t.nome !== 'protractor' && CONFIG.isDrawing && PENNE.includes(CONFIG.currentTool)) {
                 const raw = mgr.getCoords(e);
@@ -1813,11 +2113,6 @@ class GeometryManager {
         };
 
         mgr._onEnd = function(e) {
-            if (CONFIG.currentTool === 'compass' && geo.compass.active) {
-                geo.compass.handleEnd();
-                CONFIG.isDrawing = false;
-                return;
-            }
             if (geo._geoAttivo && CONFIG.isDrawing && PENNE.includes(CONFIG.currentTool)) {
                 CONFIG.isDrawing = false;
                 geo._geoAttivo = null;
@@ -1827,6 +2122,86 @@ class GeometryManager {
             geo._geoAttivo = null;
             origEnd(e);
         };
+
+        this._setupCompassDrawing();
+    }
+
+    // ------------------------------------------------------------------
+    // Disegno del compasso: la maniglia della matita ha un gesto TUTTO SUO
+    // (non passa da _onStart/_onMove/_onEnd del canvas, esattamente come il
+    // drag del righello) — primi gradi di movimento = "apro i bracci" (raggio
+    // live, niente inchiostro); superata la soglia, il raggio si blocca e si
+    // disegna l'arco vero con geo._drawProtractorArc, riusando identica la
+    // pipeline di annulla/selezione/salvataggio del righello e del goniometro.
+    // ------------------------------------------------------------------
+
+    // Pulsante ✏️ nella colonna comandi del compasso: tenerlo premuto e girare il dito
+    // intorno al perno disegna l'arco. Il raggio è quello GIÀ impostato (col pulsante ⇆
+    // o con il pannello ⚙) — qui si segue solo l'angolo, come fa il goniometro con lo
+    // snapToProtractor: stessa pipeline (_drawProtractorArc + _finalizeGeoStroke) per
+    // ereditare gratis annulla, selezione e gomma.
+    _setupCompassDrawing() {
+        const geo = this;
+        const c   = this.compass;
+        const handle = c.el.querySelector('.compass-draw');
+        let st = null;
+
+        const puntoCanvas = (clientX, clientY) => {
+            if (typeof panMgr !== 'undefined' && panMgr) return panMgr.getCanvasCoords(clientX, clientY);
+            const area = document.getElementById('canvas-area');
+            const r = area ? area.getBoundingClientRect() : { left: 0, top: 0 };
+            return { x: clientX - r.left, y: clientY - r.top };
+        };
+
+        handle.addEventListener('pointerdown', (e) => {
+            e.preventDefault(); e.stopPropagation();
+            c._updateCenter();
+            const pivotCanvas = puntoCanvas(c.pivotScreenX, c.pivotScreenY);
+            const scale = (typeof panMgr !== 'undefined' && panMgr && panMgr.scale) ? panMgr.scale : 1;
+            const raggioCanvas = c.distClamped() / scale; // raggio GIA' impostato, bloccato per tutto il gesto
+            const ptCanvas = puntoCanvas(e.clientX, e.clientY);
+            const startAngle = Math.atan2(ptCanvas.y - pivotCanvas.y, ptCanvas.x - pivotCanvas.x);
+            st = { pivotCanvas, raggioCanvas, lastAngle: startAngle, inking: false };
+
+            if (PENNE.includes(CONFIG.currentTool)) {
+                st.inking = true;
+                canvasMgr._saveUndo();
+                const p0 = { x: pivotCanvas.x + raggioCanvas * Math.cos(startAngle), y: pivotCanvas.y + raggioCanvas * Math.sin(startAngle) };
+                canvasMgr._currentPoints = [p0];
+                canvasMgr._drawSegment(p0.x, p0.y, p0.x, p0.y, p0.x, p0.y);
+            } else if (typeof toast === 'function') {
+                toast('Scegli prima penna, matita, biro o pastello per disegnare col compasso', 'info');
+            }
+            try { handle.setPointerCapture(e.pointerId); } catch (_) {}
+        });
+
+        const processaMossa = (e) => {
+            const ptCanvas = puntoCanvas(e.clientX, e.clientY);
+            const rawAngle = Math.atan2(ptCanvas.y - st.pivotCanvas.y, ptCanvas.x - st.pivotCanvas.x);
+            if (st.inking) {
+                const punti = geo._drawProtractorArc(canvasMgr, st.lastAngle, rawAngle, st.pivotCanvas.x, st.pivotCanvas.y, st.raggioCanvas);
+                canvasMgr._currentPoints.push(...punti);
+            }
+            st.lastAngle = rawAngle;
+            c.pencilAngle = rawAngle; // la matita disegnata segue l'angolo corrente, raggio invariato
+        };
+
+        window.addEventListener('pointermove', (e) => {
+            if (!st) return;
+            e.preventDefault();
+            // getCoalescedEvents: su LIM/stilo un gesto veloce genera più campioni fra un
+            // pointermove e l'altro — elaborarli tutti tiene i punti del tratto fini quanto
+            // il disegno vero (stesso motivo per cui lo fa già CanvasManager._setupEvents).
+            const evts = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
+            for (const ev of evts) processaMossa(ev);
+            c._render();
+        });
+
+        window.addEventListener('pointerup', () => {
+            if (!st) return;
+            if (st.inking) geo._finalizeGeoStroke(canvasMgr);
+            st = null;
+        });
     }
 
     // Registra il tratto disegnato con righello/goniometro come vettore in _pageStrokes,
@@ -1855,6 +2230,10 @@ class GeometryManager {
     // suddividendolo in piccoli segmenti per ottenere una curva perfetta.
     // ------------------------------------------------------------------
 
+    // Ritorna l'elenco dei punti campionati (serve al compasso per tenere il tracking
+    // vettoriale fine quanto il disegno vero, invece di un punto solo per pointermove —
+    // altrimenti gomma-tratto/selezione, che lavorano sui punti e non sui pixel, non
+    // riconoscono bene un arco ampio disegnato in pochi eventi).
     _drawProtractorArc(mgr, fromAngle, toAngle, cx, cy, r) {
         // Verso più breve tra i due angoli, normalizzato in (-PI, PI]
         let delta = toAngle - fromAngle;
@@ -1866,6 +2245,7 @@ class GeometryManager {
 
         let prevX = cx + r * Math.cos(fromAngle);
         let prevY = cy + r * Math.sin(fromAngle);
+        const punti = [];
 
         for (let i = 1; i <= steps; i++) {
             const a = fromAngle + delta * (i / steps);
@@ -1874,7 +2254,9 @@ class GeometryManager {
             mgr._drawSegment(prevX, prevY, prevX, prevY, x, y);
             prevX = x;
             prevY = y;
+            punti.push({ x, y });
         }
+        return punti;
     }
 
     // ------------------------------------------------------------------
@@ -1898,8 +2280,11 @@ class GeometryManager {
     }
 
     showCompass() {
-        const btn = document.getElementById('btn-geo-compass');
-        this._activateCompass(btn);
+        this.compass.show();
+    }
+
+    hideCompass() {
+        this.compass.hide();
     }
 }
 
