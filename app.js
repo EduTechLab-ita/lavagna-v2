@@ -2647,10 +2647,16 @@ class ToolbarManager {
     }
 
     _setupShapePanel() {
-        document.querySelectorAll('.shape-opt').forEach(btn => {
+        // Scoperto 05/10/2026 (Fabio): selezionare un selettore ANCHE i 5 pulsanti geo del
+        // Magic Box (righello/goniometro/compasso/squadre), che riusano la classe .shape-opt
+        // solo per lo stile — cliccandoli restava "active" per sempre (nulla lo toglie quando
+        // lo strumento si chiude, solo un altro click su .shape-opt lo sposta altrove), e
+        // sembrava che il compasso restasse evidenziato anche da chiuso. Va ristretto al
+        // pannello Forme, l'unico dove questa classe sceglie davvero un tipo di forma.
+        document.querySelectorAll('#shape-popup .shape-opt').forEach(btn => {
             btn.addEventListener('click', () => {
                 CONFIG.currentShape = btn.dataset.shape;
-                document.querySelectorAll('.shape-opt').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('#shape-popup .shape-opt').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 this._closeAllPopups();
             });
