@@ -962,6 +962,31 @@ button {
 /* --------------------------------------------------------------------------
    Popup selezione forme (#shape-popup)
    -------------------------------------------------------------------------- */
+.shape-tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.shape-tab-btn {
+    flex: 1;
+    padding: 8px 0;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+}
+
+.shape-tab-btn.active {
+    border-color: var(--accent);
+    background: rgba(59, 130, 246, 0.1);
+    color: var(--accent);
+}
+
 .shape-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);

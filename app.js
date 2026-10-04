@@ -921,6 +921,221 @@ class BrushEngine {
                 ctx.stroke();
                 break;
             }
+
+            // Richiesta di una professoressa, 03/10/2026 — Forme piane aggiuntive
+
+            case 'square': {
+                const side = Math.min(Math.abs(x1 - x0), Math.abs(y1 - y0));
+                const sgnX = x1 >= x0 ? 1 : -1;
+                const sgnY = y1 >= y0 ? 1 : -1;
+                const qx1 = x0 + sgnX * side;
+                const qy1 = y0 + sgnY * side;
+                if (fill) { ctx.globalAlpha = fillAlpha; ctx.fillRect(x0, y0, qx1 - x0, qy1 - y0); ctx.globalAlpha = 1; }
+                ctx.strokeRect(x0, y0, qx1 - x0, qy1 - y0);
+                break;
+            }
+
+            case 'parallelogram': {
+                const px0 = Math.min(x0, x1), px1 = Math.max(x0, x1);
+                const py0 = Math.min(y0, y1), py1 = Math.max(y0, y1);
+                const shift = (px1 - px0) * 0.28;
+                ctx.moveTo(px0 + shift, py0);
+                ctx.lineTo(px1, py0);
+                ctx.lineTo(px1 - shift, py1);
+                ctx.lineTo(px0, py1);
+                ctx.closePath();
+                if (fill) { ctx.globalAlpha = fillAlpha; ctx.fill(); ctx.globalAlpha = 1; }
+                ctx.stroke();
+                break;
+            }
+
+            case 'trapezoid-right': {
+                // Un solo lato a 90° (sinistra verticale), l'altro obliquo
+                const tx0 = Math.min(x0, x1), tx1 = Math.max(x0, x1);
+                const ty0 = Math.min(y0, y1), ty1 = Math.max(y0, y1);
+                const tw = tx1 - tx0;
+                ctx.moveTo(tx0, ty0);
+                ctx.lineTo(tx0 + tw * 0.55, ty0);
+                ctx.lineTo(tx1, ty1);
+                ctx.lineTo(tx0, ty1);
+                ctx.closePath();
+                if (fill) { ctx.globalAlpha = fillAlpha; ctx.fill(); ctx.globalAlpha = 1; }
+                ctx.stroke();
+                break;
+            }
+
+            case 'trapezoid-isosceles': {
+                // Base minore centrata, due lati obliqui simmetrici
+                const tix0 = Math.min(x0, x1), tix1 = Math.max(x0, x1);
+                const tiy0 = Math.min(y0, y1), tiy1 = Math.max(y0, y1);
+                const inset = (tix1 - tix0) * 0.2;
+                ctx.moveTo(tix0 + inset, tiy0);
+                ctx.lineTo(tix1 - inset, tiy0);
+                ctx.lineTo(tix1, tiy1);
+                ctx.lineTo(tix0, tiy1);
+                ctx.closePath();
+                if (fill) { ctx.globalAlpha = fillAlpha; ctx.fill(); ctx.globalAlpha = 1; }
+                ctx.stroke();
+                break;
+            }
+
+            case 'trapezoid-scalene': {
+                // Base minore non centrata, lati obliqui diversi fra loro — niente angolo retto
+                const tsx0 = Math.min(x0, x1), tsx1 = Math.max(x0, x1);
+                const tsy0 = Math.min(y0, y1), tsy1 = Math.max(y0, y1);
+                const tsw = tsx1 - tsx0;
+                ctx.moveTo(tsx0 + tsw * 0.12, tsy0);
+                ctx.lineTo(tsx1 - tsw * 0.38, tsy0);
+                ctx.lineTo(tsx1, tsy1);
+                ctx.lineTo(tsx0, tsy1);
+                ctx.closePath();
+                if (fill) { ctx.globalAlpha = fillAlpha; ctx.fill(); ctx.globalAlpha = 1; }
+                ctx.stroke();
+                break;
+            }
+
+            // Richiesta di una professoressa, 03/10/2026 — Solidi (linguetta «Solide»).
+            // Stessa logica delle forme piane: un riquadro trascinato, spigoli nascosti
+            // tratteggiati (dal vertice/arco che resta dietro al solido), facce visibili
+            // riempite solo se «Riempimento» è attivo.
+
+            case 'cube':
+            case 'cuboid': {
+                const bx0 = Math.min(x0, x1), bx1 = Math.max(x0, x1);
+                const by0 = Math.min(y0, y1), by1 = Math.max(y0, y1);
+                const bw = bx1 - bx0, bh = by1 - by0;
+                const depth = Math.min(bw, bh) * 0.32;
+                const fw = (type === 'cube' ? Math.min(bw, bh) : bw) - depth * 0.82;
+                const fh = type === 'cube' ? fw : bh - depth * 0.55;
+                const A = { x: bx0, y: by1 };              // fronte-basso-sx
+                const B = { x: bx0 + fw, y: by1 };          // fronte-basso-dx
+                const C = { x: bx0 + fw, y: by1 - fh };     // fronte-alto-dx
+                const D = { x: bx0, y: by1 - fh };          // fronte-alto-sx
+                const vx = depth * 0.82, vy = -depth * 0.55; // verso la profondità (alto-dx)
+                const Dp = { x: D.x + vx, y: D.y + vy };
+                const Cp = { x: C.x + vx, y: C.y + vy };
+                const Bp = { x: B.x + vx, y: B.y + vy };
+                const Ap = { x: A.x + vx, y: A.y + vy };    // unico vertice nascosto
+                if (fill) {
+                    ctx.globalAlpha = fillAlpha;
+                    ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.lineTo(B.x, B.y); ctx.lineTo(C.x, C.y); ctx.lineTo(D.x, D.y); ctx.closePath(); ctx.fill();
+                    ctx.beginPath(); ctx.moveTo(D.x, D.y); ctx.lineTo(C.x, C.y); ctx.lineTo(Cp.x, Cp.y); ctx.lineTo(Dp.x, Dp.y); ctx.closePath(); ctx.fill();
+                    ctx.beginPath(); ctx.moveTo(B.x, B.y); ctx.lineTo(C.x, C.y); ctx.lineTo(Cp.x, Cp.y); ctx.lineTo(Bp.x, Bp.y); ctx.closePath(); ctx.fill();
+                    ctx.globalAlpha = 1;
+                }
+                ctx.beginPath();
+                ctx.moveTo(A.x, A.y); ctx.lineTo(B.x, B.y); ctx.lineTo(C.x, C.y); ctx.lineTo(D.x, D.y); ctx.closePath();
+                ctx.moveTo(D.x, D.y); ctx.lineTo(Dp.x, Dp.y); ctx.lineTo(Cp.x, Cp.y); ctx.lineTo(C.x, C.y);
+                ctx.moveTo(B.x, B.y); ctx.lineTo(Bp.x, Bp.y); ctx.lineTo(Cp.x, Cp.y);
+                ctx.stroke();
+                ctx.setLineDash([4, 4]);
+                ctx.beginPath();
+                ctx.moveTo(A.x, A.y); ctx.lineTo(Ap.x, Ap.y); ctx.lineTo(Bp.x, Bp.y);
+                ctx.moveTo(Ap.x, Ap.y); ctx.lineTo(Dp.x, Dp.y);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                break;
+            }
+
+            case 'pyramid-square': {
+                const pyx0 = Math.min(x0, x1), pyx1 = Math.max(x0, x1);
+                const pyy0 = Math.min(y0, y1), pyy1 = Math.max(y0, y1);
+                const pcx = (pyx0 + pyx1) / 2;
+                const hw = (pyx1 - pyx0) / 2;
+                const hd = hw * 0.42;                   // profondità della base, schiacciata in prospettiva
+                const baseY = pyy1 - hd * 0.6;
+                const F  = { x: pcx,      y: baseY + hd }; // base, vertice davanti
+                const L  = { x: pcx - hw, y: baseY };      // base, sinistra
+                const Rg = { x: pcx + hw, y: baseY };      // base, destra
+                const Bk = { x: pcx,      y: baseY - hd }; // base, vertice dietro (nascosto)
+                const P  = { x: pcx,      y: pyy0 };       // apice
+                if (fill) {
+                    ctx.globalAlpha = fillAlpha;
+                    ctx.beginPath(); ctx.moveTo(P.x, P.y); ctx.lineTo(L.x, L.y); ctx.lineTo(F.x, F.y); ctx.closePath(); ctx.fill();
+                    ctx.beginPath(); ctx.moveTo(P.x, P.y); ctx.lineTo(F.x, F.y); ctx.lineTo(Rg.x, Rg.y); ctx.closePath(); ctx.fill();
+                    ctx.globalAlpha = 1;
+                }
+                ctx.beginPath();
+                ctx.moveTo(P.x, P.y); ctx.lineTo(L.x, L.y); ctx.lineTo(F.x, F.y); ctx.lineTo(Rg.x, Rg.y); ctx.lineTo(P.x, P.y);
+                ctx.stroke();
+                ctx.setLineDash([4, 4]);
+                ctx.beginPath();
+                ctx.moveTo(P.x, P.y); ctx.lineTo(Bk.x, Bk.y);
+                ctx.moveTo(L.x, L.y); ctx.lineTo(Bk.x, Bk.y); ctx.lineTo(Rg.x, Rg.y);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                break;
+            }
+
+            case 'cone': {
+                const cnx0 = Math.min(x0, x1), cnx1 = Math.max(x0, x1);
+                const cny0 = Math.min(y0, y1), cny1 = Math.max(y0, y1);
+                const ccx = (cnx0 + cnx1) / 2;
+                const rx = (cnx1 - cnx0) / 2;
+                const ry = rx * 0.32;
+                const baseY = cny1 - ry;
+                const apex = { x: ccx, y: cny0 };
+                const left  = { x: ccx - rx, y: baseY };
+                const right = { x: ccx + rx, y: baseY };
+                if (fill) {
+                    ctx.globalAlpha = fillAlpha;
+                    ctx.beginPath();
+                    ctx.moveTo(apex.x, apex.y);
+                    ctx.lineTo(left.x, left.y);
+                    ctx.ellipse(ccx, baseY, rx, ry, 0, Math.PI, 0, true); // arco davanti (passa dal basso)
+                    ctx.lineTo(apex.x, apex.y);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.globalAlpha = 1;
+                }
+                ctx.beginPath();
+                ctx.moveTo(apex.x, apex.y); ctx.lineTo(left.x, left.y);
+                ctx.moveTo(apex.x, apex.y); ctx.lineTo(right.x, right.y);
+                ctx.moveTo(left.x, left.y);
+                ctx.ellipse(ccx, baseY, rx, ry, 0, Math.PI, 0, true);
+                ctx.stroke();
+                ctx.setLineDash([4, 4]);
+                ctx.beginPath();
+                ctx.ellipse(ccx, baseY, rx, ry, 0, Math.PI, 0, false); // arco dietro (passa dall'alto)
+                ctx.stroke();
+                ctx.setLineDash([]);
+                break;
+            }
+
+            case 'cylinder': {
+                const cyx0 = Math.min(x0, x1), cyx1 = Math.max(x0, x1);
+                const cyy0 = Math.min(y0, y1), cyy1 = Math.max(y0, y1);
+                const ccx2 = (cyx0 + cyx1) / 2;
+                const rx2 = (cyx1 - cyx0) / 2;
+                const ry2 = rx2 * 0.28;
+                const topY = cyy0 + ry2;
+                const botY = cyy1 - ry2;
+                if (fill) {
+                    ctx.globalAlpha = fillAlpha;
+                    ctx.beginPath();
+                    ctx.moveTo(ccx2 - rx2, topY);
+                    ctx.lineTo(ccx2 - rx2, botY);
+                    ctx.ellipse(ccx2, botY, rx2, ry2, 0, Math.PI, 0, true);
+                    ctx.lineTo(ccx2 + rx2, topY);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.beginPath(); ctx.ellipse(ccx2, topY, rx2, ry2, 0, 0, Math.PI * 2); ctx.fill();
+                    ctx.globalAlpha = 1;
+                }
+                ctx.beginPath();
+                ctx.ellipse(ccx2, topY, rx2, ry2, 0, 0, Math.PI * 2); // coperchio, tutto visibile
+                ctx.moveTo(ccx2 - rx2, topY); ctx.lineTo(ccx2 - rx2, botY);
+                ctx.moveTo(ccx2 + rx2, topY); ctx.lineTo(ccx2 + rx2, botY);
+                ctx.moveTo(ccx2 - rx2, botY);
+                ctx.ellipse(ccx2, botY, rx2, ry2, 0, Math.PI, 0, true); // base, arco davanti
+                ctx.stroke();
+                ctx.setLineDash([4, 4]);
+                ctx.beginPath();
+                ctx.ellipse(ccx2, botY, rx2, ry2, 0, Math.PI, 0, false); // base, arco dietro nascosto
+                ctx.stroke();
+                ctx.setLineDash([]);
+                break;
+            }
         }
 
         ctx.restore();
@@ -2418,6 +2633,18 @@ class ToolbarManager {
 
         document.getElementById('shape-fill-check').addEventListener('change', (e) => {
             CONFIG.shapeFill = e.target.checked;
+        });
+
+        // Linguette «Piane» / «Solide» (richiesta di una professoressa, 03/10/2026)
+        document.querySelectorAll('.shape-tab-btn').forEach(tabBtn => {
+            tabBtn.addEventListener('click', () => {
+                const tab = tabBtn.dataset.shapetab;
+                document.querySelectorAll('.shape-tab-btn').forEach(b => b.classList.remove('active'));
+                tabBtn.classList.add('active');
+                document.querySelectorAll('.shape-tab-panel').forEach(p => {
+                    p.style.display = p.dataset.shapetabpanel === tab ? '' : 'none';
+                });
+            });
         });
     }
 

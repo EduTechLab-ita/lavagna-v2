@@ -82,7 +82,7 @@
                 <img src="./icon-192x192.png" alt="EduBoard" class="logo-icon">
                 <div class="logo-info">
                     <span class="logo-text"><span class="logo-edu">Edu</span><span class="logo-board">Board</span></span>
-                    <span class="logo-sub">v2-115 &nbsp;&nbsp; © EduTechLab di Rizzotto Fabio</span>
+                    <span class="logo-sub">v2-116 &nbsp;&nbsp; © EduTechLab di Rizzotto Fabio</span>
                 </div>
             </div>
             <div class="project-badge" id="project-name">Nuova Lavagna</div>
@@ -598,6 +598,11 @@
     <div id="shape-popup" class="popup-panel" style="display:none">
         <button class="popup-close-btn" title="Chiudi">&times;</button>
         <div class="popup-title">Forme</div>
+        <div class="shape-tabs">
+            <button class="shape-tab-btn active" data-shapetab="piane">Piane</button>
+            <button class="shape-tab-btn" data-shapetab="solide">Solide</button>
+        </div>
+        <div class="shape-tab-panel" data-shapetabpanel="piane">
         <div class="shape-grid">
             <button class="shape-opt active" data-shape="line" title="Linea retta">
                 <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="6" y1="34" x2="34" y2="6"/></svg>
@@ -663,6 +668,68 @@
                 <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M30,4 C20,4 22,20 14,20 C22,20 20,36 30,36"/></svg>
                 <span>Parentesi</span>
             </button>
+            <!-- Richiesta di una professoressa, 03/10/2026 -->
+            <button class="shape-opt" data-shape="square" title="Quadrato">
+                <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="7" y="7" width="26" height="26" rx="2"/></svg>
+                <span>Quadrato</span>
+            </button>
+            <button class="shape-opt" data-shape="parallelogram" title="Parallelogramma">
+                <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="14,8 36,8 26,32 4,32"/></svg>
+                <span>Parallelogr.</span>
+            </button>
+            <button class="shape-opt" data-shape="trapezoid-right" title="Trapezio rettangolo">
+                <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="6,8 26,8 34,32 6,32"/></svg>
+                <span>Trap. rett.</span>
+            </button>
+            <button class="shape-opt" data-shape="trapezoid-isosceles" title="Trapezio isoscele">
+                <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13,8 27,8 34,32 6,32"/></svg>
+                <span>Trap. isosc.</span>
+            </button>
+            <button class="shape-opt" data-shape="trapezoid-scalene" title="Trapezio scaleno">
+                <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="10,8 22,8 34,32 6,32"/></svg>
+                <span>Trap. scal.</span>
+            </button>
+        </div>
+        </div>
+        <div class="shape-tab-panel" data-shapetabpanel="solide" style="display:none">
+        <div class="shape-grid">
+            <button class="shape-opt" data-shape="cube" title="Cubo">
+                <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.2">
+                    <path d="M8,32 L22,32 L22,18 L8,18 Z M8,18 L16,12 L30,12 L22,18 M22,32 L30,26 L30,12"/>
+                    <path d="M8,32 L16,26 L30,26 M16,26 L16,12" stroke-dasharray="3 3"/>
+                </svg>
+                <span>Cubo</span>
+            </button>
+            <button class="shape-opt" data-shape="cuboid" title="Parallelepipedo">
+                <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.2">
+                    <path d="M4,32 L26,32 L26,18 L4,18 Z M4,18 L12,12 L34,12 L26,18 M26,32 L34,26 L34,12"/>
+                    <path d="M4,32 L12,26 L34,26 M12,26 L12,12" stroke-dasharray="3 3"/>
+                </svg>
+                <span>Parallelep.</span>
+            </button>
+            <button class="shape-opt" data-shape="pyramid-square" title="Piramide a base quadrata">
+                <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.2">
+                    <path d="M20,6 L6,24 L20,30 L34,24 L20,6"/>
+                    <path d="M20,6 L20,18 M6,24 L20,18 L34,24" stroke-dasharray="3 3"/>
+                </svg>
+                <span>Piramide</span>
+            </button>
+            <button class="shape-opt" data-shape="cone" title="Cono">
+                <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.2">
+                    <path d="M20,6 L8,30 M20,6 L32,30 M8,30 Q20,36 32,30"/>
+                    <path d="M8,30 Q20,24 32,30" stroke-dasharray="3 3"/>
+                </svg>
+                <span>Cono</span>
+            </button>
+            <button class="shape-opt" data-shape="cylinder" title="Cilindro">
+                <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.2">
+                    <ellipse cx="20" cy="10" rx="12" ry="4"/>
+                    <path d="M8,10 L8,30 M32,10 L32,30 M8,30 Q20,36 32,30"/>
+                    <path d="M8,30 Q20,24 32,30" stroke-dasharray="3 3"/>
+                </svg>
+                <span>Cilindro</span>
+            </button>
+        </div>
         </div>
         <div class="shape-fill-row">
             <label class="toggle-label">
@@ -1154,7 +1221,7 @@
                     <img src="./icon-192x192.png" alt="EduBoard" width="64" height="64" style="border-radius:14px">
                     <div>
                         <div class="settings-info-appname"><span style="color:#3b82f6">Edu</span>Board</div>
-                        <div class="settings-info-version" id="info-version-text">v2-115</div>
+                        <div class="settings-info-version" id="info-version-text">v2-116</div>
                     </div>
                 </div>
                 <div class="settings-section">
@@ -1200,6 +1267,10 @@
             </div>
             <div class="settings-panel" id="tab-novita">
                 <div class="settings-section">
+                    <div class="settings-changelog-item">
+                        <div class="settings-changelog-ver">v2-116 — Ottobre 2026</div>
+                        <div class="settings-changelog-desc">🔺 <strong>Nuove forme, richieste da una professoressa.</strong> Nel pannello Forme ci sono ora due linguette: <strong>«Piane»</strong> (le forme di prima più <strong>quadrato, parallelogramma</strong> e i tre <strong>trapezi</strong> — rettangolo, isoscele e scaleno) e <strong>«Solide»</strong>, tutta nuova: <strong>cubo, parallelepipedo, piramide a base quadrata, cono e cilindro</strong>. Si disegnano trascinando come tutte le altre forme; gli spigoli che restano nascosti dietro il solido sono <strong>tratteggiati</strong>, per capire subito cosa si vede e cosa no</div>
+                    </div>
                     <div class="settings-changelog-item">
                         <div class="settings-changelog-ver">v2-115 — Ottobre 2026</div>
                         <div class="settings-changelog-desc">⌨️ <strong>Le scritte fatte con lo strumento Testo si possono correggere</strong>: con lo strumento Testo tocca la scritta e si riapre con la tastiera, con le sue parole, il suo colore e la sua grandezza; oppure selezionala con Seleziona e dai un <strong>tocco breve</strong>. Premendo e <strong>trascinando</strong>, invece, la scritta si sposta · 🖼️ Dal telefono si possono mandare anche <strong>foto dalla galleria</strong>, una o più insieme, oltre a quelle scattate al momento · 📁 Salvando una lezione nuova, il messaggio dice <strong>in quale cartella</strong> è finita · ✂️ <strong>Ritaglia le immagini</strong> con le maniglie: selezionala, tocca <strong>Ritaglia</strong>, trascina angoli e lati, poi <strong>✓ Ritaglia</strong>. L'originale non si perde: <strong>Tutta l'immagine</strong> la riporta com'era · 🔍 <strong>Immagini nitide ingrandendo</strong>: prima, zoomando sulla LIM, le foto si sgranavano anche se l'originale era nitido; ora restano definite. Le pagine dei <strong>PDF</strong> entrano a risoluzione più alta · 🪢 Il <strong>lazo</strong> di Seleziona può partire <strong>sopra un'immagine</strong>: cerchiando le scritte fatte su una foto prendi solo le scritte, non più tutta la foto · 💧 <strong>Contagocce</strong> nella tavolozza completa: prende il colore da qualunque punto dello schermo, anche da una foto · 📄 Una <strong>lezione nuova</strong> si salva <strong>subito sotto quella su cui stavi lavorando</strong>, non più in fondo alla cartella · 🎨 I pulsanti dell'<strong>ingranaggio</strong> (immagini, PDF, scritte selezionate) sono <strong>colorati e hanno il nome scritto sotto</strong>, per capirli al volo · 📰 La <strong>finestra delle novità</strong> dopo un aggiornamento è più larga e <strong>non si chiude più da sola</strong>: si legge con calma e si chiude con la X, «Ho capito» o un tocco fuori</div>
@@ -1439,7 +1510,8 @@
                 '<div class="settings-guide-item">Colore e dimensione del tratto <strong>predefiniti</strong> per ogni nuova lavagna si scelgono in Impostazioni — vedi capitolo <em>Personalizzare l\'app</em></div>'},
 
             {id:"forme", ic:"🔺", t:"Forme e geometria", c:
-                '<div class="settings-guide-item"><strong>Forme</strong> — linea, rettangolo, cerchio/ellisse, cerchio perfetto, triangolo, freccia (anche doppia o solo a destra), stella, rombo, pentagono, esagono, nuvoletta, cuore, parentesi graffa</div>' +
+                '<div class="settings-guide-item"><strong>Forme → Piane</strong> — linea, rettangolo, cerchio/ellisse, cerchio perfetto, triangolo, freccia (anche doppia o solo a destra), stella, rombo, pentagono, esagono, nuvoletta, cuore, parentesi graffa, quadrato, parallelogramma, trapezio rettangolo/isoscele/scaleno</div>' +
+                '<div class="settings-guide-item"><strong>Forme → Solide</strong> — cubo, parallelepipedo, piramide a base quadrata, cono, cilindro (gli spigoli tratteggiati sono quelli nascosti dietro il solido)</div>' +
                 '<div class="settings-guide-item"><strong>Righello</strong> — trascinabile e ruotabile: il tratto scivola lungo il bordo per linee perfettamente dritte. La scala è quella dei quadretti veri (1 cm = un quadretto da 1 cm) e segue lo zoom; ingrandendo compaiono anche i millimetri</div>' +
                 '<div class="settings-guide-item"><strong>Goniometro</strong> — trascinabile, per misurare e disegnare angoli: appoggia la penna sul bordo curvo e il tratto segue l\'arco</div>' +
                 '<div class="settings-guide-item"><strong>Squadre 45° e 30°/60°</strong> — la penna scorre dritta lungo il lato più vicino, anche quello lungo; sui due lati corti c\'è la scala in centimetri, uguale ai quadretti. Al centro della squadra ci sono i comandi: sposta, ruota, ingrandisci, gradi, capovolgi (angolo retto a destra o a sinistra) e chiudi. Si possono usare insieme al righello, per esempio per tracciare le parallele: il tratto va allo strumento il cui bordo è più vicino alla penna</div>' +
