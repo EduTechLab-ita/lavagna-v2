@@ -2097,6 +2097,18 @@ class LibraryManager {
             } catch (_) {}
             toast(nomeCartella ? `Lezione salvata nella cartella «${nomeCartella}»` : 'Lezione salvata su Drive!', 'success');
             this._forceRefresh();
+            // Unica eccezione al cooldown "pannello chiuso" del 20/09 (voluta da Fabio,
+            // 04/10/2026): una lezione NUOVA deve comparire alla prossima apertura della
+            // libreria, anche se il pannello era chiuso al momento del salvataggio.
+            // _forceRefresh() da sola non basta: a pannello chiuso non chiama
+            // _backgroundRefresh, e il successivo toggle()→refresh() esce subito se
+            // l'albero è già caricato (riga ~1327) senza mai ricontrollare il cooldown.
+            // Se il pannello è già aperto ci pensa _forceRefresh() qui sopra: la richiamiamo
+            // solo quando è chiuso, per non far partire due fetch Drive in parallelo.
+            if (!this.panel.classList.contains('open')) {
+                this._lastBgRefresh = 0;
+                this._backgroundRefresh('eduboard-lib-cache', this.treeEl?.scrollTop || 0);
+            }
         } catch (err) {
             mostraErroreDrive('salvare la lezione', err);
         }

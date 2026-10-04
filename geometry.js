@@ -162,6 +162,13 @@ class RulerTool {
 
     show() {
         this.el.style.display = 'block';
+        // Si apre al centro della pagina visibile, non in un punto fisso che può
+        // finire fuori schermo su finestre piccole (Fabio, 04/10/2026 — stessa
+        // richiesta già fatta per il compasso).
+        const headerH = document.body.classList.contains('fullscreen-mode') ? 0 : 56;
+        const w = this.body.offsetWidth || 600, h = this.body.offsetHeight || 68;
+        this.x = (window.innerWidth - w) / 2;
+        this.y = headerH + (window.innerHeight - headerH - h) / 2;
         this._applyTransform();
         this._renderMarks();   // lo zoom può essere cambiato mentre era nascosto
         this.visible = true;
@@ -1128,7 +1135,11 @@ class SetSquareTool {
 // strumento di disegno a mano libera corrente — pen/pencil/pastel/marker).
 // =============================================================================
 
-const COMPASS_DIM = 1100; // lato fisso del canvas locale (l'ago sta sempre al centro)
+const COMPASS_DIM = 2200; // lato fisso del canvas locale (l'ago sta sempre al centro) — margine per bracci fino a 400px
+const COMPASS_LEGLEN_MIN = 100;
+const COMPASS_LEGLEN_MAX = 400;
+const COMPASS_LEGLEN_DEFAULT = (COMPASS_LEGLEN_MIN + COMPASS_LEGLEN_MAX) / 2; // "a riposo": metà scala, su richiesta di Fabio
+const COMPASS_ANGOLO_DEFAULT = 10 * Math.PI / 180; // a riposo quasi chiuso, non spalancato (Fabio, 04/10/2026)
 
 class CompassTool {
     constructor() {
@@ -1137,10 +1148,9 @@ class CompassTool {
 
         this.x = 280;                      // ago (perno, punto 0) — posizione schermo
         this.y = 240;
-        this.legLen     = 150;             // L — lunghezza fissa dei bracci, px schermo ("dimensione")
-        this.pencilDist = 70;               // r — distanza corrente ago↔matita, px schermo
+        this.legLen      = COMPASS_LEGLEN_DEFAULT;  // L — lunghezza fissa dei bracci, px schermo ("dimensione")
+        this.pencilDist  = 2 * COMPASS_LEGLEN_DEFAULT * Math.sin(COMPASS_ANGOLO_DEFAULT / 2); // r — distanza ago↔matita
         this.pencilAngle = 0;               // direzione (da N) della matita — 0 = dritto, simmetrico
-        this.flip  = false;                 // lato su cui si piega la cerniera
         this.unit  = 'cm';                  // mm | cm | in
         this.misuraVisibile = false;        // occhio: lettura persistente fra le due punte
 
@@ -1156,12 +1166,15 @@ class CompassTool {
         w.innerHTML = `
             <canvas class="compass-canvas" width="${COMPASS_DIM}" height="${COMPASS_DIM}"></canvas>
             <div class="compass-needle" title="Tieni premuto per spostare il compasso"></div>
-            <div class="compass-readout"></div>
+            <div class="compass-readout">
+                <span class="compass-readout-text"></span>
+                <input type="text" inputmode="decimal" class="compass-readout-input" style="display:none">
+            </div>
             <div class="compass-ctrl">
                 <div class="compass-btn compass-close" title="Chiudi">&#215;</div>
                 <div class="compass-btn compass-gear" title="Dimensione, angolo e unità di misura">&#9881;</div>
                 <div class="compass-btn compass-eye" title="Mostra/nascondi la misura fra le due punte">&#128065;&#65039;</div>
-                <div class="compass-btn compass-resize" title="Trascina per aprire o chiudere">&#8646;</div>
+                <div class="compass-btn compass-resize" title="Trascina per aprire o chiudere">&#8596;</div>
                 <div class="compass-btn compass-flip" title="Inverti il compasso">&#8644;</div>
                 <div class="compass-btn compass-draw" title="Tieni premuto e trascina per disegnare">&#9999;&#65039;</div>
             </div>
@@ -1173,7 +1186,7 @@ class CompassTool {
                 </div>
                 <div class="compass-panel-row">
                     <span class="compass-panel-ic" title="Dimensione del compasso">&#10530;</span>
-                    <input type="range" class="compass-size-slider" min="70" max="260" step="2" value="150">
+                    <input type="range" class="compass-size-slider" min="${COMPASS_LEGLEN_MIN}" max="${COMPASS_LEGLEN_MAX}" step="2" value="${COMPASS_LEGLEN_DEFAULT}">
                 </div>
                 <div class="compass-panel-row compass-unit-row">
                     <span class="compass-panel-ic" title="Unità di misura">&#128207;</span>
@@ -1189,6 +1202,8 @@ class CompassTool {
         this.resizeEl = w.querySelector('.compass-resize');
         this.drawEl   = w.querySelector('.compass-draw');
         this.readoutEl = w.querySelector('.compass-readout');
+        this.readoutTextEl  = w.querySelector('.compass-readout-text');
+        this.readoutInputEl = w.querySelector('.compass-readout-input');
         this.panelEl  = w.querySelector('.compass-panel');
 
         this._applyPos();
@@ -1196,6 +1211,7 @@ class CompassTool {
         this._setupNeedleDrag();
         this._setupResizeDrag();
         this._setupPanel();
+        this._setupReadoutEdit();
 
         w.querySelector('.compass-close').addEventListener('click', () => this.hide());
 
@@ -1203,7 +1219,10 @@ class CompassTool {
         flipBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
         flipBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            this.flip = !this.flip;
+            // Specchia la matita a destra/sinistra dell'ago (non più sopra/sotto): riflessione
+            // dell'angolo rispetto all'asse verticale che passa per l'ago, punto fisso 0.
+            let a = Math.PI - this.pencilAngle;
+            this.pencilAngle = Math.atan2(Math.sin(a), Math.cos(a));
             this._render();
         });
 
@@ -1229,8 +1248,16 @@ class CompassTool {
 
     show() {
         this.el.style.display = 'block';
-        // «Si apre sempre dritto»: angolo di apertura simmetrico, niente eredità dall'ultima volta
+        // «Si apre sempre dritto, in posizione di riposo»: niente eredità dall'ultima volta —
+        // angolo simmetrico, dimensione a metà scala E posizione al centro della pagina
+        // visibile (non più un punto fisso che con bracci grandi finiva fuori schermo),
+        // ogni volta che lo si riapre (Fabio, 04/10/2026).
         this.pencilAngle = 0;
+        this.legLen      = COMPASS_LEGLEN_DEFAULT;
+        this.pencilDist  = 2 * COMPASS_LEGLEN_DEFAULT * Math.sin(COMPASS_ANGOLO_DEFAULT / 2);
+        const headerH = document.body.classList.contains('fullscreen-mode') ? 0 : 56;
+        this.x = window.innerWidth / 2;
+        this.y = headerH + (window.innerHeight - headerH) / 2;
         this._applyPos();
         this._render();
         this.visible = true;
@@ -1275,8 +1302,11 @@ class CompassTool {
         const off = Math.sqrt(Math.max(0, this.legLen * this.legLen - halfR * halfR));
         const ux = dx / r, uy = dy / r;
         const nx = -uy, ny = ux;
-        const sign = this.flip ? 1 : -1; // flip=false → cerniera sopra (apice in alto, "dritto")
-        const H = { x: half + dx / 2 + nx * off * sign, y: half + dy / 2 + ny * off * sign };
+        // Segno SEMPRE fisso (non più legato all'inversione): la cerniera resta dalla stessa
+        // parte con continuità mentre la matita gira intorno all'ago — l'inversione ora
+        // specchia la matita a destra/sinistra (vedi pulsante flip), non sposta la cerniera
+        // sopra/sotto (corretto da Fabio il 04/10/2026, era "sbagliata").
+        const H = { x: half + dx / 2 - nx * off, y: half + dy / 2 - ny * off };
         return { N: { x: half, y: half }, H, P };
     }
 
@@ -1317,11 +1347,47 @@ class CompassTool {
         this._taperedLeg(ctx, H.x, H.y, P.x, P.y, 15, 3);
         ctx.restore();
 
-        // Punte scure, semplici (ago e matita uguali, come nel modello)
-        [N, P].forEach(pt => {
-            ctx.beginPath(); ctx.arc(pt.x, pt.y, 2.2, 0, Math.PI * 2);
-            ctx.fillStyle = '#3a3a3c'; ctx.fill();
-        });
+        // Le due punte ora si distinguono (richiesta di Fabio): l'ago è sottile e aguzzo,
+        // si incernera al foglio; la matita ha corpo in legno e mina nel colore di disegno
+        // corrente, così si vede anche con cosa sta per scrivere.
+        const dirN = { x: (N.x - H.x) / (Math.hypot(N.x - H.x, N.y - H.y) || 1), y: (N.y - H.y) / (Math.hypot(N.x - H.x, N.y - H.y) || 1) };
+        const dirP = { x: (P.x - H.x) / (Math.hypot(P.x - H.x, P.y - H.y) || 1), y: (P.y - H.y) / (Math.hypot(P.x - H.x, P.y - H.y) || 1) };
+
+        // Ago: triangolo lungo e sottile, la punta coincide esattamente col perno (N)
+        (() => {
+            const back = 16, w = 1.8;
+            const nx = -dirN.y, ny = dirN.x;
+            const bx = N.x - dirN.x * back, by = N.y - dirN.y * back;
+            ctx.beginPath();
+            ctx.moveTo(bx + nx * w, by + ny * w);
+            ctx.lineTo(N.x, N.y);
+            ctx.lineTo(bx - nx * w, by - ny * w);
+            ctx.closePath();
+            ctx.fillStyle = '#2a2a2c'; ctx.fill();
+        })();
+
+        // Matita: corpo in legno + mina nel colore corrente di disegno, la punta coincide con P
+        (() => {
+            const backWood = 16, backGraphite = 7, w = 5;
+            const nx = -dirP.y, ny = dirP.x;
+            const wbx = P.x - dirP.x * backWood, wby = P.y - dirP.y * backWood;
+            const mbx = P.x - dirP.x * backGraphite, mby = P.y - dirP.y * backGraphite;
+            ctx.beginPath();
+            ctx.moveTo(wbx + nx * w, wby + ny * w);
+            ctx.lineTo(mbx + nx * w * 0.45, mby + ny * w * 0.45);
+            ctx.lineTo(mbx - nx * w * 0.45, mby - ny * w * 0.45);
+            ctx.lineTo(wbx - nx * w, wby - ny * w);
+            ctx.closePath();
+            ctx.fillStyle = '#e8b974'; ctx.fill();
+            ctx.strokeStyle = '#b8894a'; ctx.lineWidth = 1; ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(mbx + nx * w * 0.45, mby + ny * w * 0.45);
+            ctx.lineTo(P.x, P.y);
+            ctx.lineTo(mbx - nx * w * 0.45, mby - ny * w * 0.45);
+            ctx.closePath();
+            ctx.fillStyle = (typeof CONFIG !== 'undefined' && CONFIG.currentColor) ? CONFIG.currentColor : '#3a3a3c';
+            ctx.fill();
+        })();
 
         // Cerniera: cappuccio scuro sopra, alloggiamento chiaro, vite al centro
         ctx.beginPath();
@@ -1342,8 +1408,8 @@ class CompassTool {
             ctx.moveTo(N.x, N.y); ctx.lineTo(P.x, P.y);
             ctx.strokeStyle = 'rgba(59, 130, 246, 0.85)'; ctx.lineWidth = 2;
             ctx.setLineDash([]); ctx.stroke();
-            this.readoutEl.textContent = this.misuraTesto();
-            this.readoutEl.style.display = 'block';
+            if (document.activeElement !== this.readoutInputEl) this.readoutTextEl.textContent = this.misuraTesto();
+            this.readoutEl.style.display = 'flex';
             const midX = (N.x + P.x) / 2, midY = (N.y + P.y) / 2;
             this.readoutEl.style.left = midX + 'px';
             this.readoutEl.style.top  = (midY + 14) + 'px';
@@ -1351,10 +1417,25 @@ class CompassTool {
             this.readoutEl.style.display = 'none';
         }
 
-        // Comandi: colonna fissa accanto alla cerniera, sempre raggiungibile
+        // Comandi: colonna accanto alla cerniera, inclinata in parallelo al braccio della
+        // matita (come nel modello di Fabio) — perno della rotazione appena fuori dalla
+        // cerniera, lungo la perpendicolare al braccio — SEMPRE dal lato opposto all'ago
+        // (fuori dal compasso), mai verso l'interno che lo coprirebbe (corretto da Fabio).
+        const dxp = P.x - H.x, dyp = P.y - H.y;
+        const legScreenLen = Math.hypot(dxp, dyp) || 1;
+        const legAngleDeg = Math.atan2(dyp, dxp) * 180 / Math.PI;
+        let perpx = -dyp / legScreenLen, perpy = dxp / legScreenLen;
+        const Nvx = N.x - H.x, Nvy = N.y - H.y; // dalla cerniera verso l'ago
+        if (perpx * Nvx + perpy * Nvy > 0) { perpx = -perpx; perpy = -perpy; } // scarta il lato verso l'ago
         const ctrl = this.el.querySelector('.compass-ctrl');
-        ctrl.style.left = (H.x + 26) + 'px';
-        ctrl.style.top  = (H.y - 4) + 'px';
+        ctrl.style.left = (H.x + perpx * 30) + 'px';
+        ctrl.style.top  = (H.y + perpy * 30) + 'px';
+        ctrl.style.transform = `translate(-50%, 0) rotate(${legAngleDeg - 90}deg)`;
+        // Contro-ruota ogni icona così i simboli restano dritti anche se la colonna è inclinata
+        const controRot = -(legAngleDeg - 90);
+        ctrl.querySelectorAll('.compass-btn').forEach(b => { b.style.transform = `rotate(${controRot}deg)`; });
+
+        // Il pannello impostazioni resta sempre dritto (numeri leggibili), non ruota col braccio
         this.panelEl.style.left = (H.x + 26) + 'px';
         this.panelEl.style.top  = (H.y + 170) + 'px';
     }
@@ -1425,6 +1506,43 @@ class CompassTool {
                 this._render();
             });
         });
+    }
+
+    // Tocca la misura nell'ovale blu (occhio attivo) → diventa un campo editabile, per
+    // scrivere la distanza a tastiera invece di trascinare (richiesta di Fabio, 04/10/2026).
+    _setupReadoutEdit() {
+        const text = this.readoutTextEl, input = this.readoutInputEl;
+        text.addEventListener('pointerdown', (e) => e.stopPropagation());
+        input.addEventListener('pointerdown', (e) => e.stopPropagation());
+        text.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const cm = this.distClamped() / this.cmPerPx();
+            const val = this.unit === 'mm' ? cm * 10 : this.unit === 'in' ? cm / 2.54 : cm;
+            input.value = val.toFixed(1).replace('.', ',');
+            text.style.display = 'none';
+            input.style.display = 'inline-block';
+            input.focus(); input.select();
+        });
+        const applica = () => {
+            const val = parseFloat(input.value.replace(',', '.'));
+            if (!isNaN(val) && val > 0) {
+                const cm = this.unit === 'mm' ? val / 10 : this.unit === 'in' ? val * 2.54 : val;
+                const px = cm * this.cmPerPx();
+                // Il valore scritto va onorato per intero: se serve più apertura di quella
+                // raggiungibile con la dimensione attuale, il compasso si allarga da solo
+                // (fino al massimo della scala) invece di accorciare in silenzio il numero
+                // digitato — Fabio, 04/10/2026: la misura deve corrispondere a quella vera.
+                if (px > this.legLen * 1.9) {
+                    this.legLen = Math.min(COMPASS_LEGLEN_MAX, px / 1.9);
+                }
+                this.pencilDist = Math.max(10, Math.min(this.legLen * 1.9, px));
+            }
+            input.style.display = 'none';
+            text.style.display = 'inline';
+            this._render();
+        };
+        input.addEventListener('keydown', (e) => { if (e.key === 'Enter') applica(); });
+        input.addEventListener('blur', applica);
     }
 
     _syncPanel() {
@@ -1851,26 +1969,42 @@ class GeometryManager {
     padding: 4px 10px;
     border-radius: 7px;
     white-space: nowrap;
-    pointer-events: none;
+    pointer-events: auto;
     display: none;
+    align-items: center;
+}
+.compass-readout-text { cursor: text; }
+.compass-readout-input {
+    width: 54px;
+    background: transparent;
+    border: none;
+    border-bottom: 1.5px solid #fff;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    font-family: inherit;
+    text-align: center;
+    outline: none;
 }
 
 .compass-ctrl {
     position: absolute;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    align-items: center;
+    gap: 5px;
     pointer-events: none;
+    transform-origin: top center;
 }
 .compass-btn {
-    width: 30px; height: 30px;
+    width: 26px; height: 26px;
     border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
     background: rgba(255, 255, 255, 0.92);
     border: 1px solid rgba(0, 0, 0, 0.08);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
     color: rgba(50, 50, 55, 0.9);
-    font-size: 15px;
+    font-size: 13px;
     line-height: 1;
     cursor: pointer;
     user-select: none;
@@ -1879,9 +2013,9 @@ class GeometryManager {
 }
 .compass-btn:hover { background: #fff; }
 .compass-eye.active, .compass-gear.active { background: rgba(59, 130, 246, 0.9); color: #fff; }
-.compass-resize, .compass-draw { width: 40px; height: 40px; font-size: 17px; cursor: grab; } /* mire più comode: si trascinano */
+.compass-resize, .compass-draw { cursor: grab; } /* si trascinano, stessa misura degli altri */
 .compass-resize:active, .compass-draw:active { cursor: grabbing; }
-.compass-close { background: rgba(60, 60, 64, 0.85); color: #fff; font-size: 15px; }
+.compass-close { background: rgba(60, 60, 64, 0.85); color: #fff; font-size: 13px; }
 .compass-close:hover { background: rgba(60, 60, 64, 1); }
 
 .compass-panel {
