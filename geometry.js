@@ -1151,6 +1151,7 @@ class CompassTool {
         this.legLen      = COMPASS_LEGLEN_DEFAULT;  // L — lunghezza fissa dei bracci, px schermo ("dimensione")
         this.pencilDist  = 2 * COMPASS_LEGLEN_DEFAULT * Math.sin(COMPASS_ANGOLO_DEFAULT / 2); // r — distanza ago↔matita
         this.pencilAngle = 0;               // direzione (da N) della matita — 0 = dritto, simmetrico
+        this.flip  = false;                 // lato della cerniera — serve insieme a pencilAngle per il vero specchio
         this.unit  = 'cm';                  // mm | cm | in
         this.misuraVisibile = false;        // occhio: lettura persistente fra le due punte
 
@@ -1219,10 +1220,14 @@ class CompassTool {
         flipBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
         flipBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            // Specchia la matita a destra/sinistra dell'ago (non più sopra/sotto): riflessione
-            // dell'angolo rispetto all'asse verticale che passa per l'ago, punto fisso 0.
+            // Specchio VERO destra/sinistra, a qualunque apertura: serve riflettere l'angolo
+            // della matita rispetto all'asse verticale per l'ago (fisso) E insieme invertire
+            // this.flip, che sceglie da che parte sta la cerniera in _punti() — fatta solo
+            // la riflessione dell'angolo, la cerniera saltava sopra/sotto invece di restare
+            // dalla stessa parte (dimostrato algebricamente, 2ª segnalazione di Fabio).
             let a = Math.PI - this.pencilAngle;
             this.pencilAngle = Math.atan2(Math.sin(a), Math.cos(a));
+            this.flip = !this.flip;
             this._render();
         });
 
@@ -1253,6 +1258,7 @@ class CompassTool {
         // visibile (non più un punto fisso che con bracci grandi finiva fuori schermo),
         // ogni volta che lo si riapre (Fabio, 04/10/2026).
         this.pencilAngle = 0;
+        this.flip        = false;
         this.legLen      = COMPASS_LEGLEN_DEFAULT;
         this.pencilDist  = 2 * COMPASS_LEGLEN_DEFAULT * Math.sin(COMPASS_ANGOLO_DEFAULT / 2);
         const headerH = document.body.classList.contains('fullscreen-mode') ? 0 : 56;
@@ -1302,11 +1308,14 @@ class CompassTool {
         const off = Math.sqrt(Math.max(0, this.legLen * this.legLen - halfR * halfR));
         const ux = dx / r, uy = dy / r;
         const nx = -uy, ny = ux;
-        // Segno SEMPRE fisso (non più legato all'inversione): la cerniera resta dalla stessa
-        // parte con continuità mentre la matita gira intorno all'ago — l'inversione ora
-        // specchia la matita a destra/sinistra (vedi pulsante flip), non sposta la cerniera
-        // sopra/sotto (corretto da Fabio il 04/10/2026, era "sbagliata").
-        const H = { x: half + dx / 2 - nx * off, y: half + dy / 2 - ny * off };
+        // Il segno dipende da this.flip — SERVE insieme allo specchiare pencilAngle nel
+        // pulsante ⇄ (vedi sotto) per ottenere un vero specchio destra/sinistra a
+        // qualunque apertura: usare un segno fisso (come nel primo tentativo) sembrava
+        // "continuo" durante il disegno ma faceva saltare la cerniera sopra/sotto appena
+        // l'angolo veniva riflesso di scatto — dimostrato algebricamente e corretto da
+        // Fabio il 04/10/2026 (seconda segnalazione sullo stesso pulsante).
+        const sign = this.flip ? 1 : -1;
+        const H = { x: half + dx / 2 + nx * off * sign, y: half + dy / 2 + ny * off * sign };
         return { N: { x: half, y: half }, H, P };
     }
 
