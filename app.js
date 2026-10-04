@@ -1136,6 +1136,31 @@ class BrushEngine {
                 ctx.setLineDash([]);
                 break;
             }
+
+            case 'sphere': {
+                // Cerchio + "equatore" ellittico per dare il senso della rotondità
+                // (stesso trucco dei libri di testo): metà davanti solida, metà dietro tratteggiata.
+                const sfx0 = Math.min(x0, x1), sfx1 = Math.max(x0, x1);
+                const sfy0 = Math.min(y0, y1), sfy1 = Math.max(y0, y1);
+                const sfcx = (sfx0 + sfx1) / 2, sfcy = (sfy0 + sfy1) / 2;
+                const sfr = Math.min(sfx1 - sfx0, sfy1 - sfy0) / 2;
+                const eqrx = sfr, eqry = sfr * 0.32; // eqrx = sfr: l'equatore tocca il cerchio ai due lati
+                if (fill) {
+                    ctx.globalAlpha = fillAlpha;
+                    ctx.beginPath(); ctx.arc(sfcx, sfcy, sfr, 0, Math.PI * 2); ctx.fill();
+                    ctx.globalAlpha = 1;
+                }
+                ctx.beginPath(); ctx.arc(sfcx, sfcy, sfr, 0, Math.PI * 2);
+                ctx.moveTo(sfcx + eqrx, sfcy);
+                ctx.ellipse(sfcx, sfcy, eqrx, eqry, 0, 0, Math.PI); // equatore, arco davanti (passa dal basso)
+                ctx.stroke();
+                ctx.setLineDash([4, 4]);
+                ctx.beginPath();
+                ctx.ellipse(sfcx, sfcy, eqrx, eqry, 0, Math.PI, 0, false); // equatore, arco dietro (passa dall'alto)
+                ctx.stroke();
+                ctx.setLineDash([]);
+                break;
+            }
         }
 
         ctx.restore();
