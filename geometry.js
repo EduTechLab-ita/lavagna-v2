@@ -1166,7 +1166,8 @@ class CompassTool {
         w.style.display = 'none';
         w.innerHTML = `
             <canvas class="compass-canvas" width="${COMPASS_DIM}" height="${COMPASS_DIM}"></canvas>
-            <div class="compass-needle" title="Tieni premuto per spostare il compasso"></div>
+            <div class="compass-needle"></div>
+            <div class="compass-hinge" title="Tieni premuto per spostare il compasso"></div>
             <div class="compass-readout">
                 <span class="compass-readout-text"></span>
                 <input type="text" inputmode="decimal" class="compass-readout-input" style="display:none">
@@ -1202,6 +1203,11 @@ class CompassTool {
         this.needleEl = w.querySelector('.compass-needle');
         this.resizeEl = w.querySelector('.compass-resize');
         this.drawEl   = w.querySelector('.compass-draw');
+        this.hingeEl  = w.querySelector('.compass-hinge');
+        // La ✏️ esce dalla colonna e si mette accanto alla punta della matita (richiesta
+        // delle colleghe, 06/10/2026): fuori dalla colonna non ruota con lei.
+        w.appendChild(this.drawEl);
+        this.drawEl.classList.add('compass-draw-libera');
         this.readoutEl = w.querySelector('.compass-readout');
         this.readoutTextEl  = w.querySelector('.compass-readout-text');
         this.readoutInputEl = w.querySelector('.compass-readout-input');
@@ -1408,8 +1414,10 @@ class CompassTool {
         ctx.beginPath(); ctx.arc(H.x, H.y, 6, 0, Math.PI * 2);
         ctx.fillStyle = '#3a3a3c'; ctx.fill();
 
-        // Maniglia reale (DOM) dell'ago — riceve il dito per spostare il compasso
+        // Elemento (DOM) dell'ago: segna il centro dei cerchi (_updateCenter lo misura).
+        // Dal 06/10/2026 non si tocca più: il compasso si sposta prendendolo dalla CERNIERA.
         this.needleEl.style.left = N.x + 'px'; this.needleEl.style.top = N.y + 'px';
+        this.hingeEl.style.left  = H.x + 'px'; this.hingeEl.style.top  = H.y + 'px';
 
         // Lettura persistente (occhio): linea + etichetta fra le due punte
         if (this.misuraVisibile) {
@@ -1436,10 +1444,20 @@ class CompassTool {
         let perpx = -dyp / legScreenLen, perpy = dxp / legScreenLen;
         const Nvx = N.x - H.x, Nvy = N.y - H.y; // dalla cerniera verso l'ago
         if (perpx * Nvx + perpy * Nvy > 0) { perpx = -perpx; perpy = -perpy; } // scarta il lato verso l'ago
+        // Dal 06/10/2026 la colonna è centrata a METÀ del braccio, non più appesa alla
+        // cerniera (richiesta delle colleghe).
         const ctrl = this.el.querySelector('.compass-ctrl');
-        ctrl.style.left = (H.x + perpx * 30) + 'px';
-        ctrl.style.top  = (H.y + perpy * 30) + 'px';
-        ctrl.style.transform = `translate(-50%, 0) rotate(${legAngleDeg - 90}deg)`;
+        const Mx = (H.x + P.x) / 2, My = (H.y + P.y) / 2;
+        ctrl.style.left = (Mx + perpx * 30) + 'px';
+        ctrl.style.top  = (My + perpy * 30) + 'px';
+        ctrl.style.transformOrigin = 'center center';
+        ctrl.style.transform = `translate(-50%, -50%) rotate(${legAngleDeg - 90}deg)`;
+
+        // ✏️ appena oltre la punta della matita, sulla linea ago→matita: premendola
+        // l'arco parte esattamente dalla mina (l'angolo del dito = quello della matita).
+        const rN = Math.hypot(P.x - N.x, P.y - N.y) || 1;
+        this.drawEl.style.left = (P.x + (P.x - N.x) / rN * 24) + 'px';
+        this.drawEl.style.top  = (P.y + (P.y - N.y) / rN * 24) + 'px';
         // Contro-ruota ogni icona così i simboli restano dritti anche se la colonna è inclinata
         const controRot = -(legAngleDeg - 90);
         ctrl.querySelectorAll('.compass-btn').forEach(b => { b.style.transform = `rotate(${controRot}deg)`; });
@@ -1450,7 +1468,7 @@ class CompassTool {
     }
 
     _setupNeedleDrag() {
-        const h = this.needleEl;
+        const h = this.hingeEl;   // si prende dalla cerniera (06/10/2026), non più dall'ago
         let st = null;
         h.addEventListener('pointerdown', (e) => {
             e.preventDefault(); e.stopPropagation();
@@ -1954,9 +1972,16 @@ class GeometryManager {
 .compass-tool { pointer-events: none; }
 .compass-canvas { display: block; pointer-events: none; }
 
+/* L'ago non si tocca più (serve solo a misurare il centro): il compasso si sposta dalla cerniera */
 .compass-needle {
     position: absolute;
     width: 40px; height: 40px;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+}
+.compass-hinge {
+    position: absolute;
+    width: 44px; height: 44px;
     transform: translate(-50%, -50%);
     border-radius: 50%;
     cursor: grab;
@@ -1965,8 +1990,12 @@ class GeometryManager {
     opacity: 0;
     transition: opacity 0.15s ease, background 0.15s ease;
 }
-.compass-needle:hover, .compass-needle:active { opacity: 1; background: rgba(59, 130, 246, 0.12); }
-.compass-needle:active { cursor: grabbing; }
+.compass-hinge:hover, .compass-hinge:active { opacity: 1; background: rgba(59, 130, 246, 0.14); }
+.compass-hinge:active { cursor: grabbing; }
+.compass-btn.compass-draw-libera {
+    position: absolute;
+    transform: translate(-50%, -50%);
+}
 
 .compass-readout {
     position: absolute;
