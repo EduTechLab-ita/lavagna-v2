@@ -4470,6 +4470,29 @@ body.has-page-bar #zoom-indicator {
 }
 .guida-chip.active .guida-chip-num { color: var(--accent, #3b82f6); }
 
+/* Focus a rettangolo: maniglie sui lati (06/10/2026). Area di presa 36px per il dito,
+   pallino visibile 16px; sopra all'area di trascinamento del Focus (z-index 161). */
+.spot-maniglia {
+    position: fixed;
+    width: 36px; height: 36px;
+    transform: translate(-50%, -50%);
+    z-index: 162;
+    touch-action: none;
+    cursor: ew-resize;
+}
+.spot-maniglia-n, .spot-maniglia-s { cursor: ns-resize; }
+.spot-maniglia::after {
+    content: '';
+    position: absolute;
+    left: 50%; top: 50%;
+    width: 16px; height: 16px;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: #fff;
+    border: 2.5px solid #3b82f6;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+}
+
 /* Guida illustrata (06/10/2026): con la scheda Guida aperta la finestra si allarga,
    capitoli a sinistra e testo con le schermate a destra. Le altre schede restano a 560px. */
 .settings-modal-box.con-guida {

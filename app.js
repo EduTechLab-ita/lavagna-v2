@@ -9174,6 +9174,10 @@ class SpotlightTool {
         this._y        = window.innerHeight / 2;
         this._r        = 120;
         this._shape    = 'circle'; // 'circle' | 'rect'
+        // Rettangolo con larghezza e altezza libere (06/10/2026, Fabio: «per evidenziare una
+        // frase»): mezza larghezza/altezza indipendenti, prima erano legate a _r (1,4 e 0,9).
+        this._hw       = 120 * 1.4;
+        this._hh       = 120 * 0.9;
         this._opacity  = 0.80;
         this._pointers = new Map();
     }
@@ -9261,9 +9265,20 @@ class SpotlightTool {
                 } else if (this._pointers.size === 2) {
                     const otherId = [...this._pointers.keys()].find(id => id !== ev.pointerId);
                     const other   = this._pointers.get(otherId);
-                    const prevD   = Math.hypot(prev.x - other.x, prev.y - other.y);
-                    const newD    = Math.hypot(ev.clientX - other.x, ev.clientY - other.y);
-                    if (prevD > 10) this._r = Math.max(40, Math.min(400, this._r * (newD / prevD)));
+                    if (this._shape === 'rect') {
+                        // Due dita separate per asse: allargandole in orizzontale cresce la
+                        // larghezza, in verticale l'altezza, in diagonale entrambe. Un asse su
+                        // cui le dita sono quasi allineate (< 30 px) non conta, sennò un tremolio
+                        // lo farebbe schizzare.
+                        const pdx = Math.abs(prev.x - other.x), ndx = Math.abs(ev.clientX - other.x);
+                        const pdy = Math.abs(prev.y - other.y), ndy = Math.abs(ev.clientY - other.y);
+                        if (pdx > 30) this._hw = Math.max(30, Math.min(window.innerWidth  / 2, this._hw * (ndx / pdx)));
+                        if (pdy > 30) this._hh = Math.max(16, Math.min(window.innerHeight / 2, this._hh * (ndy / pdy)));
+                    } else {
+                        const prevD   = Math.hypot(prev.x - other.x, prev.y - other.y);
+                        const newD    = Math.hypot(ev.clientX - other.x, ev.clientY - other.y);
+                        if (prevD > 10) this._r = Math.max(40, Math.min(400, this._r * (newD / prevD)));
+                    }
                 }
                 this._pointers.set(ev.pointerId, {x: ev.clientX, y: ev.clientY});
             }
@@ -9271,6 +9286,50 @@ class SpotlightTool {
         });
         dragArea.addEventListener('pointerup',     (e) => this._pointers.delete(e.pointerId));
         dragArea.addEventListener('pointercancel', (e) => this._pointers.delete(e.pointerId));
+
+        // Maniglie sui quattro lati del rettangolo: ognuna sposta SOLO il suo lato (il lato
+        // opposto resta fermo). Funzionano con dito, penna e mouse, anche dove la LIM non
+        // riconosce le due dita. Col cerchio restano nascoste.
+        this._maniglie = {};
+        ['n', 's', 'e', 'w'].forEach(lato => {
+            const m = document.createElement('div');
+            m.className = 'spot-maniglia spot-maniglia-' + lato;
+            m.style.display = 'none';
+            document.body.appendChild(m);
+            this._maniglie[lato] = m;
+            let st = null;
+            m.addEventListener('pointerdown', (e) => {
+                e.preventDefault(); e.stopPropagation();
+                try { m.setPointerCapture(e.pointerId); } catch (_) {}
+                st = { sinistra: this._x - this._hw, destra: this._x + this._hw, alto: this._y - this._hh, basso: this._y + this._hh };
+            });
+            m.addEventListener('pointermove', (e) => {
+                if (!st) return;
+                let { sinistra, destra, alto, basso } = st;
+                if (lato === 'e') destra   = Math.max(e.clientX, sinistra + 60);
+                if (lato === 'w') sinistra = Math.min(e.clientX, destra - 60);
+                if (lato === 's') basso    = Math.max(e.clientY, alto + 32);
+                if (lato === 'n') alto     = Math.min(e.clientY, basso - 32);
+                this._hw = (destra - sinistra) / 2; this._x = sinistra + this._hw;
+                this._hh = (basso - alto) / 2;      this._y = alto + this._hh;
+                this._render();
+            });
+            const fine = () => { st = null; };
+            m.addEventListener('pointerup', fine);
+            m.addEventListener('pointercancel', fine);
+        });
+    }
+
+    _mostraManiglie() {
+        if (!this._maniglie) return;
+        const vedi = this.visible && this._shape === 'rect';
+        const pos = { n: [this._x, this._y - this._hh], s: [this._x, this._y + this._hh],
+                      e: [this._x + this._hw, this._y], w: [this._x - this._hw, this._y] };
+        for (const [lato, m] of Object.entries(this._maniglie)) {
+            m.style.display = vedi ? 'block' : 'none';
+            m.style.left = pos[lato][0] + 'px';
+            m.style.top  = pos[lato][1] + 'px';
+        }
     }
 
     _render() {
@@ -9295,7 +9354,7 @@ class SpotlightTool {
             ctx.arc(this._x, this._y, this._r, 0, Math.PI * 2);
             ctx.fill();
         } else {
-            const hw = this._r * 1.4, hh = this._r * 0.9;
+            const hw = this._hw, hh = this._hh;
             ctx.fillStyle = 'rgba(0,0,0,1)';
             ctx.beginPath();
             const rx = this._x - hw, ry = this._y - hh, rw = hw * 2, rh = hh * 2, rad = 18;
@@ -9309,11 +9368,13 @@ class SpotlightTool {
         }
         ctx.restore();
 
-        // Posiziona pill a destra del foro
+        // Posiziona pill a destra del foro (col rettangolo, oltre la sua maniglia di destra)
         if (this._ctrl) {
-            this._ctrl.style.left = Math.min(this._x + this._r + 12, W - 58) + 'px';
+            const meta = this._shape === 'rect' ? this._hw + 18 : this._r;
+            this._ctrl.style.left = Math.min(this._x + meta + 12, W - 58) + 'px';
             this._ctrl.style.top  = Math.max(this._y - 80, 10) + 'px';
         }
+        this._mostraManiglie();
     }
 
     show() {
@@ -9332,6 +9393,7 @@ class SpotlightTool {
         if (this._ctrl) this._ctrl.style.display = 'none';
         this._pointers.clear();
         this.visible = false;
+        this._mostraManiglie();
         const btn = document.getElementById('btn-spotlight');
         if (btn) btn.classList.remove('active');
     }
