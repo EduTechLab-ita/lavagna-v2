@@ -4470,6 +4470,67 @@ body.has-page-bar #zoom-indicator {
 }
 .guida-chip.active .guida-chip-num { color: var(--accent, #3b82f6); }
 
+/* Guida illustrata (06/10/2026): con la scheda Guida aperta la finestra si allarga,
+   capitoli a sinistra e testo con le schermate a destra. Le altre schede restano a 560px. */
+.settings-modal-box.con-guida {
+    max-width: min(1180px, 96vw);
+    height: 90vh;
+    max-height: 90vh;
+}
+.guida-foto { display: flex; flex-wrap: wrap; gap: 14px; margin: 6px 0 16px; }
+.guida-shot { margin: 0; flex: 1 1 100%; }
+.guida-foto-piu .guida-shot { flex: 1 1 280px; }
+.guida-shot img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    margin: 0 auto;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    box-shadow: 0 2px 12px rgba(15, 23, 42, 0.08);
+}
+.guida-shot figcaption {
+    font-size: 0.78rem;
+    color: #64748b;
+    text-align: center;
+    margin-top: 6px;
+    line-height: 1.35;
+}
+.guida-nav {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 18px;
+    padding-top: 12px;
+    border-top: 1px solid #e2e8f0;
+}
+.guida-nav-btn {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 0.82rem;
+    font-family: inherit;
+    color: #334155;
+    cursor: pointer;
+}
+.guida-nav-btn:hover { background: #eef2f7; color: var(--accent, #3b82f6); }
+@media (min-width: 820px) {
+    .con-guida #tab-guida.active {
+        display: grid;
+        grid-template-columns: 280px 1fr;
+        gap: 24px;
+        align-items: start;
+    }
+    .con-guida .guida-menu {
+        position: sticky;
+        top: 0;
+        max-height: calc(90vh - 150px);
+        overflow-y: auto;
+    }
+    .con-guida .guida-chips { margin-bottom: 0; }
+}
+
 /* Contacts tab */
 .settings-contact-btns {
     display: flex;

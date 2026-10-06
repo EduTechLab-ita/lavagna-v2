@@ -9838,6 +9838,8 @@ window.addEventListener('load', function() {
             tab.classList.add('active');
             const panel = document.getElementById('tab-' + tab.dataset.tab);
             if (panel) panel.classList.add('active');
+            // La guida illustrata ha bisogno di spazio: la finestra si allarga solo per lei
+            modal.querySelector('.settings-modal-box')?.classList.toggle('con-guida', tab.dataset.tab === 'guida');
         });
     });
 
