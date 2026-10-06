@@ -1632,6 +1632,8 @@ class CanvasManager {
                 };
                 this._vectorStrokes[lastIdx] = strokeEntry;
                 if (CONFIG.currentTool !== 'eraser') this._pageStrokes.push({ ...strokeEntry });
+                // La gomma normale toglie i pixel: i tratti rimasti senza pixel escono dall'elenco
+                else this._togliTrattiInvisibili(this._strokeBBox(strokeEntry.points, strokeEntry.size * 2));
             }
             this._currentPoints = [];
             CONFIG.isDirty = true;
@@ -1911,6 +1913,90 @@ class CanvasManager {
         }
         const k = s.tool === 'pastel' ? 3.5 : s.tool === 'marker' ? 2.5 : 1;
         this._replayStroke({ ...s, tool: 'pen', color: '#000', size: (s.size || 2) * k + 4, fillColor: '#000', fillAlpha: 1 }, ctx);
+    }
+
+    // ── Tratti invisibili (06/10/2026, segnalato da Fabio) ─────────────────────
+    // Un tratto che sta nell'elenco ma NON sulla tela è un fantasma: la gomma-lazo (o
+    // qualunque ridisegno) lo faceva ricomparire dal nulla. Nascono in due modi:
+    // ① lezioni salvate prima della v2-108 dopo averne aperta una nel formato vecchio
+    //   (i suoi tratti restavano in memoria e finivano salvati qui, senza pixel);
+    // ② la gomma normale toglie i pixel ma non il tratto dall'elenco.
+    // Si confronta la sagoma di ogni tratto con i pixel veri: se sotto non c'è quasi
+    // niente, il tratto si toglie. Da chiamare SOLO quando tela ed elenco sono coerenti
+    // (pagina appena aperta, fine di una passata di gomma) — mai dentro _redrawAllStrokes,
+    // dove l'elenco può essere già cambiato (spostamenti) e la tela non ancora.
+    _togliTrattiInvisibili(area = null) {
+        const tratti = this._pageStrokes;
+        if (!tratti || !tratti.length || typeof selectMgr === 'undefined' || !selectMgr) return 0;
+        // L'area (dove è passata la gomma) dice solo QUALI tratti controllare: ognuno si
+        // giudica per intero, sennò un tratto lungo cancellato a metà sparirebbe tutto.
+        // Si legge dalla tela solo il riquadro che li contiene (leggerla tutta costa ~0,4 s).
+        const W = this.canvas.width, H = this.canvas.height;
+        const candidati = [];
+        let ux0 = Infinity, uy0 = Infinity, ux1 = -Infinity, uy1 = -Infinity;
+        for (let i = tratti.length - 1; i >= 0; i--) {
+            const s = tratti[i];
+            if (!s) continue;
+            const b = selectMgr._itemBBox({ type: 'stroke', ref: s });
+            if (!b) continue;
+            if (area && (b.x > area.x + area.w || b.x + b.w < area.x || b.y > area.y + area.h || b.y + b.h < area.y)) continue;
+            candidati.push({ i, s, b });
+            ux0 = Math.min(ux0, b.x); uy0 = Math.min(uy0, b.y);
+            ux1 = Math.max(ux1, b.x + b.w); uy1 = Math.max(uy1, b.y + b.h);
+        }
+        if (!candidati.length) return 0;
+        const rx = Math.max(0, Math.floor(ux0)), ry = Math.max(0, Math.floor(uy0));
+        const rw = Math.min(W, Math.ceil(ux1)) - rx, rh = Math.min(H, Math.ceil(uy1)) - ry;
+        if (rw <= 0 || rh <= 0) return 0;
+        let tela;
+        try { tela = this.ctx.getImageData(rx, ry, rw, rh).data; } catch (_) { return 0; }
+        if (!this._mascheraInvisibili) this._mascheraInvisibili = document.createElement('canvas');
+        const mc = this._mascheraInvisibili.getContext('2d', { willReadFrequently: true });
+        if (!this._mascheraAltri) this._mascheraAltri = document.createElement('canvas');
+        const oc = this._mascheraAltri.getContext('2d', { willReadFrequently: true });
+        const riquadri = new Map();
+        const riquadro = t => {
+            if (!riquadri.has(t)) riquadri.set(t, selectMgr._itemBBox({ type: 'stroke', ref: t }));
+            return riquadri.get(t);
+        };
+        let tolti = 0;
+        // candidati è già in ordine di indice decrescente: lo splice non sposta i successivi
+        for (const { i, s, b } of candidati) {
+            // Solo la parte del tratto che sta sulla tela: fuori non si giudica
+            const x0 = Math.max(rx, Math.floor(b.x)), y0 = Math.max(ry, Math.floor(b.y));
+            const x1 = Math.min(rx + rw, Math.ceil(b.x + b.w)), y1 = Math.min(ry + rh, Math.ceil(b.y + b.h));
+            const w = x1 - x0, h = y1 - y0;
+            if (w <= 0 || h <= 0) continue;
+            mc.canvas.width = w; mc.canvas.height = h;
+            mc.setTransform(1, 0, 0, 1, -x0, -y0);
+            this._disegnaSagoma(s, mc);
+            const m = mc.getImageData(0, 0, w, h).data;
+            // Si guarda solo dove il tratto è DA SOLO: dove passa sopra ad altri tratti
+            // l'inchiostro potrebbe essere loro. Un fantasma che attraversa scritte vere
+            // arriverebbe così al ~15% di pixel «pieni», un tratto vero sottile al ~27%:
+            // troppo vicini. Togliendo le zone condivise il fantasma scende a ~0.
+            oc.canvas.width = w; oc.canvas.height = h;
+            oc.setTransform(1, 0, 0, 1, -x0, -y0);
+            for (const altro of tratti) {
+                if (!altro || altro === s) continue;
+                const ab = riquadro(altro);
+                if (!ab || ab.x > x1 || ab.x + ab.w < x0 || ab.y > y1 || ab.y + ab.h < y0) continue;
+                this._disegnaSagoma(altro, oc);
+            }
+            const o = oc.getImageData(0, 0, w, h).data;
+            let propri = 0, pieni = 0;
+            for (let yy = 0; yy < h; yy++) {
+                for (let xx = 0; xx < w; xx++) {
+                    const k = (yy * w + xx) * 4 + 3;
+                    if (m[k] < 128 || o[k] > 0) continue;
+                    propri++;
+                    if (tela[((y0 - ry + yy) * rw + (x0 - rx + xx)) * 4 + 3] > 16) pieni++;
+                }
+            }
+            // Meno di 20 pixel tutti suoi = coperto da altri tratti: non si può giudicare, resta
+            if (propri >= 20 && pieni / propri < 0.05) { tratti.splice(i, 1); tolti++; }
+        }
+        return tolti;
     }
 
     // Ridisegna un singolo tratto/forma da dati vettoriali (usato da _redrawAllStrokes e dal
@@ -8149,6 +8235,7 @@ class PageManager {
         ctx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
 
         const allRestorePromises = [];
+        let disegnoCaricato = false;   // la foto salvata della pagina è arrivata sulla tela?
 
         if (pageData.drawImageData) {
             const img = new Image();
@@ -8167,6 +8254,7 @@ class PageManager {
                     img.onload = () => {
                         if (token !== this._restoreToken) { res(); return; }   // ripristino superato
                         ctx.drawImage(img, destX, destY, destW, destH);
+                        disegnoCaricato = true;
                         res();
                     };
                     img.onerror = res;
@@ -8179,6 +8267,7 @@ class PageManager {
                     img.onload = () => {
                         if (token !== this._restoreToken) { res(); return; }
                         ctx.drawImage(img, r.px, r.py, r.pw, r.ph);
+                        disegnoCaricato = true;
                         res();
                     };
                     img.onerror = res;
@@ -8195,6 +8284,7 @@ class PageManager {
                     img.onload = () => {
                         if (token !== this._restoreToken) { res(); return; }
                         ctx.drawImage(img, offsetX, offsetY);
+                        disegnoCaricato = true;
                         res();
                     };
                     img.onerror = res;
@@ -8277,6 +8367,9 @@ class PageManager {
             // qui non si disegna e non si riabilita la cattura (ci penserà lui).
             if (token !== this._restoreToken) return;
             this.objectLayerRef.render();
+            // Tratti salvati senza pixel (lezioni sporcate prima della v2-108): si tolgono qui,
+            // ma solo se la foto della pagina è arrivata — con la tela vuota sembrerebbero tutti fantasmi.
+            if (disegnoCaricato) this.canvasManager?._togliTrattiInvisibili();
             this.canvasManager?._segnaFondo();
             this._restoring = false;
         });
