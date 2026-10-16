@@ -1833,7 +1833,7 @@ class LibraryManager {
      * @param {string} fileId
      * @param {string} fileName - usato solo per il nome progetto
      */
-    async openLesson(fileId, fileName, startPage = 0) {
+    async openLesson(fileId, fileName, startPage = 0, opts = {}) {
         if (!this.drive.isConnected()) {
             toast('Connetti Drive prima.', 'error'); return;
         }
@@ -1988,6 +1988,9 @@ class LibraryManager {
             setTimeout(() => panMgr?.centerView(), 100);
         } catch (err) {
             window.autoSaveMgr?.endLoading();
+            // opts.silenzioso: apertura automatica dell'ultima lezione, che prova un'altra strada
+            // invece di mostrare un errore rosso (16/10/2026: file ricordato dal browser ma non più su Drive → 404)
+            if (opts.silenzioso) { console.warn('[EduBoard] apertura automatica fallita:', fileName, err?.message || err); return; }
             toast('Errore apertura lezione: ' + err.message, 'error');
         }
     }
@@ -2852,7 +2855,8 @@ class LibraryManager {
  */
 function _driveExpiryBand(stato, minuti) {
     let el = document.getElementById('drive-scadenza');
-    if (!stato) { if (el) el.remove(); return; }
+    if (!stato) { if (el) el.remove(); _armaRinnovoAlTocco(false); return; }
+    _armaRinnovoAlTocco(true);
     if (!el) {
         el = document.createElement('div');
         el.id = 'drive-scadenza';
@@ -2875,8 +2879,47 @@ function _driveExpiryBand(stato, minuti) {
     el.style.background = scaduto ? '#dc2626' : '#fde68a';
     el.style.color      = scaduto ? '#ffffff' : '#78350f';
     el.querySelector('.ds-testo').textContent = scaduto
-        ? 'Google Drive scollegato: le modifiche NON vengono salvate. La lezione resta a schermo.'
-        : `Il collegamento a Google Drive scade tra ${minuti} min.`;
+        ? 'Google Drive scollegato: le modifiche NON vengono salvate. Tocca la lavagna per ricollegarlo, oppure:'
+        : `Il collegamento a Google Drive scade tra ${minuti} min. Tocca la lavagna per rinnovarlo, oppure:`;
+}
+
+/**
+ * Rinnovo al primo tocco: con la fascia gialla/rossa a schermo, il primo tocco sulla lavagna
+ * rinnova il collegamento (chiesto da Fabio 16/10/2026: il token dura un'ora e la mattina in
+ * classe «Rinnova» andava premuto di continuo). Si ascolta il SOLLEVAMENTO (pointerup): con dito
+ * e penna il browser concede la finestrella di Google solo lì, non all'appoggio. L'evento non
+ * viene fermato, quindi il tratto si disegna normalmente. I pulsanti della fascia e i pannelli
+ * aperti fanno da sé.
+ */
+let _rinnovoAlTocco = null;
+let _rinnovoRifiutato = false; // dopo un rifiuto la fascia si ridisegna ogni 20 s: non riarmare
+function _armaRinnovoAlTocco(attivo) {
+    if (!attivo) {
+        if (_rinnovoAlTocco) document.removeEventListener('pointerup', _rinnovoAlTocco, true);
+        _rinnovoAlTocco = null;
+        _rinnovoRifiutato = false; // collegamento di nuovo buono (o disconnesso): si riparte puliti
+        return;
+    }
+    if (_rinnovoAlTocco || _rinnovoRifiutato) return;
+    _rinnovoAlTocco = (e) => {
+        if (e.target?.closest?.('#drive-scadenza, #drive-fab, #drive-guest-panel, #drive-fab-panel, #ec-panel, #ec-install-popup')) return;
+        document.removeEventListener('pointerup', _rinnovoAlTocco, true);
+        _rinnovoAlTocco = null;
+        const d = window.driveMgr;
+        if (!d) return;
+        d.renew().then(ok => {
+            // Google non ancora pronto: si riprova al tocco successivo, senza disturbare
+            if (ok === null) { if (document.getElementById('drive-scadenza')) _armaRinnovoAlTocco(true); return; }
+            // Rifiutato: niente nuovi tentativi automatici (aprirebbero Google a ogni tratto),
+            // restano «Rinnova» e «Col telefono» nella fascia
+            if (!ok) { _rinnovoRifiutato = true; toast('Rinnovo non riuscito. Usa «Rinnova» o «Col telefono»: la lezione a schermo resta com\'è.', 'error'); return; }
+            window.driveConnectBtn?.update();
+            d._checkExpiry();
+            toast('✓ Collegamento a Google Drive rinnovato', 'success');
+            if (typeof CONFIG !== 'undefined' && CONFIG.isDirty && window.libraryMgr?.currentFileId) window.autoSaveMgr?.retryNow();
+        });
+    };
+    document.addEventListener('pointerup', _rinnovoAlTocco, true);
 }
 
 /** Tocco su «Rinnova»: nessun await prima di renew(), altrimenti il browser blocca Google. */
@@ -2906,27 +2949,33 @@ async function _autoOpenLastLesson() {
             if (libraryMgr.currentFileId) window.autoSaveMgr?.retryNow();
             return;
         }
-        const raw = localStorage.getItem('eduboard_last_lesson');
-        if (raw) {
-            const last = JSON.parse(raw);
-            // FIX QR 404: usa il fileId in localStorage solo se è dello stesso account connesso
-            if (last?.fileId && (!last.userEmail || !driveMgr.userEmail || last.userEmail === driveMgr.userEmail)) {
-                await libraryMgr.openLesson(last.fileId, last.fileName || 'ultima lezione', last.lastPage || 0);
-                return;
-            }
+        // 16/10/2026 — Ordine dei tentativi: PRIMA l'ultima lezione scritta su Drive (_prefs.json,
+        // vale su ogni dispositivo), POI quella ricordata da questo browser. Prima era il contrario
+        // e si fermava al primo fallimento: la LIM ricordava una lezione vecchia o cancellata (404),
+        // mostrava un errore rosso e non apriva nulla, anche se Drive sapeva quella giusta
+        // (riprodotto dal vivo col QR di Fabio: browser «Prova» inesistente, Drive «PAG. 34-35»).
+        const stessoAccount = (l) => l?.fileId && (!l.userEmail || !driveMgr.userEmail || l.userEmail === driveMgr.userEmail);
+        const candidate = [];
+        try {
+            await driveMgr._ensureRootFolder();
+            const prefs = await driveMgr._loadPrefs();
+            if (stessoAccount(prefs?.lastLesson)) candidate.push(prefs.lastLesson);
+        } catch (err) { console.warn('[EduBoard] preferenze Drive non lette:', err?.message || err); }
+        try {
+            const last = JSON.parse(localStorage.getItem('eduboard_last_lesson') || 'null');
+            if (stessoAccount(last) && !candidate.some(c => c.fileId === last.fileId)) candidate.push(last);
+        } catch (_) {}
+        for (const c of candidate) {
+            // la lavagna può essersi «sporcata» mentre si leggeva Drive: non sovrascrivere
+            if (typeof CONFIG !== 'undefined' && CONFIG.isDirty) return;
+            await libraryMgr.openLesson(c.fileId, c.fileName || 'ultima lezione', c.lastPage || 0, { silenzioso: true });
+            if (libraryMgr.currentFileId === c.fileId) return;
         }
-        // localStorage assente o di un account diverso da quello connesso (cambio account,
-        // Chromebook fresco, seconda LIM, ecc.) → 1° tentativo: _prefs.json da Drive (device-independent)
-        await driveMgr._ensureRootFolder();
-        const prefs = await driveMgr._loadPrefs();
-        if (prefs?.lastLesson?.fileId) {
-            const p = prefs.lastLesson;
-            if (!p.userEmail || !driveMgr.userEmail || p.userEmail === driveMgr.userEmail) {
-                await libraryMgr.openLesson(p.fileId, p.fileName || 'ultima lezione', p.lastPage || 0);
-                return;
-            }
+        if (candidate.length) {
+            toast('Non trovo l\'ultima lezione usata (forse è stata cancellata): aprila dalla libreria.', 'info');
+            return;
         }
-        // → 2° fallback: file più recente nella cartella Lezioni
+        // → nessuna lezione ricordata: file più recente nella cartella Lezioni
         await driveMgr._ensureLessonsFolder();
         if (!driveMgr.lessonsFolderId) return;
         const files = await driveMgr.listFiles(driveMgr.lessonsFolderId);
@@ -2940,7 +2989,7 @@ async function _autoOpenLastLesson() {
         }
         files.sort((a, b) => (b.modifiedTime || '').localeCompare(a.modifiedTime || ''));
         await libraryMgr.openLesson(files[0].id, files[0].name || 'ultima lezione');
-    } catch (_) {}
+    } catch (err) { console.warn('[EduBoard] apertura automatica ultima lezione:', err?.message || err); }
 }
 
 
